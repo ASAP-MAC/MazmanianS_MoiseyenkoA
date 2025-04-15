@@ -1,58 +1,58 @@
 # Probiotics for a Parkinson's mouse model
 
 ## Research Objective
-To determine whether introducing beneficial microbes (Fp alone vs. benCom consortium) shifts gut microbial communities in Parkinson’s disease (PD) mouse models by:  
-1. Increasing beneficial commensals  
-2. Reducing pathogenic microbes  
-3. Comparing the efficacy of Fp versus benCom in driving these changes  
+To determine whether introducing beneficial microbes (*Faecalibacterium prausnitzii* alone vs. a beneficial commensal consortium) shifts gut microbial communities in Parkinson’s disease (PD) mouse models by:  
+1. Increasing beneficial commensal microbes  
+2. Reducing potentially pathogenic microbes  
+3. Comparing the efficacy of *F. prausnitzii* (Fp) alone versus the beneficial commensal community (benCom) in driving these changes  
 
 ---
 
 ## Experimental Design
 
 ### Animal Models
-- **Wildtype (WT)** and **alpha-synuclein overexpressing (ASO)** mice (modeling PD-like symptoms).  
-- Treatment duration: **5–22 weeks of age** (gavaged 2×/week).  
+- **Wildtype (WT)** mice and **alpha-synuclein overexpressing (ASO)** mice, which model PD-like symptoms.  
+- Treatment duration: **5 to 22 weeks of age**, with gavage administered twice per week.  
 
 ### Treatment Groups
-| Cohort       | Treatment                          | Sample Label |  
-|--------------|------------------------------------|--------------|  
-| **Control**  | Vehicle (PBS + sodium bicarbonate) | N/A          |  
-| **Fp**       | *Faecalibacterium prausnitzii*     | Fp7          |  
-| **benCom**   | 8-SCFA-producing commensals (incl. Fp) | bCL         |  
+| Cohort       | Treatment                                                  | Sample Label |  
+|--------------|------------------------------------------------------------|--------------|  
+| **Control**  | Vehicle (phosphate-buffered saline [PBS] with sodium bicarbonate) | N/A          |  
+| **Fp**       | *Faecalibacterium prausnitzii* (Fp), an abundant butyrate-producing member of the healthy human gut microbiome | Fp7          |  
+| **benCom**   | A cocktail of 8 beneficial commensal microbes including Fp, all major producers of short-chain fatty acids (SCFAs) and reduced in the PD microbiome | bCL          |  
 
 ### Outcome Assessments
-- **Motor function** and **GI function** tested at **20–21 weeks**.  
-- **Fecal microbiome analysis** post-treatment.  
+- Motor and gastrointestinal (GI) function tested at **20 to 21 weeks of age**.  
+- Fecal microbiome analysis performed post-treatment.  
 
 ---
 
 ## Key Methods
 
 ### Sample Collection
-- **Fp cohort**: Fecal pellets collected **<24 hrs post-last gavage**.  
-- **benCom cohort**: Pellets collected **2 days post-last gavage**.  
-- **Protocol**:  
-  1. Fresh pellets collected in a biosafety cabinet.  
-  2. Mice placed in sterile cups for defecation.  
-  3. Pellets flash-frozen in sterile tubes and stored at **-80°C**.  
-  4. Uniform processing by a single experimenter to minimize variability.  
+- Fecal pellets from the Fp cohort were collected **less than 24 hours after the last gavage**.  
+- Fecal pellets from the benCom cohort were collected **2 days after the last gavage**.  
+- Collection protocol:  
+  1. Pellets collected fresh in a biosafety cabinet.  
+  2. Mice placed individually in sterile plastic cups until defecation.  
+  3. Pellets scooped with sterile tubes, flash-frozen, and stored at **-80°C**.  
+  4. All samples collected and processed by the same experimenter to reduce variability.  
 
 ### DNA Extraction & Analysis
-- Performed on all samples to assess microbial community shifts.  
+- DNA extracted from fecal samples to assess shifts in microbial community composition.  
 
 ---
 
 ## Key Findings
-- **Both Fp and benCom** improved motor and GI dysfunction in ASO mice vs. vehicle.  
-- **Pending microbiome data** will clarify:  
-  - Whether Fp alone drives community shifts or requires benCom’s synergistic effects.  
-  - Changes in pathogenic vs. commensal microbe abundance.  
+- Both Fp and benCom treatments improved motor and GI dysfunction in ASO mice compared to vehicle controls.  
+- Microbiome data pending to determine:  
+  - Whether Fp alone can drive community shifts or if benCom’s combined microbes provide a more robust effect.  
+  - Changes in abundance of pathogenic versus beneficial commensal microbes.  
 
 ---
 
 ## Implications
-- Could inform microbiome-targeted therapies for PD.  
-- Highlights the potential superiority of microbial consortia (benCom) over single-strain interventions.  
+- Findings may inform microbiome-targeted therapeutic strategies for Parkinson’s disease.  
+- Suggests potential superiority of multi-strain microbial consortia (benCom) over single-strain interventions (Fp).  
 
 ---
