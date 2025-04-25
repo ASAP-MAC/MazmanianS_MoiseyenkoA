@@ -15,11 +15,12 @@ To determine whether introducing beneficial microbes (*Faecalibacterium prausnit
 - Treatment duration: **5 to 22 weeks of age**, with gavage administered twice per week.  
 
 ### Treatment Groups
-| Cohort       | Treatment                                                  | Sample Label |  
-|--------------|------------------------------------------------------------|--------------|  
-| **Control**  | Vehicle (phosphate-buffered saline [PBS] with sodium bicarbonate) | N/A          |  
-| **Fp**       | *Faecalibacterium prausnitzii* (Fp), an abundant butyrate-producing member of the healthy human gut microbiome | Fp7          |  
-| **benCom**   | A cocktail of 8 beneficial commensal microbes including Fp, all major producers of short-chain fatty acids (SCFAs) and reduced in the PD microbiome | bCL          |  
+| Cohort             | Treatment                                                  | Sample label |  
+|--------------------|------------------------------------------------------------|--------------|  
+| **Wild type (WT)** | Vehicle (phosphate-buffered saline [PBS] with sodium bicarbonate)      | W    |
+| **Alpha-synuclein overexpression Control (ASO-C)**        | Vehicle (phosphate-buffered saline [PBS] with sodium bicarbonate) | C          |  
+| **Alpha-synuclein overexpression + F. prausnitzii (ASO-FP)**             | *Faecalibacterium prausnitzii* (Fp)  | F          |  
+| **Alpha-synuclein overexpression + beneficial commensals (ASO-bC)**         | A cocktail of 8 beneficial commensal microbes including Fp, all major producers of short-chain fatty acids (SCFAs) and reduced in the PD microbiome | B          |  
 
 ### Outcome Assessments
 - Motor and gastrointestinal (GI) function tested at **20 to 21 weeks of age**.  
