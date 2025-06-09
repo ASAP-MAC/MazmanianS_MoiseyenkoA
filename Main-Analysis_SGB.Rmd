@@ -73,7 +73,9 @@ tmp_out <- capture.output(sapply(output_directories.list, dir.create, showWarnin
 rm(tmp_out)
 ```
 
-# Prepare data for analysis (run only once)
+# Prepare data for analysis
+
+THis is run only if interactive to avoid careless overwriting
 
 ```{r, eval=interactive()}
 
@@ -114,7 +116,6 @@ mpa_raw <- cbind(
 dir.create("Data/metaphlan_profiles", recursive = TRUE, showWarnings = FALSE)
 write_tsv(mpa_raw, "Data/metaphlan_profiles/metaphlan4_data.tsv")
 
-
 # wrangle metaphlan4 data
 mpa4_wrangled_taxonomy_mpa <- assay(metaphlan_profiles) %>%
   as.data.frame() %>% 
@@ -129,6 +130,16 @@ InputData.tse <- TreeSummarizedExperiment(
     metaphlan_Percent = as.matrix(mpa4_wrangled_taxonomy_mpa$profiles)[,rownames(metadata.df)]
     )
 )
+
+# Add phylogenetic tree
+library(TreeTools)
+source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/AddPhyloTree_to_mpa_tse.R")
+InputData.tse <-  AddPhyloTree_to_mpa_tse(InputData.tse, CHOCOPhlAn_version = "202403")
+
+# create a new assay with approximated counts as relAbund * reads_processed
+
+identical(rownames(InputData.tse@colData), colnames(assay(InputData.tse, "metaphlan_RelAbund")))
+assay(InputData.tse, "metaphlan_Counts") <- t(round(apply(assay(InputData.tse, "metaphlan_RelAbund"), 1, function(x) x * InputData.tse@colData$n_reads_processed), 0))
 saveRDS(InputData.tse, "Data/InputData.tse.Rds")
 
 ```
@@ -213,4 +224,39 @@ InputData.tse <- InputData_splitByRanks.tse[[params$tax_level]]
 
 InputData.tse
 ```
+
+# Alpha diversity in relation to seq. depth
+
+```{r}
+InputData.tse <- addAlpha(InputData.tse, assay.type = "metaphlan_RelAbund", index = c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"))
+
+lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), 
+       function(div) {
+         stats_basic <- shapiro.test(as.data.frame(colData(InputData.tse))[[div]])
+         text <- paste0("Shapiro-Wilk test for normality: W = ", round(stats_basic$statistic, 2), "; P-value = ", round(stats_basic$p.value, 3))
+         plot <- ggplot(as.data.frame(colData(InputData.tse)), aes(x = !!sym(div))) +
+           geom_histogram() + 
+           annotate(geom = "text", x = -Inf, y = Inf, label = text, hjust = 0.2, vjust = 2) + 
+           labs(title = div)
+         
+         }
+       ) %>% 
+  ggarrange(plotlist = .)
+
+```
+```{r, tab.cap="Assessment of dependence of alpha diversity measures in relation to sequencing depth"}
+tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
+  lm(as.formula(paste(div, "~", "n_reads_processed")), data = colData(InputData.tse))
+  
+}, USE.NAMES = TRUE, simplify = FALSE)
+
+tmp %>% lapply(broom::tidy) %>% 
+  bind_rows(.id = "ALphaIndex") %>% 
+  filter(term == "n_reads_processed") %>% 
+  select(-term) %>% 
+  mutate(q.value = p.adjust(p.value, "BH")) %>% 
+  kbl() %>% 
+  kable_styling()
+```
+
 
