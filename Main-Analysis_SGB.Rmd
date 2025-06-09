@@ -91,7 +91,7 @@ metadata.df <- read_tsv("Data/metadata_4.0.tsv") %>%
 googleCloudStorageR::gcs_auth(json_file = "~/Downloads/curatedmetagenomicdata-232f4a306d1d.json")
 
 # METAPHLAN4
-
+source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/get_reads_processed.R")
 mpa_files_cache <- cacheMetagenomicData(metadata.df$uuid, data_type = "relative_abundance", ask_on_update = FALSE) %>% 
   # retrieve reads per sample too
   mutate(n_reads_processed = get_reads_processed.vec(cache_path))
@@ -111,8 +111,8 @@ mpa_raw <- cbind(
   as_tibble() %>% 
   select(-additional_species)
 
-dir.create("Data/metaphlan_profiles/project-4", recursive = TRUE, showWarnings = FALSE)
-write_tsv(mpa_raw, "Data/metaphlan_profiles/project-4/metaphlan4_data.tsv")
+dir.create("Data/metaphlan_profiles", recursive = TRUE, showWarnings = FALSE)
+write_tsv(mpa_raw, "Data/metaphlan_profiles/metaphlan4_data.tsv")
 
 
 # wrangle metaphlan4 data

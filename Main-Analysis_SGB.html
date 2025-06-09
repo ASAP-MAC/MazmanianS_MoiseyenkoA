@@ -2793,7 +2793,7 @@ margin-left: 0 !important;
 <span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>googleCloudStorageR<span class="sc">::</span><span class="fu">gcs_auth</span>(<span class="at">json_file =</span> <span class="st">&quot;~/Downloads/curatedmetagenomicdata-232f4a306d1d.json&quot;</span>)</span>
 <span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a></span>
 <span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co"># METAPHLAN4</span></span>
-<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/get_reads_processed.R&quot;</span>)</span>
 <span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>mpa_files_cache <span class="ot">&lt;-</span> <span class="fu">cacheMetagenomicData</span>(metadata.df<span class="sc">$</span>uuid, <span class="at">data_type =</span> <span class="st">&quot;relative_abundance&quot;</span>, <span class="at">ask_on_update =</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span> </span>
 <span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>  <span class="co"># retrieve reads per sample too</span></span>
 <span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">n_reads_processed =</span> <span class="fu">get_reads_processed.vec</span>(cache_path))</span>
@@ -2813,8 +2813,8 @@ margin-left: 0 !important;
 <span id="cb3-32"><a href="#cb3-32" tabindex="-1"></a>  <span class="fu">as_tibble</span>() <span class="sc">%&gt;%</span> </span>
 <span id="cb3-33"><a href="#cb3-33" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>additional_species)</span>
 <span id="cb3-34"><a href="#cb3-34" tabindex="-1"></a></span>
-<span id="cb3-35"><a href="#cb3-35" tabindex="-1"></a><span class="fu">dir.create</span>(<span class="st">&quot;Data/metaphlan_profiles/project-4&quot;</span>, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb3-36"><a href="#cb3-36" tabindex="-1"></a><span class="fu">write_tsv</span>(mpa_raw, <span class="st">&quot;Data/metaphlan_profiles/project-4/metaphlan4_data.tsv&quot;</span>)</span>
+<span id="cb3-35"><a href="#cb3-35" tabindex="-1"></a><span class="fu">dir.create</span>(<span class="st">&quot;Data/metaphlan_profiles&quot;</span>, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb3-36"><a href="#cb3-36" tabindex="-1"></a><span class="fu">write_tsv</span>(mpa_raw, <span class="st">&quot;Data/metaphlan_profiles/metaphlan4_data.tsv&quot;</span>)</span>
 <span id="cb3-37"><a href="#cb3-37" tabindex="-1"></a></span>
 <span id="cb3-38"><a href="#cb3-38" tabindex="-1"></a></span>
 <span id="cb3-39"><a href="#cb3-39" tabindex="-1"></a><span class="co"># wrangle metaphlan4 data</span></span>
