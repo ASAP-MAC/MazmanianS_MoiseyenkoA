@@ -118,7 +118,7 @@ mpa4_wrangled_taxonomy_mpa <- assay(metaphlan_profiles) %>%
   rownames_to_column("clade_name") %>% 
   wrangle_metaphlan(taxonomic_lvl = params$tax_level)
 
-InputData.tse <- TreeSummarizedExperiment(
+InputMetaphlanData.tse <- TreeSummarizedExperiment(
   rowData = mpa4_wrangled_taxonomy_mpa$taxonomies,
   colData = metadata.df,
   assays = list(
@@ -130,20 +130,20 @@ InputData.tse <- TreeSummarizedExperiment(
 # Add phylogenetic tree
 library(TreeTools)
 source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/AddPhyloTree_to_mpa_tse.R")
-InputData.tse <-  AddPhyloTree_to_mpa_tse(InputData.tse, CHOCOPhlAn_version = "202403")
+InputMetaphlanData.tse <-  AddPhyloTree_to_mpa_tse(InputMetaphlanData.tse, CHOCOPhlAn_version = "202403")
 
 detach("package:TreeTools", unload=TRUE)
 # create a new assay with approximated counts as relAbund * reads_processed
 
-identical(rownames(InputData.tse@colData), colnames(assay(InputData.tse, "metaphlan_RelAbund")))
-assay(InputData.tse, "metaphlan_Counts") <- t(round(apply(assay(InputData.tse, "metaphlan_RelAbund"), 1, function(x) x * InputData.tse@colData$n_reads_processed), 0))
-saveRDS(InputData.tse, "Data/InputData.tse.Rds")
+identical(rownames(InputMetaphlanData.tse@colData), colnames(assay(InputMetaphlanData.tse, "metaphlan_RelAbund")))
+assay(InputMetaphlanData.tse, "metaphlan_Counts") <- t(round(apply(assay(InputMetaphlanData.tse, "metaphlan_RelAbund"), 1, function(x) x * InputMetaphlanData.tse@colData$n_reads_processed), 0))
+saveRDS(InputMetaphlanData.tse, "Data/InputMetaphlanData.tse.Rds")
 
 ```
 
 ```{r}
-InputData.tse <- readRDS("Data/InputData.tse.Rds")
-InputData.tse
+InputMetaphlanData.tse <- readRDS("Data/InputMetaphlanData.tse.Rds")
+InputMetaphlanData.tse
 ```
 
 # Dataset-wide microbiome composition statistics
@@ -151,7 +151,7 @@ InputData.tse
 ## Number of taxa per taxonomic level
 
 ```{r}
-InputData_splitByRanks.tse <- append(splitByRanks(InputData.tse), list("SGB" = InputData.tse))
+InputData_splitByRanks.tse <- append(splitByRanks(InputMetaphlanData.tse), list("SGB" = InputMetaphlanData.tse))
  
 InputData_splitByRanks.tse %>%  
   sapply(nrow)
@@ -207,7 +207,7 @@ We need to rely on other methods.
 
 ```{r, fig.cap="Heatmap of full microbiome composition of the dataset. Relative abundances have been Z-scaled by taxon, to account for intrinsic differences in relative abundances in the microbiome"}
 
-pheatmap::pheatmap(assay(InputData.tse) %>% magrittr::set_colnames(colData(InputData.tse)$sample_name), scale = "row", annotation_col = colData(InputData.tse) %>% as.data.frame() %>%  magrittr::set_rownames(.$sample_name) %>% select(treatment, cohort), angle_col = 315, show_rownames = FALSE)
+pheatmap::pheatmap(assay(InputMetaphlanData.tse) %>% magrittr::set_colnames(colData(InputMetaphlanData.tse)$sample_name), scale = "row", annotation_col = colData(InputMetaphlanData.tse) %>% as.data.frame() %>%  magrittr::set_rownames(.$sample_name) %>% select(treatment, cohort), angle_col = 315, show_rownames = FALSE)
 
 ```
 
@@ -217,21 +217,21 @@ Below the `TreeSummarizedExperiment` object summary that is going to be used
 in all following analyses
 
 ```{r}
-InputData.tse <- InputData_splitByRanks.tse[[params$tax_level]]
+InputMetaphlanData.tse <- InputData_splitByRanks.tse[[params$tax_level]]
 
-InputData.tse
+InputMetaphlanData.tse
 ```
 
 # Alpha diversity does not vary in relation to sequencing depth
 
 ```{r}
-InputData.tse <- addAlpha(InputData.tse, assay.type = "metaphlan_RelAbund", index = c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"))
+InputMetaphlanData.tse <- addAlpha(InputMetaphlanData.tse, assay.type = "metaphlan_RelAbund", index = c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"))
 
 lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), 
        function(div) {
-         stats_basic <- shapiro.test(as.data.frame(colData(InputData.tse))[[div]])
+         stats_basic <- shapiro.test(as.data.frame(colData(InputMetaphlanData.tse))[[div]])
          text <- paste0("Shapiro-Wilk test for normality: W = ", round(stats_basic$statistic, 2), "; P-value = ", round(stats_basic$p.value, 3))
-         plot <- ggplot(as.data.frame(colData(InputData.tse)), aes(x = !!sym(div))) +
+         plot <- ggplot(as.data.frame(colData(InputMetaphlanData.tse)), aes(x = !!sym(div))) +
            geom_histogram() + 
            annotate(geom = "text", x = -Inf, y = Inf, label = text, hjust = 0.2, vjust = 2) + 
            labs(title = div)
@@ -244,7 +244,7 @@ lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"),
 
 ```{r, tab.cap="Assessment of dependence of alpha diversity measures in relation to sequencing depth"}
 tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
-  lm(as.formula(paste(div, "~", "n_reads_processed")), data = colData(InputData.tse))
+  lm(as.formula(paste(div, "~", "n_reads_processed")), data = colData(InputMetaphlanData.tse))
   
 }, USE.NAMES = TRUE, simplify = FALSE)
 
@@ -266,7 +266,7 @@ $$
 
 ```{r}
 tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
-  lm(as.formula(paste(div, "~", "genotype + treatment + cohort + n_reads_processed")), data = colData(InputData.tse))
+  lm(as.formula(paste(div, "~", "genotype + treatment + cohort + n_reads_processed")), data = colData(InputMetaphlanData.tse))
   
 }, USE.NAMES = TRUE, simplify = FALSE)
 
@@ -303,17 +303,17 @@ Possible confounders:
 ```{r}
 dimRedName <- paste(params$beta_dist, "mds", sep = "_")
 # this will work once mia or TreeSummarizedExperiment fixes some things
-InputData.tse <- mia::addMDS(
-  InputData.tse,
+InputMetaphlanData.tse <- mia::addMDS(
+  InputMetaphlanData.tse,
   assay.type = "metaphlan_RelAbund",
   method = params$beta_dist,
   ncomponents = 3, name = dimRedName
   )
 
-variances_explained <- attr(reducedDim(InputData.tse, dimRedName), "eig")
+variances_explained <- attr(reducedDim(InputMetaphlanData.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputData.tse)), reducedDim(InputData.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData.tse)), reducedDim(InputMetaphlanData.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) + 
@@ -348,8 +348,8 @@ Matheus' data shows a slightly clearer shift (but still not a separation)
 ```{r}
 source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/PERMANOVA_to_table.R")
 
-InputData.tse <- addPERMANOVA(
-  InputData.tse,
+InputMetaphlanData.tse <- addPERMANOVA(
+  InputMetaphlanData.tse,
   assay.type = "metaphlan_RelAbund",
   method = "bray",
   formula = x ~ genotype + treatment + cohort,
@@ -358,7 +358,7 @@ InputData.tse <- addPERMANOVA(
   test.homogeneity = TRUE
 )
 
-permanova_table.df <- PERMANOVA_to_table(InputData.tse)
+permanova_table.df <- PERMANOVA_to_table(InputMetaphlanData.tse)
 
 write_tsv(permanova_table.df, file = file.path(output_directories.list$beta_div_outdir, paste(params$beta_dist, "adonisPermanova", "genotype", "treatment", "cohort.tsv", sep = "_")))
 ```
@@ -386,7 +386,7 @@ $$
 
 ```{r}
 # prepare input data
-tmp.tse <- InputData.tse[,InputData.tse@colData$treatment == "Vehicle"] 
+tmp.tse <- InputMetaphlanData.tse[,InputMetaphlanData.tse@colData$treatment == "Vehicle"] 
 tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT")
 tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
 
@@ -509,7 +509,7 @@ $$
 
 ```{r}
 # prepare input data
-tmp.tse <- InputData.tse[,InputData.tse@colData$genotype != "WT"]
+tmp.tse <- InputMetaphlanData.tse[,InputMetaphlanData.tse@colData$genotype != "WT"]
 tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Vehicle")
 tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
 tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, "metaphlan_RelAbund")) > 0,]
