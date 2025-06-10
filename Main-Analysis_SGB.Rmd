@@ -299,7 +299,7 @@ Possible confounders:
   * Cage: Potential confounder, but mice receiving the same treatment are also in the same cage and there are only 2 mice per cage, making statics weak
   * Subcohort: Same as cage. It looks like a few samples were processed at a different time: 7W-F, 8W-F, 8W-B, 8C-B
 
-# Beta diversity in relation to treatment and cohort
+# Beta diversity in relation to treatment and genotype
 
 ```{r}
 dimRedName <- paste(params$beta_dist, "mds", sep = "_")
@@ -329,20 +329,11 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) +
 
 ```
 
-## Static plot
-
 ```{r}
 ggsave(plot = beta_plot_basic, filename = file.path(output_directories.list$beta_div_outdir, "bray_MDS_plot.png"), dpi = 600, height = 6.5, width = 7)
 
 beta_plot_basic
 ```
-
-There are not major microbiota shifts due to probiotic treatment. This is 
-expected, as bidimensional separation can usually be achieved in extreme 
-treatments. Interestingly, ASO vehicle and WT vehicle show very similar 
-compositions.
-
-Matheus' data shows a slightly clearer shift (but still not a separation)
 
 ## PERMANOVA statistics
 
@@ -353,7 +344,7 @@ InputMetaphlanData.tse <- addPERMANOVA(
   InputMetaphlanData.tse,
   assay.type = "metaphlan_RelAbund",
   method = "bray",
-  formula = x ~ genotype + treatment + cohort,
+  formula = x ~ genotype + treatment,
   name = "permanova",
   permutations = 999,
   test.homogeneity = TRUE
@@ -370,14 +361,83 @@ permanova_table.df %>%
   kable_styling()
 ```
 
-Genotype and cage show similar microbiome variance explained (R2). The treatment
-shows 2x more variance explained. Each variable is tested against the remaining
-variables in the model.
+# Cohort Fp7
 
-# What microbes differ between `genotypes` in vehicle controls?
+```{r}
+cohort_subdir <- "cohort_Fp7"
+
+dir.create(file.path(params$basic_outdir, params$tax_level, cohort_subdir), showWarnings = FALSE, recursive = TRUE)
+
+InputMetaphlanData_Fp7.tse <- InputMetaphlanData.tse[, InputMetaphlanData.tse@colData$cohort == "Fp7"] 
+```
+
+## Overall community trends (Beta diversity)
+
+```{r}
+dimRedName <- paste(params$beta_dist, "mds", sep = "_")
+# this will work once mia or TreeSummarizedExperiment fixes some things
+InputMetaphlanData_Fp7.tse <- mia::addMDS(
+  InputMetaphlanData_Fp7.tse,
+  assay.type = "metaphlan_RelAbund",
+  method = params$beta_dist,
+  ncomponents = 3, name = dimRedName
+  )
+
+variances_explained <- attr(reducedDim(InputMetaphlanData_Fp7.tse, dimRedName), "eig")
+prop_variances_explained <- variances_explained/sum(variances_explained)
+
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_Fp7.tse)), reducedDim(InputMetaphlanData_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+
+beta_plot_basic <- project1_meta_with_MDS.df %>% 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) + 
+  geom_point(size = 2) + 
+  stat_ellipse(show.legend = FALSE) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 1, 2, 4, 5)]) +
+  theme(legend.position = "top") +
+  labs(color = "Genotype and Treatment",
+       x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
+       y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
+  )
+
+```
+
+## Static plot
+
+```{r}
+ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.png", sep = "_")), dpi = 600, height = 6.5, width = 7)
+
+beta_plot_basic
+```
+
+```{r}
+source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/PERMANOVA_to_table.R")
+
+InputMetaphlanData_Fp7.tse <- addPERMANOVA(
+  InputMetaphlanData_Fp7.tse,
+  assay.type = "metaphlan_RelAbund",
+  method = "bray",
+  formula = x ~ genotype + treatment + cohort,
+  name = "permanova",
+  permutations = 999,
+  test.homogeneity = TRUE
+)
+
+permanova_table.df <- PERMANOVA_to_table(InputMetaphlanData_Fp7.tse)
+
+write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, "PERMANOVA.png", sep = "_")))
+```
+
+```{r}
+permanova_table.df %>% 
+  kbl() %>% 
+  kable_styling()
+```
+
+## What microbes differ between `genotypes` in vehicle controls?
 
 These bacteria should not be considered in the main exposure of interest later, 
-as they vary because of genotype as well. 
+as they vary because of genotype as well. Analyses should be performed
+within each cohort.
 
 Model formula is:
 
@@ -387,14 +447,15 @@ $$
 
 ```{r}
 # prepare input data
-tmp.tse <- InputMetaphlanData.tse[,InputMetaphlanData.tse@colData$treatment == "Vehicle"] 
+
+tmp.tse <- InputMetaphlanData_Fp7.tse[,InputMetaphlanData_Fp7.tse@colData$treatment == "Vehicle"] 
 tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT")
 tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
 
 # define experiment name and output directories
-maaslin3_expmt <- "genotype_differences_in_ctrls"
-maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, maaslin3_expmt)
-maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, maaslin3_expmt)
+maaslin3_expmt <- "genotype_vs_WT_in_treatment_vehicle"
+maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir,  cohort_subdir, maaslin3_expmt)
+maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, cohort_subdir, maaslin3_expmt)
 # crate temporary output directory
 dir.create(maaslin3_tmp_outdir, showWarnings = FALSE, recursive = TRUE)
 # create definitive output directory
@@ -406,11 +467,11 @@ Results are stored in ``r maaslin3_final_outdir``
 ```{r}
 genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     input_data = tmp.tse,
-    formula = ~ genotype + cohort, 
+    formula = ~ genotype, 
     transform = "LOG",
     output = maaslin3_tmp_outdir,
     # do not standardize continuous metadata variables in the model
-    standardize = FALSE, 
+    standardize = FALSE,
     plot_associations = TRUE,
     verbosity = "ERROR"
   )
@@ -430,17 +491,17 @@ genotype_differences_in_ctrls.maaslin3_annotated <- list(
     )
 
 # save output tsvs as produced by maaslin3
-system(paste0("cp ", maaslin3_tmp_outdir, "/*.tsv", " ", file.path(params$basic_outdir, params$tax_level, maaslin3_expmt)))
+system(paste0("cp ", maaslin3_tmp_outdir, "/*.tsv", " ", maaslin3_final_outdir))
 # save figures folder
-system(paste0("cp -r ", file.path(output_directories.list$maaslin_tmpdir, maaslin3_expmt, "/figures"), " ", file.path(params$basic_outdir, params$tax_level, maaslin3_expmt)))
+system(paste0("cp -r ", file.path(maaslin3_tmp_outdir, "figures"), " ", maaslin3_final_outdir))
 
 ```
 
-## Disappeared bacteria in ASO 
+### Less prevalent bacteria in ASO 
 
 ```{r}
 genotype_differences_in_ctrls.maaslin3_annotated$prevalence %>% 
-  filter(qval_individual < 0.1, value == "ASO", round(coef,4) == min(round(coef, 4), na.rm = TRUE)) %>% 
+  filter(qval_individual < 0.1, value == "ASO") %>% 
   select(Phylum:feature, coef, qval_individual) %>% 
   DT::datatable(
     extensions = "Buttons",
@@ -449,11 +510,11 @@ genotype_differences_in_ctrls.maaslin3_annotated$prevalence %>%
     )
 ```
 
-## Appeared bacteria in ASO 
+### More prevalent bacteria in ASO 
 
 ```{r}
 genotype_differences_in_ctrls.maaslin3_annotated$prevalence %>% 
-  filter(qval_individual < 0.1, value == "ASO", round(coef,4) == max(round(coef, 4), na.rm = TRUE)) %>% 
+  filter(qval_individual < 0.1, value == "ASO") %>% 
   select(Phylum:feature, coef, qval_individual) %>% 
   DT::datatable(
     extensions = "Buttons",
@@ -462,7 +523,7 @@ genotype_differences_in_ctrls.maaslin3_annotated$prevalence %>%
     )
 ```
 
-## Decreased bacteria in ASO
+### Decreased bacteria in ASO
 
 ```{r}
 genotype_differences_in_ctrls.maaslin3_annotated$abundance %>% 
@@ -476,7 +537,7 @@ genotype_differences_in_ctrls.maaslin3_annotated$abundance %>%
     )
 ```
 
-## Increased bacteria in ASO
+### Increased bacteria in ASO
 
 ```{r}
 genotype_differences_in_ctrls.maaslin3_annotated$abundance %>% 
@@ -490,35 +551,44 @@ genotype_differences_in_ctrls.maaslin3_annotated$abundance %>%
     )
 ```
 
-## Conclusions
+### Conclusions
 
-  * With the formula $Microbiome \sim genotype + cohort$ we do not see 
-  statistically associated bacteria
+  * There are no differentially prevalent bacteria comparing ASO vs WT 
+  vehicle mice
   
-  * Nor having only genotype as exposure (Not shown)
+  * 1 bacterium are decreased and 10 are increased in ASO mice.
   
-  * WT and ASO mice in this experiment do not show statistically significant 
-  microbiome differences (N = 16 vs 16)
+  * The large effect sizes, however, point to a lack of statistical power to 
+  confidently say that there are differences. This does not mean that there are 
+  0 compositional shifts
   
-# Effects of `treatment` adjusting for cohort in ASO male mice
+  * Compared to Matheus' project 1 experiment, we find much fewer associations.
+  Matheus' comparison was 10 vs 10, this comparison has 8 vs 8
+
+## Effects of `treatment` in ASO male mice
 
 Model formula is:
 
 $$
-\log_2(Microbiome) \sim treament + cohort  
+\log_2(Microbiome) \sim treament  
 $$
+
+The analysis is restricted to ASO mice, and the baseline is ASO-vehicle mice.
+This is allowed because we are interested in the impact of the communities on 
+mice microbiome and their motor performance, and WT mice was not gavaged either
+probiotic formulation, so they are incomparable.
 
 ```{r}
 # prepare input data
-tmp.tse <- InputMetaphlanData.tse[,InputMetaphlanData.tse@colData$genotype != "WT"]
+tmp.tse <- InputMetaphlanData_Fp7.tse[,InputMetaphlanData_Fp7.tse@colData$genotype != "WT"]
 tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Vehicle")
 tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
 tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, "metaphlan_RelAbund")) > 0,]
 
 # define experiment name and output directories
 maaslin3_expmt <- "treatments_vs_vehicle_in_ASO"
-maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, maaslin3_expmt)
-maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, maaslin3_expmt)
+maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, cohort_subdir, maaslin3_expmt)
+maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, cohort_subdir, maaslin3_expmt)
 
 # crate temporary output directory
 dir.create(maaslin3_tmp_outdir, showWarnings = FALSE, recursive = TRUE)
@@ -532,7 +602,7 @@ Results are stored in ``r maaslin3_final_outdir``
 ```{r}
 treatments_vs_vehicle_in_ASO.maaslin3 <- maaslin3(
     input_data = tmp.tse,
-    formula = ~ treatment + cohort, 
+    formula = ~ treatment, 
     transform = "LOG",
     output = maaslin3_tmp_outdir,
     # do not standardize continuous metadata variables in the model
@@ -556,20 +626,18 @@ treatments_vs_vehicle_in_ASO.maaslin3_annotated <- list(
     )
 
 # save output tsvs as produced by maaslin3
-system(paste0("cp ", maaslin3_tmp_outdir, "/*.tsv", " ", file.path(params$basic_outdir, params$tax_level, maaslin3_expmt)))
+system(paste0("cp ", maaslin3_tmp_outdir, "/*.tsv", " ", maaslin3_final_outdir))
 # save figures folder
-system(paste0("cp -r ", file.path(output_directories.list$maaslin_tmpdir, maaslin3_expmt, "/figures"), " ", file.path(params$basic_outdir, params$tax_level, maaslin3_expmt)))
+system(paste0("cp -r ", file.path(maaslin3_tmp_outdir, "figures"), " ", maaslin3_final_outdir))
 
 ```
 
-## Differentially prevalent {.tabset}
-
-### Fp
+### Less prevalent bacteria in Fp treated mice 
 
 ```{r}
 treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence %>% 
   filter(qval_individual < 0.1, value == "Fp") %>% 
-  select(contains(colnames(treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence)), -contains(c("metadata", "value", "name", "null_"))) %>% 
+  select(Phylum:feature, coef, qval_individual) %>% 
   DT::datatable(
     extensions = "Buttons",
     options = list(dom = "Bfrtip",
@@ -577,13 +645,324 @@ treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence %>%
     )
 ```
 
+### More prevalent bacteria in Fp treated mice
 
-### benCom
+```{r}
+treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence %>% 
+  filter(qval_individual < 0.1, value == "Fp") %>% 
+  select(Phylum:feature, coef, qval_individual) %>% 
+  DT::datatable(
+    extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+    )
+```
+
+### Decreased bacteria in Fp treated mice
+
+```{r}
+treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>% 
+  filter(qval_individual < 0.1, value == "Fp", coef < 0) %>% 
+  select(Phylum:feature, coef, qval_individual) %>%
+  arrange(desc(abs(coef))) %>% 
+  DT::datatable(
+    extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+    )
+```
+
+### Increased bacteria in Fp treated mice
+
+```{r}
+treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>% 
+  filter(qval_individual < 0.1, value == "Fp", coef > 0) %>% 
+  select(Phylum:feature, coef, qval_individual) %>%
+  arrange(desc(abs(coef))) %>% 
+  DT::datatable(
+    extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+    )
+```
+
+### Conclusions
+
+  * No differentially **prevalent** features with Q-value < 0.1 comparing `Fp`
+  against `vehicle` ASO controls
+  
+  * No differentially **abundant** features with Q-value < 0.1 comparing `Fp`
+  against `vehicle` ASO controls
+
+  * Looking at raw data, I tend to conclude the same thing: a signal is there 
+  but we are underpowered to label it "statistically significant".
+  
+# Cohort bCL
+
+```{r}
+cohort_subdir <- "cohort_bCL"
+
+dir.create(file.path(params$basic_outdir, params$tax_level, cohort_subdir), showWarnings = FALSE, recursive = TRUE)
+
+InputMetaphlanData_bCL.tse <- InputMetaphlanData.tse[, InputMetaphlanData.tse@colData$cohort == "bCL"] 
+```
+
+## Overall community trends (Beta diversity)
+
+```{r}
+dimRedName <- paste(params$beta_dist, "mds", sep = "_")
+# this will work once mia or TreeSummarizedExperiment fixes some things
+InputMetaphlanData_bCL.tse <- mia::addMDS(
+  InputMetaphlanData_bCL.tse,
+  assay.type = "metaphlan_RelAbund",
+  method = params$beta_dist,
+  ncomponents = 3, name = dimRedName
+  )
+
+variances_explained <- attr(reducedDim(InputMetaphlanData_bCL.tse, dimRedName), "eig")
+prop_variances_explained <- variances_explained/sum(variances_explained)
+
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_bCL.tse)), reducedDim(InputMetaphlanData_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+
+beta_plot_basic <- project1_meta_with_MDS.df %>% 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) + 
+  geom_point(size = 2) + 
+  stat_ellipse(show.legend = FALSE) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 1, 2, 4, 5)]) +
+  theme(legend.position = "top") +
+  labs(color = "Genotype and Treatment",
+       x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
+       y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
+  )
+
+```
+
+```{r}
+ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.png", sep = "_")), dpi = 600, height = 6.5, width = 7)
+
+beta_plot_basic
+```
+
+```{r}
+source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/PERMANOVA_to_table.R")
+
+InputMetaphlanData_bCL.tse <- addPERMANOVA(
+  InputMetaphlanData_bCL.tse,
+  assay.type = "metaphlan_RelAbund",
+  method = "bray",
+  formula = x ~ genotype + treatment,
+  name = "permanova",
+  permutations = 999,
+  test.homogeneity = TRUE
+)
+
+permanova_table.df <- PERMANOVA_to_table(InputMetaphlanData_bCL.tse)
+
+write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, "PERMANOVA.png", sep = "_")))
+```
+
+```{r}
+permanova_table.df %>% 
+  kbl() %>% 
+  kable_styling()
+```
+
+## What microbes differ between `genotypes` in vehicle controls?
+
+These bacteria should not be considered in the main exposure of interest later, 
+as they vary because of genotype as well. Analyses should be performed
+within each cohort.
+
+Model formula is:
+
+$$
+\log_2(Microbiome) \sim genotype
+$$
+
+```{r}
+# prepare input data
+
+tmp.tse <- InputMetaphlanData_bCL.tse[,InputMetaphlanData_bCL.tse@colData$treatment == "Vehicle"] 
+tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT")
+tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
+
+# define experiment name and output directories
+maaslin3_expmt <- "genotype_vs_WT_in_treatment_vehicle"
+maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir,  cohort_subdir, maaslin3_expmt)
+maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, cohort_subdir, maaslin3_expmt)
+# crate temporary output directory
+dir.create(maaslin3_tmp_outdir, showWarnings = FALSE, recursive = TRUE)
+# create definitive output directory
+dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
+```
+
+Results are stored in ``r maaslin3_final_outdir``
+
+```{r}
+genotype_differences_in_ctrls.maaslin3 <- maaslin3(
+    input_data = tmp.tse,
+    formula = ~ genotype, 
+    transform = "LOG",
+    output = maaslin3_tmp_outdir,
+    # do not standardize continuous metadata variables in the model
+    standardize = FALSE, 
+    plot_associations = TRUE,
+    verbosity = "ERROR"
+  )
+
+genotype_differences_in_ctrls.maaslin3_annotated <- list(
+      abundance = genotype_differences_in_ctrls.maaslin3$fit_data_abundance$results %>% filter(metadata == "genotype"),
+      prevalence = genotype_differences_in_ctrls.maaslin3$fit_data_prevalence$results %>% filter(metadata == "genotype")
+    ) %>% 
+      lapply(function(x) {
+    taxonomy_info <- as.data.frame(rowData(tmp.tse))
+    taxonomy_info_subset <- taxonomy_info[,1:which(colnames(taxonomy_info) == params$tax_level)]
+    colnames(taxonomy_info_subset)[ncol(taxonomy_info_subset)] <- "feature"
+    
+    return(
+      dplyr::full_join(taxonomy_info_subset, x, by = "feature") %>%
+        arrange(qval_individual))}
+    )
+
+# save output tsvs as produced by maaslin3
+system(paste0("cp ", maaslin3_tmp_outdir, "/*.tsv", " ", maaslin3_final_outdir))
+# save figures folder
+system(paste0("cp -r ", file.path(maaslin3_tmp_outdir, "figures"), " ", maaslin3_final_outdir))
+
+```
+
+### Less prevalent bacteria in ASO 
+
+```{r}
+genotype_differences_in_ctrls.maaslin3_annotated$prevalence %>% 
+  filter(qval_individual < 0.1, value == "ASO") %>% 
+  select(Phylum:feature, coef, qval_individual) %>% 
+  DT::datatable(
+    extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+    )
+```
+
+### More prevalent bacteria in ASO 
+
+```{r}
+genotype_differences_in_ctrls.maaslin3_annotated$prevalence %>% 
+  filter(qval_individual < 0.1, value == "ASO") %>% 
+  select(Phylum:feature, coef, qval_individual) %>% 
+  DT::datatable(
+    extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+    )
+```
+
+### Decreased bacteria in ASO
+
+```{r}
+genotype_differences_in_ctrls.maaslin3_annotated$abundance %>% 
+  filter(qval_individual < 0.1, value == "ASO", coef < 0) %>% 
+  select(Phylum:feature, coef, qval_individual) %>%
+  arrange(desc(abs(coef))) %>% 
+  DT::datatable(
+    extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+    )
+```
+
+### Increased bacteria in ASO
+
+```{r}
+genotype_differences_in_ctrls.maaslin3_annotated$abundance %>% 
+  filter(qval_individual < 0.1, value == "ASO", coef > 0) %>% 
+  select(Phylum:feature, coef, qval_individual) %>%
+  arrange(desc(abs(coef))) %>% 
+  DT::datatable(
+    extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+    )
+```
+
+### Conclusions
+
+  * No statistical differences due to genotype in bCL cohort comparing mice
+  treated with `vehicle`.
+
+## Effects of `treatment` in ASO male mice
+
+Model formula is:
+
+$$
+\log_2(Microbiome) \sim treament  
+$$
+
+The analysis is restricted to ASO mice, and the baseline is ASO-vehicle mice.
+This is allowed because we are interested in the impact of the communities on 
+mice microbiome and their motor performance, and WT mice was not gavaged either
+probiotic formulation, so they are incomparable.
+
+```{r}
+# prepare input data
+tmp.tse <- InputMetaphlanData_bCL.tse[,InputMetaphlanData_bCL.tse@colData$genotype != "WT"]
+tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Vehicle")
+tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
+tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, "metaphlan_RelAbund")) > 0,]
+
+# define experiment name and output directories
+maaslin3_expmt <- "treatments_vs_vehicle_in_ASO"
+maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, cohort_subdir, maaslin3_expmt)
+maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, cohort_subdir, maaslin3_expmt)
+
+# crate temporary output directory
+dir.create(maaslin3_tmp_outdir, showWarnings = FALSE, recursive = TRUE)
+
+# create definitive output directory
+dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
+```
+
+Results are stored in ``r maaslin3_final_outdir``
+
+```{r}
+treatments_vs_vehicle_in_ASO.maaslin3 <- maaslin3(
+    input_data = tmp.tse,
+    formula = ~ treatment, 
+    transform = "LOG",
+    output = maaslin3_tmp_outdir,
+    # do not standardize continuous metadata variables in the model
+    standardize = FALSE, 
+    plot_associations = TRUE,
+    verbosity = "ERROR"
+  )
+
+treatments_vs_vehicle_in_ASO.maaslin3_annotated <- list(
+      abundance = treatments_vs_vehicle_in_ASO.maaslin3$fit_data_abundance$results %>% filter(metadata == "treatment"),
+      prevalence = treatments_vs_vehicle_in_ASO.maaslin3$fit_data_prevalence$results %>% filter(metadata == "treatment")
+    ) %>% 
+      lapply(function(x) {
+    taxonomy_info <- as.data.frame(rowData(tmp.tse))
+    taxonomy_info_subset <- taxonomy_info[,1:which(colnames(taxonomy_info) == params$tax_level)]
+    colnames(taxonomy_info_subset)[ncol(taxonomy_info_subset)] <- "feature"
+    
+    return(
+      dplyr::full_join(taxonomy_info_subset, x, by = "feature") %>%
+        arrange(qval_individual))}
+    )
+
+# save output tsvs as produced by maaslin3
+system(paste0("cp ", maaslin3_tmp_outdir, "/*.tsv", " ", maaslin3_final_outdir))
+# save figures folder
+system(paste0("cp -r ", file.path(maaslin3_tmp_outdir, "figures"), " ", maaslin3_final_outdir))
+
+```
+
+### Less prevalent bacteria in benCom treated mice 
 
 ```{r}
 treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence %>% 
   filter(qval_individual < 0.1, value == "benCom") %>% 
-  select(contains(colnames(treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence)), -contains(c("metadata", "value", "name", "null_"))) %>% 
+  select(Phylum:feature, coef, qval_individual) %>% 
   DT::datatable(
     extensions = "Buttons",
     options = list(dom = "Bfrtip",
@@ -591,47 +970,12 @@ treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence %>%
     )
 ```
 
-
-### Both
-
-```{r}
-dplyr::inner_join(
-  treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence %>% 
-  filter(qval_individual < 0.1, value == "Fp"),
-  treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence %>% 
-  filter(qval_individual < 0.1, value ==" benCom") %>% select(feature:N_not_zero),
-  by = "feature", suffix = c(".Fp", ".benCom")) %>% 
-  select(contains(colnames(treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence)), -contains(c("metadata", "value", "name", "null_"))) %>% 
-  
-  DT::datatable(
-    extensions = "Buttons",
-    options = list(dom = "Bfrtip",
-                   buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
-```
-
-## Differentially abundant {.tabset}
-
-### Fp
+### More prevalent bacteria in benCom treated mice
 
 ```{r}
-treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>% 
-  filter(qval_individual < 0.1, value == "Fp") %>% 
-  select(contains(colnames(treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence)), -contains(c("metadata", "value", "name", "null_"))) %>% 
-  DT::datatable(
-    extensions = "Buttons",
-    options = list(dom = "Bfrtip",
-                   buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
-```
-
-
-### benCom
-
-```{r}
-treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>% 
+treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence %>% 
   filter(qval_individual < 0.1, value == "benCom") %>% 
-  select(contains(colnames(treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance)), -contains(c("metadata", "value", "name", "null_"))) %>% 
+  select(Phylum:feature, coef, qval_individual) %>% 
   DT::datatable(
     extensions = "Buttons",
     options = list(dom = "Bfrtip",
@@ -639,17 +983,13 @@ treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>%
     )
 ```
 
-### Both
+### Decreased bacteria in benCom treated mice
 
 ```{r}
-dplyr::inner_join(
-  treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>% 
-  filter(qval_individual < 0.1, value == "Fp"),
-  treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>% 
-  filter(qval_individual < 0.1, value ==" benCom") %>% select(feature:N_not_zero),
-  by = "feature", suffix = c(".Fp", ".benCom")) %>% 
-  select(contains(colnames(treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance)), -contains(c("metadata", "value", "name", "null_"))) %>% 
-  
+treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>% 
+  filter(qval_individual < 0.1, value == "benCom", coef < 0) %>% 
+  select(Phylum:feature, coef, qval_individual) %>%
+  arrange(desc(abs(coef))) %>% 
   DT::datatable(
     extensions = "Buttons",
     options = list(dom = "Bfrtip",
@@ -657,40 +997,31 @@ dplyr::inner_join(
     )
 ```
 
-## Conclusions
+### Increased bacteria in benCom treated mice
 
-  * No differentially **prevalent** features with Q-value < 0.1 comparing `Fp` w/
-  `vehicle` controls
-  
-  * No differentially **prevalent** features with Q-value < 0.1 comparing `benCom` w/
-  `vehicle` controls
-  
-  * Only 1 SGB statistically diff. **abundant** between Fp and vehicle, 4 between 
-  benCom and vehicle
-  
-# Motor performances in response to treatments (Need data)
-  
-# Overall Conclusions
+```{r}
+treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>% 
+  filter(qval_individual < 0.1, value == "benCom", coef > 0) %>% 
+  select(Phylum:feature, coef, qval_individual) %>%
+  arrange(desc(abs(coef))) %>% 
+  DT::datatable(
+    extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+    )
+```
 
-  * With the formula $Microbiome \sim genotype + cohort$ we do not see 
-  statistically associated bacteria
-  
-  * Nor having only genotype as exposure (Not shown)
-  
-  * WT and ASO mice in this experiment do not show statistically significant 
-  microbiome differences (N = 16 vs 16)
-  
-  * No statistical difference betweeen WT and ASO control mice 
-  
-  * No differentially **prevalent** features with Q-value < 0.1 comparing `Fp` w/
-  `vehicle` controls
-  
-  * No differentially **prevalent** features with Q-value < 0.1 comparing `benCom` w/
-  `vehicle` controls
-  
-  * Only 1 SGB statistically diff. **abundant** between Fp and vehicle, 4 between 
-  benCom and vehicle
+### Conclusions
 
+  * No statistically significant associations again, and again effect sizes 
+  are very large both positively and negetively.
+
+# Motor performances in response to treatments (Data needed)
+  
+# Overall Conclusions (to be done)
+  
+To be done
+  
 # Session Info
 
 ```{r}
