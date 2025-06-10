@@ -1,0 +1,120 @@
+---
+title: "Probiotics to the rescue: F. prausnitzii and beneficial communities to re-establish motor performance in Parkinson mouse models"
+subtitle: "HUMAnN_3.9 pathways"
+author: "Anastasia Moiseyenko, Giacomo Antonello, Nicola Segata, Levi Waldron, Sarkis Mazmanian"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    self_contained: true
+    toc_depth: 3
+    code_folding: hide
+    toc_float: true
+    number_sections: true
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    use_bookdown: true
+    highlight: haddock
+params:
+  basic_outdir: "results"
+  microbiome_basic_transform: "RelAbund"
+  humann_data_type: "pathway"
+  beta_dist: "bray"
+  beta_MDS: "MDS"
+---
+
+```{r}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+```{r, include=FALSE}
+# packages for tabular data manipulation
+library(tidyverse)
+library(data.table)
+
+# microbiome specific packages
+library(maaslin3)
+library(mia)
+# some packages for data visualization (plots and tables)
+library(miaViz)
+library(pheatmap)
+library(UpSetR)
+library(ggpubr)
+library(kableExtra)
+library(reactable)
+
+# MAC's package to download data
+library(parkinsonsMetagenomicData)
+
+library(ggh4x) # for complex ggplot2 faceting
+# set ggplot2 plot themes 
+theme_set(theme_light())
+# set seed for reproducibility
+set.seed(1234)
+```
+
+# Create output directories all in one chunk
+
+```{r}
+
+output_directories.list <- list(
+  # alpha diversity directory
+  alpha_div_outdir = file.path(params$basic_outdir, params$humann_data_type, "01_alpha_diversity"),
+  # beta diversity output directory
+  beta_div_outdir = file.path(params$basic_outdir, params$humann_data_type, "02_beta_diversity"),
+  # differential abundance temporary directory
+  maaslin_tmpdir = "~/Documents/maaslin3_tmp_results/mazmanian_Ana"
+)
+
+tmp_out <- capture.output(sapply(output_directories.list, dir.create, showWarnings = FALSE, recursive = TRUE))
+rm(tmp_out)
+```
+
+# Prepare data for analysis
+
+THis is run only if interactive to avoid careless overwriting
+
+```{r, eval=interactive(), message=FALSE}
+
+# Load metadata
+metadata.df <- read_tsv("Data/metadata_4.0.tsv") %>% 
+  # format a few values in the metadata
+  mutate(
+    genotype = as.factor(genotype) %>% relevel(ref = "WT"),
+    cage = as.factor(cage),
+    cohort = as.factor(cohort),
+    subcohort = as.factor(subcohort),
+    treatment = as.factor(treatment) %>% relevel(ref = "Vehicle")
+    ) %>% 
+  as.data.frame()
+
+rownames(metadata.df) <- metadata.df$uuid
+
+googleCloudStorageR::gcs_auth(json_file = "~/Downloads/curatedmetagenomicdata-232f4a306d1d.json")
+
+# HUMAnN_3.9 pathway abundance unstratified
+humann_unstrat_cache <- cacheMetagenomicData(metadata.df$uuid, data_type = "pathabundance_unstratified", redownload = "no")
+
+humann_unstrat.se <- loadMetagenomicData(humann_unstrat_cache)
+
+# identical(metadata.df$uuid, colnames(humann_basic_obj.se)) # TRUE
+
+colData(humann_unstrat.se) <- DataFrame(metadata.df)
+assayNames(humann_unstrat.se) <- "AbsAbund"
+# round assay values to closest integer
+assay(humann_unstrat.se, "AbsAbund_rounded") <- round(assay(humann_basic_obj.se), 0)
+# create a relabund assay as well
+assay(humann_unstrat.se, "RelAbund") <- apply(assay(humann_unstrat.se), 2, function(x) x/sum(x))
+
+dir.create("Data/humann_data", recursive = TRUE, showWarnings = FALSE)
+write_tsv(as.data.frame(assay(humann_unstrat.se, "AbsAbund")), "Data/humann_data/humann3.9_unstratified_AbsCounts_raw.tsv")
+
+InputHumannData.tse <- TreeSummarizedExperiment(humann_unstrat.se)
+
+saveRDS(InputHumannData.tse, "Data/InputHumannData.tse.Rds")
+rm(list = ls())
+```
+
+```{r}
+InputHumannData.tse <- readRDS("Data/InputHumannData.tse.Rds")
+InputHumannData.tse
