@@ -90,7 +90,7 @@ googleCloudStorageR::gcs_auth(json_file = "~/Downloads/curatedmetagenomicdata-23
 
 # METAPHLAN4
 source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/get_reads_processed.R")
-mpa_files_cache <- cacheMetagenomicData(metadata.df$uuid, data_type = "relative_abundance", ask_on_update = FALSE) %>% 
+mpa_files_cache <- cacheMetagenomicData(metadata.df$uuid, data_type = "relative_abundance", redownload = "no") %>% 
   # retrieve reads per sample too
   mutate(n_reads_processed = get_reads_processed.vec(cache_path))
 
