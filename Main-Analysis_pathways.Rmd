@@ -1,6 +1,6 @@
 ---
 title: "Probiotics to the rescue: F. prausnitzii and beneficial communities to re-establish motor performance in Parkinson mouse models"
-subtitle: "HUMAnN_3.9 pathways"
+subtitle: "Data: HUMAnN 3.9 unstratified pathways"
 author: "Anastasia Moiseyenko, Giacomo Antonello, Nicola Segata, Levi Waldron, Sarkis Mazmanian"
 date: "`r Sys.Date()`"
 output:

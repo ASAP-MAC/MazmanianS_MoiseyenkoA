@@ -1,5 +1,6 @@
 ---
 title: "Probiotics to the rescue: F. prausnitzii and beneficial communities to re-establish motor performance in Parkinson mouse models"
+subtitle: "Metaphlan 4.1.1 relative abundances"
 author: "Anastasia Moiseyenko, Giacomo Antonello, Nicola Segata, Levi Waldron, Sarkis Mazmanian"
 date: "`r Sys.Date()`"
 output:
