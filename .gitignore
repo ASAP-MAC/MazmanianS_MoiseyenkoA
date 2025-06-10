@@ -1,2 +1,4 @@
 # ignore Mac tmp files
 .DS_Store
+# ignore this maaslin3 summary_plot.pdf that has some metadata in it which causes it to always look 'modified' while the figure remains identical
+summary_plot.pdf
