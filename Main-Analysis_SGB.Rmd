@@ -401,8 +401,6 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) +
 
 ```
 
-## Static plot
-
 ```{r}
 ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.png", sep = "_")), dpi = 600, height = 6.5, width = 7)
 
@@ -1016,6 +1014,8 @@ treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>%
   * No statistically significant associations again, and again effect sizes 
   are very large both positively and negetively.
 
+
+# Are there cohort-specific 
 # Motor performances in response to treatments (Data needed)
   
 # Overall Conclusions (to be done)
