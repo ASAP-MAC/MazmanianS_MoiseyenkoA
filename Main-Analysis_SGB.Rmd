@@ -423,12 +423,30 @@ saveRDS(genotype_differences_in_ctrls.maaslin3, file.path(maaslin3_final_outdir,
 genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
   filter(value == "ASO") %>% 
   arrange(desc(abs(coef))) %>% 
-  head(10) %>% 
+  head(20) %>% 
   DT::datatable(
      extensions = "Buttons",
     options = list(dom = "Bfrtip",
                    buttons = c('copy', 'csv', 'excel', 'pdf'))
   )
+```
+
+
+## Barplots top 20 most diff. abundant
+
+```{r, fig.height=6, fig.width=20}
+top20Taxa <- genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
+  filter(value == "ASO") %>% 
+  arrange(desc(abs(coef))) %>% 
+  head(20) %>% 
+  .$feature
+source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/taxonomy_utils.R")
+
+tmpTop20.tse <- tmp.tse[top20Taxa,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+plotly::ggplotly(miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(paste(cohort, genotype)), scales = "free_x"))
 ```
 
 ## Diff. Prevalence - Top 20 with highest absolute $\beta$
@@ -437,7 +455,7 @@ genotype_differences_in_ctrls.maaslin3_curated$abundance %>%
 genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
   filter(value == "ASO") %>% 
   arrange(desc(abs(coef))) %>% 
-  head(10) %>% 
+  head(20) %>% 
   DT::datatable(
      extensions = "Buttons",
     options = list(dom = "Bfrtip",
@@ -445,6 +463,22 @@ genotype_differences_in_ctrls.maaslin3_curated$prevalence %>%
   )
 ```
 
+## Barplots top 20 most diff. prevalent
+
+```{r, fig.height=6, fig.width=20}
+top20Taxa <- genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
+  filter(value == "ASO") %>% 
+  arrange(desc(abs(coef))) %>% 
+  head(20) %>% 
+  .$feature
+source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/taxonomy_utils.R")
+
+tmpTop20.tse <- tmp.tse[top20Taxa,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(paste(cohort, genotype)), scales = "free_x") 
+```
 
 ## Conclusions
 
