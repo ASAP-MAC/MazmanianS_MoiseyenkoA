@@ -432,7 +432,7 @@ genotype_differences_in_ctrls.maaslin3_curated$abundance %>%
 ```
 
 
-## Barplots top 20 most diff. abundant
+## Barplot top 20 most diff. abundant
 
 ```{r, fig.height=6, fig.width=20}
 top20Taxa <- genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
@@ -445,8 +445,8 @@ source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/
 tmpTop20.tse <- tmp.tse[top20Taxa,]
 rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
 
-plotly::ggplotly(miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
-  facet_grid(cols = vars(paste(cohort, genotype)), scales = "free_x"))
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(paste(cohort, genotype)), scales = "free_x")
 ```
 
 ## Diff. Prevalence - Top 20 with highest absolute $\beta$
@@ -1157,8 +1157,70 @@ treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>%
   * No statistically significant associations again, and again effect sizes 
   are very large both positively and negetively.
 
+# Track probiotic species across all samples
 
-# Are there cohort-specific 
+## Fp (F. prausnitzii)
+
+```{r}
+tmp.tse <- InputMetaphlanData.tse
+rownames(tmp.tse) <- collapse_taxonomy(as.data.frame(rowData(tmp.tse)))
+
+tmp.tse %>% 
+  meltSE(assay.type = "metaphlan_RelAbund", add.col = c("cohort", "genotype", "treatment")) %>%
+  filter(grepl("prausnitzii", FeatureID)) %>% 
+  group_by(FeatureID, genotype, cohort, treatment) %>% 
+  reframe(
+    mean_RelAbund = mean(metaphlan_RelAbund)
+  ) %>% 
+  DT::datatable(
+     extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+  )
+  
+```
+
+## bCL (benCom community)
+
+```{r}
+benCom_species <- c("s__Roseburia_intestinalis", "s__Roseburia_faecis", "s__Fusicatenibacter_saccharivorans", "s__Bacteroides_vatus", "s__Eubacterium_rectale" , "s__Anaerostipes_hadrus", "s__Faecalibacterium_prausnitzii", "Prevotella_histicola")
+
+benCom_species
+```
+
+
+```{r}
+tmp.tse <- InputMetaphlanData.tse
+rownames(tmp.tse) <- collapse_taxonomy(as.data.frame(rowData(tmp.tse)))
+
+tmp.tse %>% 
+  meltSE(assay.type = "metaphlan_RelAbund", add.col = c("cohort", "genotype", "treatment")) %>%
+  filter(grepl(paste(benCom_species, collapse = "|"), FeatureID)) %>% 
+  group_by(FeatureID, genotype, cohort, treatment) %>% 
+  reframe(
+    mean_RelAbund = mean(metaphlan_RelAbund)
+  ) %>% 
+  DT::datatable(
+     extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+  )
+```
+
+## Conclusions
+
+    * No species from the Fp or benCom community was found
+    
+    * Time between sampling and last gavage?
+    
+    * Diet low in fibers?
+    
+    * Phylogenetically close bacteria may have taken the niche or serve a 
+    similar purpose (i.e. butyrate production)?
+    
+
+# Are there cohort-specific bacteria?
+
 # Motor performances in response to treatments (Data needed)
   
 # Overall Conclusions (to be done)
