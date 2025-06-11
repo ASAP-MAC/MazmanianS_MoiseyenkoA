@@ -51,6 +51,12 @@ library(ggh4x) # for complex ggplot2 faceting
 theme_set(theme_light())
 # set seed for reproducibility
 set.seed(1234)
+
+# source BiobakeryUtils functions until the package can be installed
+source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/taxonomy_utils.R")
+source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/PERMANOVA_to_table.R")
+source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/maaslin3_utils.R")
+
 ```
 
 # Create output directories all in one chunk
@@ -212,7 +218,7 @@ pheatmap::pheatmap(assay(InputMetaphlanData.tse) %>% magrittr::set_colnames(colD
 
 ```
 
-# Analyses were be performed at the `r params$tax_level` level
+# Analyses are performed at the `r params$tax_level` level
 
 Below the `TreeSummarizedExperiment` object summary that is going to be used
 in all following analyses
@@ -320,7 +326,7 @@ beta_plot_basic <- project1_meta_with_MDS.df %>%
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 1, 2, 4, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(6)) +
   theme(legend.position = "top") +
   labs(color = "Genotype and Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
@@ -338,13 +344,12 @@ beta_plot_basic
 ## PERMANOVA statistics
 
 ```{r}
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/PERMANOVA_to_table.R")
 
 InputMetaphlanData.tse <- addPERMANOVA(
   InputMetaphlanData.tse,
   assay.type = "metaphlan_RelAbund",
   method = "bray",
-  formula = x ~ genotype + treatment,
+  formula = x ~ genotype + treatment + cohort,
   name = "permanova",
   permutations = 999,
   test.homogeneity = TRUE
@@ -382,6 +387,8 @@ tmp.tse <- InputMetaphlanData.tse[,InputMetaphlanData.tse@colData$treatment == "
 tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT") # not needed, but better safe than sorry
 tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
 
+tmp.tse
+
 # define experiment name and output directories
 maaslin3_expmt <- "genotype_vs_WT_vehicleCtrl_bothCohorts"
 maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, maaslin3_expmt)
@@ -395,7 +402,6 @@ dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
 Results are stored in ``r maaslin3_final_outdir``
 
 ```{r}
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/maaslin3_utils.R")
 
 genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     input_data = tmp.tse,
@@ -417,14 +423,43 @@ saveRDS(genotype_differences_in_ctrls.maaslin3, file.path(maaslin3_final_outdir,
 
 ```
 
-## Diff. Abundance - Top 20 with highest absolute $\beta$
+## Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
+top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
   filter(value == "ASO") %>% 
-  arrange(desc(abs(coef))) %>% 
-  head(20) %>% 
-  DT::datatable(
+  arrange(pval_individual, desc(abs(coef))) %>% 
+  head(20)
+
+DT::datatable(
+    top20_tmp_out,
+     extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+  )
+```
+
+## Barplots top 20 most diff. prevalent
+
+```{r, fig.height=6, fig.width=20}
+
+tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(paste(cohort, genotype)), scales = "free_x") 
+```
+
+## Diff. Abundance - Top 20 with lowest crude p-value and highest absolute $\beta$
+
+```{r}
+top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
+  filter(value == "ASO") %>% 
+  arrange(pval_individual, desc(abs(coef))) %>% 
+  head(20)
+
+DT::datatable(
+    top20_tmp_out,
      extensions = "Buttons",
     options = list(dom = "Bfrtip",
                    buttons = c('copy', 'csv', 'excel', 'pdf'))
@@ -435,49 +470,12 @@ genotype_differences_in_ctrls.maaslin3_curated$abundance %>%
 ## Barplot top 20 most diff. abundant
 
 ```{r, fig.height=6, fig.width=20}
-top20Taxa <- genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
-  filter(value == "ASO") %>% 
-  arrange(desc(abs(coef))) %>% 
-  head(20) %>% 
-  .$feature
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/taxonomy_utils.R")
 
-tmpTop20.tse <- tmp.tse[top20Taxa,]
+tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
 rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
 
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
   facet_grid(cols = vars(paste(cohort, genotype)), scales = "free_x")
-```
-
-## Diff. Prevalence - Top 20 with highest absolute $\beta$
-
-```{r}
-genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
-  filter(value == "ASO") %>% 
-  arrange(desc(abs(coef))) %>% 
-  head(20) %>% 
-  DT::datatable(
-     extensions = "Buttons",
-    options = list(dom = "Bfrtip",
-                   buttons = c('copy', 'csv', 'excel', 'pdf'))
-  )
-```
-
-## Barplots top 20 most diff. prevalent
-
-```{r, fig.height=6, fig.width=20}
-top20Taxa <- genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
-  filter(value == "ASO") %>% 
-  arrange(desc(abs(coef))) %>% 
-  head(20) %>% 
-  .$feature
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/taxonomy_utils.R")
-
-tmpTop20.tse <- tmp.tse[top20Taxa,]
-rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
-
-miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
-  facet_grid(cols = vars(paste(cohort, genotype)), scales = "free_x") 
 ```
 
 ## Conclusions
@@ -547,13 +545,12 @@ beta_plot_basic
 ```
 
 ```{r}
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/PERMANOVA_to_table.R")
 
 InputMetaphlanData_Fp7.tse <- addPERMANOVA(
   InputMetaphlanData_Fp7.tse,
   assay.type = "metaphlan_RelAbund",
   method = "bray",
-  formula = x ~ genotype + treatment + cohort,
+  formula = x ~ genotype + treatment,
   name = "permanova",
   permutations = 999,
   test.homogeneity = TRUE
@@ -589,6 +586,8 @@ tmp.tse <- InputMetaphlanData_Fp7.tse[,InputMetaphlanData_Fp7.tse@colData$treatm
 tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT")
 tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
 
+tmp.tse
+
 # define experiment name and output directories
 maaslin3_expmt <- "genotype_vs_WT_in_treatment_vehicle"
 maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir,  cohort_subdir, maaslin3_expmt)
@@ -614,79 +613,66 @@ genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     verbosity = "ERROR"
   )
 
-genotype_differences_in_ctrls.maaslin3_annotated <- list(
-      abundance = genotype_differences_in_ctrls.maaslin3$fit_data_abundance$results %>% filter(metadata == "genotype"),
-      prevalence = genotype_differences_in_ctrls.maaslin3$fit_data_prevalence$results %>% filter(metadata == "genotype")
-    ) %>% 
-      lapply(function(x) {
-    taxonomy_info <- as.data.frame(rowData(tmp.tse))
-    taxonomy_info_subset <- taxonomy_info[,1:which(colnames(taxonomy_info) == params$tax_level)]
-    colnames(taxonomy_info_subset)[ncol(taxonomy_info_subset)] <- "feature"
-    
-    return(
-      dplyr::full_join(taxonomy_info_subset, x, by = "feature") %>%
-        arrange(qval_individual))}
-    )
-
-# save output tsvs as produced by maaslin3
-system(paste0("cp ", maaslin3_tmp_outdir, "/*.tsv", " ", maaslin3_final_outdir))
-# save figures folder
-system(paste0("cp -r ", file.path(maaslin3_tmp_outdir, "figures"), " ", maaslin3_final_outdir))
-
+# add taxonomy
+genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = genotype_differences_in_ctrls.maaslin3, tmp.tse)
+# write tables
+write_maaslin3_curated_tables(genotype_differences_in_ctrls.maaslin3_curated, out.dir = maaslin3_final_outdir)
+# save raw output
+saveRDS(genotype_differences_in_ctrls.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
 ```
 
-### Less prevalent bacteria in ASO 
+### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-genotype_differences_in_ctrls.maaslin3_annotated$prevalence %>% 
-  filter(qval_individual < 0.1, value == "ASO") %>% 
-  select(Phylum:feature, coef, qval_individual) %>% 
-  DT::datatable(
-    extensions = "Buttons",
+top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
+  filter(value == "ASO") %>% 
+  arrange(pval_individual, desc(abs(coef))) %>% 
+  head(20)
+
+DT::datatable(
+    top20_tmp_out,
+     extensions = "Buttons",
     options = list(dom = "Bfrtip",
                    buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+  )
 ```
 
-### More prevalent bacteria in ASO 
+### Barplots top 20 most diff. prevalent
 
-```{r}
-genotype_differences_in_ctrls.maaslin3_annotated$prevalence %>% 
-  filter(qval_individual < 0.1, value == "ASO") %>% 
-  select(Phylum:feature, coef, qval_individual) %>% 
-  DT::datatable(
-    extensions = "Buttons",
-    options = list(dom = "Bfrtip",
-                   buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+```{r, fig.height=6, fig.width=20}
+
+tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(paste(treatment, genotype)), scales = "free_x") 
 ```
 
-### Decreased bacteria in ASO
+### Diff. Abundance - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-genotype_differences_in_ctrls.maaslin3_annotated$abundance %>% 
-  filter(qval_individual < 0.1, value == "ASO", coef < 0) %>% 
-  select(Phylum:feature, coef, qval_individual) %>%
-  arrange(desc(abs(coef))) %>% 
-  DT::datatable(
-    extensions = "Buttons",
+top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
+  filter(value == "ASO") %>% 
+  arrange(pval_individual, desc(abs(coef))) %>% 
+  head(20)
+
+DT::datatable(
+    top20_tmp_out,
+     extensions = "Buttons",
     options = list(dom = "Bfrtip",
                    buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+  )
 ```
 
-### Increased bacteria in ASO
+### Barplot top 20 most diff. abundant
 
-```{r}
-genotype_differences_in_ctrls.maaslin3_annotated$abundance %>% 
-  filter(qval_individual < 0.1, value == "ASO", coef > 0) %>% 
-  select(Phylum:feature, coef, qval_individual) %>%
-  arrange(desc(abs(coef))) %>% 
-  DT::datatable(
-    extensions = "Buttons",
-    options = list(dom = "Bfrtip",
-                   buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+```{r, fig.height=6, fig.width=20}
+
+tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(paste(treatment, genotype)), scales = "free_x")
 ```
 
 ### Conclusions
@@ -723,6 +709,8 @@ tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Vehicle")
 tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
 tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, "metaphlan_RelAbund")) > 0,]
 
+tmp.tse
+
 # define experiment name and output directories
 maaslin3_expmt <- "treatments_vs_vehicle_in_ASO"
 maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, cohort_subdir, maaslin3_expmt)
@@ -750,79 +738,66 @@ treatments_vs_vehicle_in_ASO.maaslin3 <- maaslin3(
     verbosity = "ERROR"
   )
 
-treatments_vs_vehicle_in_ASO.maaslin3_annotated <- list(
-      abundance = treatments_vs_vehicle_in_ASO.maaslin3$fit_data_abundance$results %>% filter(metadata == "treatment"),
-      prevalence = treatments_vs_vehicle_in_ASO.maaslin3$fit_data_prevalence$results %>% filter(metadata == "treatment")
-    ) %>% 
-      lapply(function(x) {
-    taxonomy_info <- as.data.frame(rowData(tmp.tse))
-    taxonomy_info_subset <- taxonomy_info[,1:which(colnames(taxonomy_info) == params$tax_level)]
-    colnames(taxonomy_info_subset)[ncol(taxonomy_info_subset)] <- "feature"
-    
-    return(
-      dplyr::full_join(taxonomy_info_subset, x, by = "feature") %>%
-        arrange(qval_individual))}
-    )
-
-# save output tsvs as produced by maaslin3
-system(paste0("cp ", maaslin3_tmp_outdir, "/*.tsv", " ", maaslin3_final_outdir))
-# save figures folder
-system(paste0("cp -r ", file.path(maaslin3_tmp_outdir, "figures"), " ", maaslin3_final_outdir))
-
+# add taxonomy
+treatments_vs_vehicle_in_ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = treatments_vs_vehicle_in_ASO.maaslin3, tmp.tse)
+# write tables
+write_maaslin3_curated_tables(treatments_vs_vehicle_in_ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
+# save raw output
+saveRDS(treatments_vs_vehicle_in_ASO.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
 ```
 
-### Less prevalent bacteria in Fp treated mice 
+### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence %>% 
-  filter(qval_individual < 0.1, value == "Fp") %>% 
-  select(Phylum:feature, coef, qval_individual) %>% 
-  DT::datatable(
-    extensions = "Buttons",
+top20_tmp_out <- treatments_vs_vehicle_in_ASO.maaslin3_curated$prevalence %>% 
+  filter(value == "Fp") %>% 
+  arrange(pval_individual, desc(abs(coef))) %>% 
+  head(20)
+
+DT::datatable(
+    top20_tmp_out,
+     extensions = "Buttons",
     options = list(dom = "Bfrtip",
                    buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+  )
 ```
 
-### More prevalent bacteria in Fp treated mice
+### Barplots top 20 most diff. prevalent
 
-```{r}
-treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence %>% 
-  filter(qval_individual < 0.1, value == "Fp") %>% 
-  select(Phylum:feature, coef, qval_individual) %>% 
-  DT::datatable(
-    extensions = "Buttons",
-    options = list(dom = "Bfrtip",
-                   buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+```{r, fig.height=6, fig.width=20}
+
+tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(paste(treatment, genotype)), scales = "free_x") 
 ```
 
-### Decreased bacteria in Fp treated mice
+### Diff. Abundance - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>% 
-  filter(qval_individual < 0.1, value == "Fp", coef < 0) %>% 
-  select(Phylum:feature, coef, qval_individual) %>%
-  arrange(desc(abs(coef))) %>% 
-  DT::datatable(
-    extensions = "Buttons",
+top20_tmp_out <- treatments_vs_vehicle_in_ASO.maaslin3_curated$abundance %>% 
+  filter(value == "Fp") %>% 
+  arrange(pval_individual, desc(abs(coef))) %>% 
+  head(20)
+
+DT::datatable(
+    top20_tmp_out,
+     extensions = "Buttons",
     options = list(dom = "Bfrtip",
                    buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+  )
 ```
 
-### Increased bacteria in Fp treated mice
+### Barplot top 20 most diff. abundant
 
-```{r}
-treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>% 
-  filter(qval_individual < 0.1, value == "Fp", coef > 0) %>% 
-  select(Phylum:feature, coef, qval_individual) %>%
-  arrange(desc(abs(coef))) %>% 
-  DT::datatable(
-    extensions = "Buttons",
-    options = list(dom = "Bfrtip",
-                   buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+```{r, fig.height=6, fig.width=20}
+
+tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(paste(treatment, genotype)), scales = "free_x")
 ```
 
 ### Conclusions
@@ -883,7 +858,6 @@ beta_plot_basic
 ```
 
 ```{r}
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/PERMANOVA_to_table.R")
 
 InputMetaphlanData_bCL.tse <- addPERMANOVA(
   InputMetaphlanData_bCL.tse,
@@ -925,6 +899,8 @@ tmp.tse <- InputMetaphlanData_bCL.tse[,InputMetaphlanData_bCL.tse@colData$treatm
 tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT")
 tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
 
+tmp.tse
+
 # define experiment name and output directories
 maaslin3_expmt <- "genotype_vs_WT_in_treatment_vehicle"
 maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir,  cohort_subdir, maaslin3_expmt)
@@ -950,79 +926,66 @@ genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     verbosity = "ERROR"
   )
 
-genotype_differences_in_ctrls.maaslin3_annotated <- list(
-      abundance = genotype_differences_in_ctrls.maaslin3$fit_data_abundance$results %>% filter(metadata == "genotype"),
-      prevalence = genotype_differences_in_ctrls.maaslin3$fit_data_prevalence$results %>% filter(metadata == "genotype")
-    ) %>% 
-      lapply(function(x) {
-    taxonomy_info <- as.data.frame(rowData(tmp.tse))
-    taxonomy_info_subset <- taxonomy_info[,1:which(colnames(taxonomy_info) == params$tax_level)]
-    colnames(taxonomy_info_subset)[ncol(taxonomy_info_subset)] <- "feature"
-    
-    return(
-      dplyr::full_join(taxonomy_info_subset, x, by = "feature") %>%
-        arrange(qval_individual))}
-    )
-
-# save output tsvs as produced by maaslin3
-system(paste0("cp ", maaslin3_tmp_outdir, "/*.tsv", " ", maaslin3_final_outdir))
-# save figures folder
-system(paste0("cp -r ", file.path(maaslin3_tmp_outdir, "figures"), " ", maaslin3_final_outdir))
-
+# add taxonomy
+genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = genotype_differences_in_ctrls.maaslin3, tmp.tse)
+# write tables
+write_maaslin3_curated_tables(genotype_differences_in_ctrls.maaslin3_curated, out.dir = maaslin3_final_outdir)
+# save raw output
+saveRDS(genotype_differences_in_ctrls.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
 ```
 
-### Less prevalent bacteria in ASO 
+### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-genotype_differences_in_ctrls.maaslin3_annotated$prevalence %>% 
-  filter(qval_individual < 0.1, value == "ASO") %>% 
-  select(Phylum:feature, coef, qval_individual) %>% 
-  DT::datatable(
-    extensions = "Buttons",
+top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
+  filter(value == "ASO") %>% 
+  arrange(pval_individual, desc(abs(coef))) %>% 
+  head(20)
+
+DT::datatable(
+    top20_tmp_out,
+     extensions = "Buttons",
     options = list(dom = "Bfrtip",
                    buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+  )
 ```
 
-### More prevalent bacteria in ASO 
+### Barplots top 20 most diff. prevalent
 
-```{r}
-genotype_differences_in_ctrls.maaslin3_annotated$prevalence %>% 
-  filter(qval_individual < 0.1, value == "ASO") %>% 
-  select(Phylum:feature, coef, qval_individual) %>% 
-  DT::datatable(
-    extensions = "Buttons",
-    options = list(dom = "Bfrtip",
-                   buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+```{r, fig.height=6, fig.width=20}
+
+tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(paste(treatment, genotype)), scales = "free_x") 
 ```
 
-### Decreased bacteria in ASO
+### Diff. Abundance - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-genotype_differences_in_ctrls.maaslin3_annotated$abundance %>% 
-  filter(qval_individual < 0.1, value == "ASO", coef < 0) %>% 
-  select(Phylum:feature, coef, qval_individual) %>%
-  arrange(desc(abs(coef))) %>% 
-  DT::datatable(
-    extensions = "Buttons",
+top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
+  filter(value == "ASO") %>% 
+  arrange(pval_individual, desc(abs(coef))) %>% 
+  head(20)
+
+DT::datatable(
+    top20_tmp_out,
+     extensions = "Buttons",
     options = list(dom = "Bfrtip",
                    buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+  )
 ```
 
-### Increased bacteria in ASO
+### Barplot top 20 most diff. abundant
 
-```{r}
-genotype_differences_in_ctrls.maaslin3_annotated$abundance %>% 
-  filter(qval_individual < 0.1, value == "ASO", coef > 0) %>% 
-  select(Phylum:feature, coef, qval_individual) %>%
-  arrange(desc(abs(coef))) %>% 
-  DT::datatable(
-    extensions = "Buttons",
-    options = list(dom = "Bfrtip",
-                   buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+```{r, fig.height=6, fig.width=20}
+
+tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(paste(treatment, genotype)), scales = "free_x")
 ```
 
 ### Conclusions
@@ -1077,79 +1040,66 @@ treatments_vs_vehicle_in_ASO.maaslin3 <- maaslin3(
     verbosity = "ERROR"
   )
 
-treatments_vs_vehicle_in_ASO.maaslin3_annotated <- list(
-      abundance = treatments_vs_vehicle_in_ASO.maaslin3$fit_data_abundance$results %>% filter(metadata == "treatment"),
-      prevalence = treatments_vs_vehicle_in_ASO.maaslin3$fit_data_prevalence$results %>% filter(metadata == "treatment")
-    ) %>% 
-      lapply(function(x) {
-    taxonomy_info <- as.data.frame(rowData(tmp.tse))
-    taxonomy_info_subset <- taxonomy_info[,1:which(colnames(taxonomy_info) == params$tax_level)]
-    colnames(taxonomy_info_subset)[ncol(taxonomy_info_subset)] <- "feature"
-    
-    return(
-      dplyr::full_join(taxonomy_info_subset, x, by = "feature") %>%
-        arrange(qval_individual))}
-    )
-
-# save output tsvs as produced by maaslin3
-system(paste0("cp ", maaslin3_tmp_outdir, "/*.tsv", " ", maaslin3_final_outdir))
-# save figures folder
-system(paste0("cp -r ", file.path(maaslin3_tmp_outdir, "figures"), " ", maaslin3_final_outdir))
-
+# add taxonomy
+treatments_vs_vehicle_in_ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = treatments_vs_vehicle_in_ASO.maaslin3, tmp.tse)
+# write tables
+write_maaslin3_curated_tables(treatments_vs_vehicle_in_ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
+# save raw output
+saveRDS(treatments_vs_vehicle_in_ASO.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
 ```
 
-### Less prevalent bacteria in benCom treated mice 
+### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence %>% 
-  filter(qval_individual < 0.1, value == "benCom") %>% 
-  select(Phylum:feature, coef, qval_individual) %>% 
-  DT::datatable(
-    extensions = "Buttons",
+top20_tmp_out <- treatments_vs_vehicle_in_ASO.maaslin3_curated$prevalence %>% 
+  filter(value == "benCom") %>% 
+  arrange(pval_individual, desc(abs(coef))) %>% 
+  head(20)
+
+DT::datatable(
+    top20_tmp_out,
+     extensions = "Buttons",
     options = list(dom = "Bfrtip",
                    buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+  )
 ```
 
-### More prevalent bacteria in benCom treated mice
+### Barplots top 20 most diff. prevalent
 
-```{r}
-treatments_vs_vehicle_in_ASO.maaslin3_annotated$prevalence %>% 
-  filter(qval_individual < 0.1, value == "benCom") %>% 
-  select(Phylum:feature, coef, qval_individual) %>% 
-  DT::datatable(
-    extensions = "Buttons",
-    options = list(dom = "Bfrtip",
-                   buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+```{r, fig.height=6, fig.width=20}
+
+tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(paste(treatment, genotype)), scales = "free_x") 
 ```
 
-### Decreased bacteria in benCom treated mice
+### Diff. Abundance - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>% 
-  filter(qval_individual < 0.1, value == "benCom", coef < 0) %>% 
-  select(Phylum:feature, coef, qval_individual) %>%
-  arrange(desc(abs(coef))) %>% 
-  DT::datatable(
-    extensions = "Buttons",
+top20_tmp_out <- treatments_vs_vehicle_in_ASO.maaslin3_curated$abundance %>% 
+  filter(value == "benCom") %>% 
+  arrange(pval_individual, desc(abs(coef))) %>% 
+  head(20)
+
+DT::datatable(
+    top20_tmp_out,
+     extensions = "Buttons",
     options = list(dom = "Bfrtip",
                    buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+  )
 ```
 
-### Increased bacteria in benCom treated mice
+### Barplot top 20 most diff. abundant
 
-```{r}
-treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>% 
-  filter(qval_individual < 0.1, value == "benCom", coef > 0) %>% 
-  select(Phylum:feature, coef, qval_individual) %>%
-  arrange(desc(abs(coef))) %>% 
-  DT::datatable(
-    extensions = "Buttons",
-    options = list(dom = "Bfrtip",
-                   buttons = c('copy', 'csv', 'excel', 'pdf'))
-    )
+```{r, fig.height=6, fig.width=20}
+
+tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(paste(treatment, genotype)), scales = "free_x")
 ```
 
 ### Conclusions
@@ -1162,12 +1112,17 @@ treatments_vs_vehicle_in_ASO.maaslin3_annotated$abundance %>%
 ## Fp (F. prausnitzii)
 
 ```{r}
+Fp_species <- "s__Faecalibacterium_prausnitzii"
+```
+
+
+```{r}
 tmp.tse <- InputMetaphlanData.tse
 rownames(tmp.tse) <- collapse_taxonomy(as.data.frame(rowData(tmp.tse)))
 
 tmp.tse %>% 
   meltSE(assay.type = "metaphlan_RelAbund", add.col = c("cohort", "genotype", "treatment")) %>%
-  filter(grepl("prausnitzii", FeatureID)) %>% 
+  filter(grepl(paste(Fp_species, collapse = "|"), FeatureID)) %>% 
   group_by(FeatureID, genotype, cohort, treatment) %>% 
   reframe(
     mean_RelAbund = mean(metaphlan_RelAbund)
@@ -1219,14 +1174,114 @@ tmp.tse %>%
     similar purpose (i.e. butyrate production)?
     
 
-# Are there cohort-specific bacteria?
+# Are there cohort-specific bacteria in the dataset?
+
+This can be asked on all data adjusting for other effects **OR** Comparing 
+WT mice between the two cases (cleaner but low statistical power). 
+I decided to do the first. 
+
+$$
+\log_2(Microbiome) \sim genotype + treatment + cohort
+$$
+
+```{r}
+# prepare input data
+
+tmp.tse <- InputMetaphlanData.tse 
+
+tmp.tse
+
+# define experiment name and output directories
+maaslin3_expmt <- "cohort_assoc_bacteria"
+maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir,  cohort_subdir, maaslin3_expmt)
+maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, cohort_subdir, maaslin3_expmt)
+# crate temporary output directory
+dir.create(maaslin3_tmp_outdir, showWarnings = FALSE, recursive = TRUE)
+# create definitive output directory
+dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
+```
+
+Results are stored in ``r maaslin3_final_outdir``
+
+```{r}
+set.seed(1234)
+cohort_differences.maaslin3 <- maaslin3(
+    input_data = tmp.tse,
+    formula = ~ genotype + treatment + cohort, 
+    transform = "LOG",
+    output = maaslin3_tmp_outdir,
+    # do not standardize continuous metadata variables in the model
+    standardize = FALSE, 
+    plot_associations = TRUE,
+    verbosity = "ERROR"
+  )
+
+# add taxonomy
+cohort_differences.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = cohort_differences.maaslin3, tmp.tse)
+# write tables
+write_maaslin3_curated_tables(cohort_differences.maaslin3_curated, out.dir = maaslin3_final_outdir)
+# save raw output
+saveRDS(cohort_differences.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
+```
+
+### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
+
+```{r}
+top20_tmp_out <- cohort_differences.maaslin3_curated$prevalence %>% 
+  filter(value == "Fp7") %>% 
+  arrange(pval_individual, desc(abs(coef))) %>% 
+  head(20)
+
+DT::datatable(
+    top20_tmp_out,
+     extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+  )
+```
+
+### Barplots top 20 most diff. prevalent
+
+```{r, fig.height=6, fig.width=20}
+
+tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(cohort), scales = "free_x") 
+```
+
+### Diff. Abundance - Top 20 with lowest crude p-value and highest absolute $\beta$
+
+```{r}
+top20_tmp_out <- cohort_differences.maaslin3_curated$abundance %>% 
+  filter(value == "Fp7") %>% 
+  arrange(pval_individual, desc(abs(coef))) %>% 
+  head(20)
+
+DT::datatable(
+    top20_tmp_out,
+     extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+  )
+```
+
+### Barplot top 20 most diff. abundant
+
+```{r, fig.height=6, fig.width=20}
+
+tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
+
+miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
+  facet_grid(cols = vars(cohort), scales = "free_x")
+```
 
 # Motor performances in response to treatments (Data needed)
   
 # Overall Conclusions (to be done)
-  
-To be done
-  
+
 # Session Info
 
 ```{r}
