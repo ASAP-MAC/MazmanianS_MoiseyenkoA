@@ -74,7 +74,7 @@ rm(tmp_out)
 
 THis is run only if interactive to avoid careless overwriting
 
-```{r, eval=interactive()}
+```{r, eval=interactive(), message=FALSE}
 
 # Load metadata
 metadata.df <- read_tsv("Data/metadata_4.0.tsv") %>% 
@@ -361,6 +361,111 @@ permanova_table.df %>%
   kable_styling()
 ```
 
+# Microbiome differences between genotypes in treatment control mice
+
+```
+Are ASO mice having different microbiomes than WT, regardless of the experimental
+cohort?
+```
+
+For this, I will include both cohorts together and adjust for cohort in the model.
+Also, I will compare vehicle controls using WT as baseline.
+
+$$
+\log_2(Microbiome) ~ genotype + cohort
+$$
+
+```{r}
+# prepare input data
+
+tmp.tse <- InputMetaphlanData.tse[,InputMetaphlanData.tse@colData$treatment == "Vehicle"] 
+tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT") # not needed, but better safe than sorry
+tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
+
+# define experiment name and output directories
+maaslin3_expmt <- "genotype_vs_WT_vehicleCtrl_bothCohorts"
+maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, maaslin3_expmt)
+maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, maaslin3_expmt)
+# crate temporary output directory
+dir.create(maaslin3_tmp_outdir, showWarnings = FALSE, recursive = TRUE)
+# create definitive output directory
+dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
+```
+
+Results are stored in ``r maaslin3_final_outdir``
+
+```{r}
+source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/maaslin3_utils.R")
+
+genotype_differences_in_ctrls.maaslin3 <- maaslin3(
+    input_data = tmp.tse,
+    formula = ~ genotype + cohort, 
+    transform = "LOG",
+    output = maaslin3_tmp_outdir,
+    # do not standardize continuous metadata variables in the model
+    standardize = FALSE,
+    plot_associations = TRUE,
+    verbosity = "ERROR"
+  )
+
+# add taxonomy
+genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = genotype_differences_in_ctrls.maaslin3, tmp.tse)
+# write tables
+write_maaslin3_curated_tables(genotype_differences_in_ctrls.maaslin3_curated, out.dir = maaslin3_final_outdir)
+# save raw output
+saveRDS(genotype_differences_in_ctrls.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
+
+```
+
+## Diff. Abundance - Top 20 with highest absolute $\beta$
+
+```{r}
+genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
+  filter(value == "ASO") %>% 
+  arrange(desc(abs(coef))) %>% 
+  head(10) %>% 
+  DT::datatable(
+     extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+  )
+```
+
+## Diff. Prevalence - Top 20 with highest absolute $\beta$
+
+```{r}
+genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
+  filter(value == "ASO") %>% 
+  arrange(desc(abs(coef))) %>% 
+  head(10) %>% 
+  DT::datatable(
+     extensions = "Buttons",
+    options = list(dom = "Bfrtip",
+                   buttons = c('copy', 'csv', 'excel', 'pdf'))
+  )
+```
+
+
+## Conclusions
+
+There are no significantly affected microbes in ASO mice compared to WT.
+
+What puzzles me is that there are many taxa that are uniquely identified by each
+project leader (Matheus and Ana). Also, Matheus' sample size is 10 vs 10, Ana's 
+is 8 vs 8 per cohort, in total 16 vs 16. We should not be less powerful than his.
+
+What could be the factor here?
+
+  * facility
+  
+  * handlers
+  
+  * gavage not sterile or affecting somehow?
+
+  * diet
+  
+  * Could 2 weeks make such a striking difference in the composition?
+
 # Cohort Fp7
 
 ```{r}
@@ -463,6 +568,7 @@ dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
 Results are stored in ``r maaslin3_final_outdir``
 
 ```{r}
+set.seed(1234)
 genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     input_data = tmp.tse,
     formula = ~ genotype, 
@@ -598,6 +704,7 @@ dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
 Results are stored in ``r maaslin3_final_outdir``
 
 ```{r}
+set.seed(1234)
 treatments_vs_vehicle_in_ASO.maaslin3 <- maaslin3(
     input_data = tmp.tse,
     formula = ~ treatment, 
@@ -797,6 +904,7 @@ dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
 Results are stored in ``r maaslin3_final_outdir``
 
 ```{r}
+set.seed(1234)
 genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     input_data = tmp.tse,
     formula = ~ genotype, 
@@ -923,6 +1031,7 @@ dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
 Results are stored in ``r maaslin3_final_outdir``
 
 ```{r}
+set.seed(1234)
 treatments_vs_vehicle_in_ASO.maaslin3 <- maaslin3(
     input_data = tmp.tse,
     formula = ~ treatment, 

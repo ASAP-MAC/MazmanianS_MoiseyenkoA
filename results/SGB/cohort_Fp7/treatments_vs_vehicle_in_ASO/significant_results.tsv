@@ -1,2 +1,2 @@
 "feature"	"metadata"	"value"	"name"	"coef"	"null_hypothesis"	"stderr"	"pval_individual"	"qval_individual"	"pval_joint"	"qval_joint"	"error"	"model"	"N"	"N_not_zero"
-"t__SGB41580"	"treatment"	"Fp"	"treatmentFp"	-3.16332572987531	0.292118705312011	0.573023786830188	0.00014766773792152	0.0928830071526359	0.000295313670082216	0.119011409043133	NA	"abundance"	16	12
+"t__SGB41580"	"treatment"	"Fp"	"treatmentFp"	-3.16332572987531	0.292118705312011	0.573023786830188	0.000146763005884787	0.0923139307015309	0.000293504472389677	0.11828230237304	NA	"abundance"	16	12
