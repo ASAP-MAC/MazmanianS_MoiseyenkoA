@@ -558,7 +558,7 @@ InputMetaphlanData_Fp7.tse <- addPERMANOVA(
 
 permanova_table.df <- PERMANOVA_to_table(InputMetaphlanData_Fp7.tse)
 
-write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, "PERMANOVA.png", sep = "_")))
+write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, "PERMANOVA.tsv", sep = "_")))
 ```
 
 ```{r}
@@ -871,7 +871,7 @@ InputMetaphlanData_bCL.tse <- addPERMANOVA(
 
 permanova_table.df <- PERMANOVA_to_table(InputMetaphlanData_bCL.tse)
 
-write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, "PERMANOVA.png", sep = "_")))
+write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, "PERMANOVA.tsv", sep = "_")))
 ```
 
 ```{r}
