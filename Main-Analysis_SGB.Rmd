@@ -52,10 +52,7 @@ theme_set(theme_light())
 # set seed for reproducibility
 set.seed(1234)
 
-# source BiobakeryUtils functions until the package can be installed
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/taxonomy_utils.R")
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/PERMANOVA_to_table.R")
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/maaslin3_utils.R")
+library(biobakeryUtils)
 
 ```
 
@@ -173,20 +170,25 @@ InputData_splitByRanks.tse %>%
   sapply(summary)
 ```
 
-## Relative abundance of 30 most abundant bacteria per taxonomic level {.tabset}
+```{r}
+n_taxa <- 20
+```
+
+## Relative abundance of `r n_taxa` most abundant bacteria per taxonomic level {.tabset}
 
 ```{r}
+
 tmp <- InputData_splitByRanks.tse %>% 
   lapply(function(tse){
     max_n <- nrow(tse)
-    top30MostAbund <- getTop(tse, assay.type = "metaphlan_RelAbund", method = "mean", top = min(c(30, max_n)))
-    tse.subset <- tse[top30MostAbund,]
+    topNMostAbund <- getTop(tse, assay.type = "metaphlan_RelAbund", method = "mean", top = min(c(n_taxa, max_n)))
+    tse.subset <- tse[topNMostAbund,]
     return(tse.subset)
   })
   
 ```
 
-```{r, results = "asis"}
+```{r, results = "asis", fig.height=7, fig.width=10}
 
 for (tx in names(tmp)) {
   # Create header with cat()
@@ -196,8 +198,9 @@ for (tx in names(tmp)) {
   p <- miaViz::plotAbundance(tmp[[tx]], 
                             assay.type = "metaphlan_RelAbund",
                             group = tx) +
-       facet_grid(cols = vars(cohort, treatment), scales = "free_x") + 
-    theme(legend.position = "bottom")
+       facet_nested(cols = vars(cohort, treatment), scales = "free_x") + 
+    theme(legend.position = "bottom") + 
+    guides(fill = guide_legend(nrow = 5))
   
   # Explicitly print plotly object
   print(p)
@@ -237,11 +240,13 @@ InputMetaphlanData.tse <- addAlpha(InputMetaphlanData.tse, assay.type = "metaphl
 lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), 
        function(div) {
          stats_basic <- shapiro.test(as.data.frame(colData(InputMetaphlanData.tse))[[div]])
-         text <- paste0("Shapiro-Wilk test for normality: W = ", round(stats_basic$statistic, 2), "; P-value = ", round(stats_basic$p.value, 3))
+         text <- paste0("Shapiro-Wilk test: W = ", round(stats_basic$statistic, 2), "; P-value = ", round(stats_basic$p.value, 3))
          plot <- ggplot(as.data.frame(colData(InputMetaphlanData.tse)), aes(x = !!sym(div))) +
            geom_histogram() + 
-           annotate(geom = "text", x = -Inf, y = Inf, label = text, hjust = 0.2, vjust = 2) + 
-           labs(title = div)
+           labs(
+             title = div, 
+             caption = text
+           )
          
          }
        ) %>% 
