@@ -3,4 +3,7 @@
 # ignore this maaslin3 summary_plot.pdf that has some metadata in it which causes it to always look 'modified' while the figure remains identical
 summary_plot.pdf
 # ignore maaslin3 ouput since it is heavy
-*.rds 
+*.rds
+
+# ignore other R hidden files
+.Rapp.history 
