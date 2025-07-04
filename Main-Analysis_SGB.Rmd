@@ -1548,6 +1548,71 @@ ggsave(plot = bfratio_plot, filename = file.path(params$basic_outdir, params$tax
 bfratio_plot
 ```
 
+# Enterobacteria abundances in relation to the treatment
+
+```{r}
+enteros_SGBs <- rowData(InputMetaphlanData.tse) %>% 
+  as.data.frame() %>% 
+  filter(family == "f__Enterobacteriaceae") %>% 
+  .$SGB
+
+# set names of SGBs as specie
+names(enteros_SGBs) <- rowData(InputMetaphlanData.tse) %>% 
+  as.data.frame() %>% 
+  filter(family == "f__Enterobacteriaceae") %>% 
+  .$species
+
+enteros_SGBs_top4 <- head(enteros_SGBs, 4)
+
+enteros_SGBs_top4
+```
+
+```{r}
+tmpDF <- meltSE(InputMetaphlanData.tse, assay.type = "metaphlan_RelAbund", add.col = c("cohort", "genotype", "treatment")) %>% 
+  filter(FeatureID == "t__SGB10068") %>% 
+    mutate(Treatment = factor(ifelse(treatment == "Vehicle", paste(genotype, "Control", sep = "\n"), paste(genotype, "Treated", sep = "\n")), levels = c("WT\nControl", "ASO\nControl", "ASO\nTreated")))
+
+
+e.coli_relAbund_plot <- tmpDF %>% 
+  ggplot(aes(x = cohort, y = metaphlan_RelAbund, color = Treatment)) +
+  geom_point(position = position_jitterdodge(dodge.width = 0.8, seed = 1234), size = 2) +
+  geom_boxplot(alpha = 0.5,
+               show.legend = FALSE,
+               outliers = FALSE) +
+  theme(legend.position = "top", axis.title.y = element_text(face = "italic")) +
+  labs(x = "Treatment Cohort", color = "Genotype\nTreatment", y = "E. coli", caption = "FDR from pairwise Wilcoxon Test")
+  
+e.coli_relAbund_plot
+```
+
+```{r}
+tmpDF <- colData(InputMetaphlanData.tse) %>% 
+    as.data.frame() %>% 
+  mutate(Treatment = factor(ifelse(treatment == "Vehicle", paste(genotype, "Control", sep = "\n"), paste(genotype, "Treated", sep = "\n")), levels = c("WT\nControl", "ASO\nControl", "ASO\nTreated")))
+
+bfratio_plot <- tmpDF %>%
+  ggplot(aes(x = cohort, y = BFRatio, color = Treatment)) +
+  geom_point(position = position_jitterdodge(dodge.width = 0.8, seed = 1234), size = 2) +
+  geom_boxplot(alpha = 0.5,
+               show.legend = FALSE,
+               outliers = FALSE) +
+  stat_pvalue_manual(
+    data = tmpDF %>%
+        rstatix::group_by(cohort) %>% 
+      rstatix::pairwise_wilcox_test(
+      formula = BFRatio ~  Treatment,
+      p.adjust.method = "BH"
+    ) %>% rstatix::add_xy_position(x = "cohort"), label = "p.adj", bracket.size = 0.5,tip.length = 0.01
+  ) +
+  theme(legend.position = "top") +
+  labs(x = "Treatment Cohort", color = "Genotype\nTreatment", y = "Bacteroidetes:Firmicutes ratio", caption = "FDR from pairwise Wilcoxon Test")
+```
+
+```{r, fig.height=5, fig.width=5}
+ggsave(plot = bfratio_plot, filename = file.path(params$basic_outdir, params$tax_level, "Bact_Firm_ratio.png"), dpi = 600, width = 6, height = 6)
+bfratio_plot
+```
+
 # Motor performances in response to treatments (Data needed)
   
 # Overall Conclusions (to be done)
