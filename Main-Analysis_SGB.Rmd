@@ -75,9 +75,9 @@ rm(tmp_out)
 
 # Prepare data for analysis
 
-THis is run only if interactive to avoid careless overwriting
+This is run only if interactive to avoid careless overwriting
 
-```{r, eval=interactive(), message=FALSE}
+```{r, eval=interactive()}
 
 # Load metadata
 metadata.df <- read_tsv("Data/metadata_4.0.tsv") %>% 
@@ -93,54 +93,40 @@ metadata.df <- read_tsv("Data/metadata_4.0.tsv") %>%
 googleCloudStorageR::gcs_auth(json_file = "~/Downloads/curatedmetagenomicdata-232f4a306d1d.json")
 
 # METAPHLAN4
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/get_reads_processed.R")
-mpa_files_cache <- cacheMetagenomicData(metadata.df$uuid, data_type = "relative_abundance", redownload = "no") %>% 
-  # retrieve reads per sample too
-  mutate(n_reads_processed = get_reads_processed.vec(cache_path))
+cache_table <- cacheMetagenomicData(metadata.df$uuid, data_type = "relative_abundance", redownload = "no") 
 
 # metaphlan <- get_metaphlan_locators(metadata.df$uuid, data_type = "relative_abundance")
-metaphlan_profiles <- suppressMessages(loadMetagenomicData(mpa_files_cache))
 
-# the order of samples is preserved this way
-metadata.df <- as.data.frame(dplyr::left_join(metadata.df, select(mpa_files_cache, uuid = UUID, n_reads_processed), by = "uuid"))
-rownames(metadata.df) <- metadata.df$uuid
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/wrangle_metaphlan.R")
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/complete_unknown_taxonomy.R")
+InputMetaphlanData.tse <- suppressMessages(biobakeryUtils::loadMetagenomicData(cache_table))
 
-mpa_raw <- cbind(
-  as.data.frame(rowData(metaphlan_profiles)) %>%
-    rownames_to_column("clade_name"), assay(metaphlan_profiles)) %>% 
-  as_tibble() %>% 
-  select(-additional_species)
+# bypass the metadata including only what is important for us:
 
-dir.create("Data/metaphlan_profiles", recursive = TRUE, showWarnings = FALSE)
-write_tsv(mpa_raw, "Data/metaphlan_profiles/metaphlan4_data.tsv")
-
-# wrangle metaphlan4 data
-mpa4_wrangled_taxonomy_mpa <- assay(metaphlan_profiles) %>%
+## get uuid and number_reads
+important_pieces_from_parkinsonsMetagenomicData <- InputMetaphlanData.tse %>% 
+  colData() %>% 
   as.data.frame() %>% 
-  rownames_to_column("clade_name") %>% 
-  wrangle_metaphlan(taxonomic_lvl = params$tax_level)
+  select(uuid, number_reads)
 
-InputMetaphlanData.tse <- TreeSummarizedExperiment(
-  rowData = mpa4_wrangled_taxonomy_mpa$taxonomies,
-  colData = metadata.df,
-  assays = list(
-    metaphlan_RelAbund = as.matrix(mpa4_wrangled_taxonomy_mpa$profiles/100)[,rownames(metadata.df)],
-    metaphlan_Percent = as.matrix(mpa4_wrangled_taxonomy_mpa$profiles)[,rownames(metadata.df)]
-    )
-)
+## generate a new colData data.frame with rows already ordered
+new_colData <- as.data.frame(dplyr::left_join(metadata.df, important_pieces_from_parkinsonsMetagenomicData, by = "uuid"))
+rownames(new_colData) <- new_colData$uuid
+new_colData <- new_colData[colnames(InputMetaphlanData.tse),]
+## replace the old colData with the new one
+colData(InputMetaphlanData.tse) <- DataFrame(new_colData)
 
-# Add phylogenetic tree
-library(TreeTools)
-source("https://raw.githubusercontent.com/g-antonello/biobakeryUtils/refs/heads/main/R/AddPhyloTree_to_mpa_tse.R")
-InputMetaphlanData.tse <-  AddPhyloTree_to_mpa_tse(InputMetaphlanData.tse, CHOCOPhlAn_version = "202403")
-
-detach("package:TreeTools", unload=TRUE)
+# create assay of Relative abundance as opposed to metaphlan's default percent
+assay(InputMetaphlanData.tse, "metaphlan_RelAbund") <- assay(InputMetaphlanData.tse)/100
+# order relative abundance [0,1]assay first 
+assays(InputMetaphlanData.tse) <- rev(assays(InputMetaphlanData.tse))
 # create a new assay with approximated counts as relAbund * reads_processed
+assay(InputMetaphlanData.tse, "metaphlan_Counts") <- t(round(apply(assay(InputMetaphlanData.tse, "metaphlan_RelAbund"), 1, function(x) x * InputMetaphlanData.tse@colData$number_reads), 0))
 
-identical(rownames(InputMetaphlanData.tse@colData), colnames(assay(InputMetaphlanData.tse, "metaphlan_RelAbund")))
-assay(InputMetaphlanData.tse, "metaphlan_Counts") <- t(round(apply(assay(InputMetaphlanData.tse, "metaphlan_RelAbund"), 1, function(x) x * InputMetaphlanData.tse@colData$n_reads_processed), 0))
+# add phylogenetic tree
+InputMetaphlanData.tse <-  AddPhyloTree_to_mpa_tse(data.tse = InputMetaphlanData.tse, CHOCOPhlAn_version = "202403")
+
+# rename strain column into SGB
+colnames(rowData(InputMetaphlanData.tse))[which(colnames(rowData(InputMetaphlanData.tse)) == "strain")] <- "SGB" 
+
 saveRDS(InputMetaphlanData.tse, "Data/InputMetaphlanData.tse.Rds")
 
 ```
@@ -161,13 +147,15 @@ InputData_splitByRanks.tse %>%
   sapply(nrow)
 ```
 
-## Prevalence distribution of each taxon
+## Prevalence distribution of taxa per taxonomic rank
 
 ```{r}
 InputData_splitByRanks.tse %>% 
   lapply(assay) %>% 
   lapply(apply, 1, function(x) sum(x > 0)) %>% 
-  sapply(summary)
+  sapply(summary) %>% 
+  kbl() %>% 
+  kable_styling()
 ```
 
 ```{r}
@@ -207,7 +195,7 @@ for (tx in names(tmp)) {
   
   cat("\n")
 }
-
+checkTaxonomy(tmp[[tx]])
 ```
 
 This is again to show that there are too many taxa to easily visualize them.
@@ -256,7 +244,7 @@ lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"),
 
 ```{r, tab.cap="Assessment of dependence of alpha diversity measures in relation to sequencing depth"}
 tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
-  lm(as.formula(paste(div, "~", "n_reads_processed")), data = colData(InputMetaphlanData.tse))
+  lm(as.formula(paste(div, "~", "number_reads")), data = colData(InputMetaphlanData.tse))
   
 }, USE.NAMES = TRUE, simplify = FALSE)
 
@@ -273,12 +261,12 @@ table_results.df %>%
 # Alpha diversity does not vary in relation to genotype, treatment and cohort
 
 $$
-AlphaIndex \sim genotype + treatment + cohort + \text{n_reads_processed}
+AlphaIndex \sim genotype + treatment + cohort + \text{number_reads}
 $$
 
 ```{r}
 tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
-  lm(as.formula(paste(div, "~", "genotype + treatment + cohort + n_reads_processed")), data = colData(InputMetaphlanData.tse))
+  lm(as.formula(paste(div, "~", "genotype + treatment + cohort + number_reads")), data = colData(InputMetaphlanData.tse))
   
 }, USE.NAMES = TRUE, simplify = FALSE)
 
@@ -407,7 +395,7 @@ dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
 Results are stored in ``r maaslin3_final_outdir``
 
 ```{r}
-
+set.seed(1234)
 genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     input_data = tmp.tse,
     formula = ~ genotype + cohort, 
@@ -516,7 +504,7 @@ InputMetaphlanData_Fp7.tse <- InputMetaphlanData.tse[, InputMetaphlanData.tse@co
 ## Overall community trends (Beta diversity)
 
 ```{r}
-dimRedName <- paste(params$beta_dist, "mds", sep = "_")
+dimRedName <- paste("Fp7", params$beta_dist, "mds", sep = "_")
 # this will work once mia or TreeSummarizedExperiment fixes some things
 InputMetaphlanData_Fp7.tse <- mia::addMDS(
   InputMetaphlanData_Fp7.tse,
@@ -570,6 +558,54 @@ write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$tax_l
 permanova_table.df %>% 
   kbl() %>% 
   kable_styling()
+```
+
+## Pairwise group comparison (PERMANOVA and boxplot of Bray-Curtis distances)
+
+```{r}
+dissimName <- paste("Fp7", params$beta_dist, sep = "_")
+InputMetaphlanData_Fp7.tse <- addDissimilarity(InputMetaphlanData_Fp7.tse, method = "bray", name = dissimName, assay.type= "metaphlan_RelAbund")
+mtx <- metadata(InputMetaphlanData_Fp7.tse)[[dissimName]]
+mtx[upper.tri(mtx,diag = TRUE)] <- NA
+
+pairwise_dissim_bray <- reshape2::melt(mtx) %>% 
+  filter(complete.cases(.)) %>%
+  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var1 = uuid, genotype_treatment = paste(genotype, treatment)), by = "Var1") %>% 
+  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var2 = uuid, genotype_treatment = paste(genotype, treatment)), by = "Var2") %>% 
+  select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
+  mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs "))
+
+```
+
+## Pairwise PERMANOVA
+
+```{r}
+source("https://raw.githubusercontent.com/pmartinezarbizu/pairwiseAdonis/refs/heads/master/pairwiseAdonis/R/pairwise.adonis.R")
+set.seed(1234)
+library(vegan)
+pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(InputMetaphlanData_Fp7.tse)[[dissimName]]), 
+                factors = paste(InputMetaphlanData_Fp7.tse@colData$genotype,InputMetaphlanData_Fp7.tse@colData$treatment), 
+                perm = 9999
+                )
+
+kbl(pairwise_adonis_stats, caption = "Pairwise PERMANOVA test comparing groups as seen above") %>% 
+  kable_styling()
+
+```
+
+```{r}
+pairwise_dissim_bray %>% 
+  filter(genotype_treatment.x != genotype_treatment.y) %>% 
+ggboxplot(
+  x = "pairs",
+  y = "value") + 
+  geom_point(position = position_jitter(width = 0.2, seed = 1234)) + 
+  geom_text(aes(x = pairs, y = max(pairwise_dissim_bray$value+0.1), label = paste("Pairwise adonis2\nP-value =", p.value)), data = pairwise_adonis_stats) +
+  
+  labs(
+    x = "",
+    y = dissimName,
+  )
 ```
 
 ## What microbes differ between `genotypes` in vehicle controls?
@@ -883,6 +919,54 @@ write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$tax_l
 permanova_table.df %>% 
   kbl() %>% 
   kable_styling()
+```
+
+## Pairwise group comparison (PERMANOVA and boxplot of Bray-Curtis distances)
+
+```{r}
+dissimName <- paste("Fp7", params$beta_dist, sep = "_")
+InputMetaphlanData_Fp7.tse <- addDissimilarity(InputMetaphlanData_Fp7.tse, method = "bray", name = dissimName, assay.type= "metaphlan_RelAbund")
+mtx <- metadata(InputMetaphlanData_Fp7.tse)[[dissimName]]
+mtx[upper.tri(mtx,diag = TRUE)] <- NA
+
+pairwise_dissim_bray <- reshape2::melt(mtx) %>% 
+  filter(complete.cases(.)) %>%
+  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var1 = uuid, genotype_treatment = paste(genotype, treatment)), by = "Var1") %>% 
+  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var2 = uuid, genotype_treatment = paste(genotype, treatment)), by = "Var2") %>% 
+  select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
+  mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs "))
+
+```
+
+## Pairwise PERMANOVA
+
+```{r}
+source("https://raw.githubusercontent.com/pmartinezarbizu/pairwiseAdonis/refs/heads/master/pairwiseAdonis/R/pairwise.adonis.R")
+set.seed(1234)
+library(vegan)
+pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(InputMetaphlanData_Fp7.tse)[[dissimName]]), 
+                factors = paste(InputMetaphlanData_Fp7.tse@colData$genotype,InputMetaphlanData_Fp7.tse@colData$treatment), 
+                perm = 9999
+                )
+
+kbl(pairwise_adonis_stats, caption = "Pairwise PERMANOVA test comparing groups as seen above") %>% 
+  kable_styling()
+
+```
+
+```{r}
+pairwise_dissim_bray %>% 
+  filter(genotype_treatment.x != genotype_treatment.y) %>% 
+ggboxplot(
+  x = "pairs",
+  y = "value") + 
+  geom_point(position = position_jitter(width = 0.2, seed = 1234)) + 
+  geom_text(aes(x = pairs, y = max(pairwise_dissim_bray$value+0.1), label = paste("Pairwise adonis2\nP-value =", p.value)), data = pairwise_adonis_stats) +
+  
+  labs(
+    x = "",
+    y = dissimName,
+  )
 ```
 
 ## What microbes differ between `genotypes` in vehicle controls?
@@ -1282,6 +1366,19 @@ rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse))
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
   facet_grid(cols = vars(cohort), scales = "free_x")
 ```
+
+# PCoA plot with just ASO-C v ASO-Fp (no WT)
+
+```{r}
+
+```
+
+# Microbiome-typical plot panel
+
+```{r}
+
+```
+
 
 # Motor performances in response to treatments (Data needed)
   
