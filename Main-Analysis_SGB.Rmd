@@ -260,6 +260,37 @@ table_results.df %>%
 
 # Alpha diversity does not vary in relation to genotype, treatment and cohort
 
+## Overall plot
+
+
+```{r}
+alpha_div_plotList <- lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
+  colData(InputMetaphlanData.tse) %>% 
+    as.data.frame() %>% 
+     mutate(Treatment = factor(ifelse(treatment == "Vehicle", paste(genotype, "Control"), paste(genotype, "Treated")), levels = c("WT Control", "ASO Control", "ASO Treated"))) %>% 
+  ggplot(aes(x = "", y = eval(parse(text = div)), color = Treatment)) + 
+  geom_point(position = position_jitterdodge(dodge.width = 0.8, seed = 1234)) + 
+  geom_boxplot(alpha = 0.5, show.legend = FALSE) + 
+    facet_grid(cols = vars(cohort), scales = "free_y") +
+    labs(
+      title = div,
+      x = NULL,
+      y = "Alpha Estimate"
+    )})
+```
+
+
+```{r}
+ggarranged_plotlist <-  ggarrange(plotlist= alpha_div_plotList, common.legend = TRUE)
+
+ggsave(plot = ggarranged_plotlist, filename = file.path(output_directories.list$alpha_div_outdir, "alphas_vs_genotype_cohort_treatment.png"), dpi = 600, height = 5, width = 6)
+ggarranged_plotlist
+```
+
+## Statistics tables
+
+### Both cohorts, adjusting for it
+
 $$
 AlphaIndex \sim genotype + treatment + cohort + \text{number_reads}
 $$
@@ -272,11 +303,66 @@ tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini
 
 table_results.df <- tmp %>% lapply(broom::tidy) %>% 
   bind_rows(.id = "AlphaIndex") %>% 
-  filter(!grepl("Intercept", term)) %>% 
+  
   arrange(term) %>% 
   relocate(term)
 
 write_tsv(table_results.df, file = file.path(output_directories.list$alpha_div_outdir, "alphas_vs_genotype_cohort_treatment.tsv"))
+
+table_results.df %>%
+  kbl() %>% 
+  row_spec(which(table_results.df$p.value < 0.05), bold = TRUE, color = "red3") %>% 
+  kable_styling()
+```
+
+### Only cohort `Fp7`
+
+$$
+AlphaIndex \sim genotype + treatment + \text{number_reads}
+$$
+
+```{r}
+cohort_subdir <- "Fp7"
+
+tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
+  lm(as.formula(paste(div, "~", "genotype + treatment + number_reads")), data = colData(InputMetaphlanData.tse)[colData(InputMetaphlanData.tse)$cohort == cohort_subdir,])
+  
+}, USE.NAMES = TRUE, simplify = FALSE)
+
+table_results.df <- tmp %>% lapply(broom::tidy) %>% 
+  bind_rows(.id = "AlphaIndex") %>% 
+  arrange(term) %>% 
+  relocate(term)
+
+write_tsv(table_results.df, file = file.path(params$basic_outdir, params$tax_level, paste("cohort",cohort_subdir, sep = "_"),  "alphas_vs_genotype_treatment.tsv"))
+
+table_results.df %>%
+  kbl() %>% 
+  row_spec(which(table_results.df$p.value < 0.05), bold = TRUE, color = "red3") %>% 
+  kable_styling()
+```
+
+
+### Only cohort `bCL`
+
+$$
+AlphaIndex \sim genotype + treatment + \text{number_reads}
+$$
+
+```{r}
+cohort_subdir <- "bCL"
+
+tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
+  lm(as.formula(paste(div, "~", "genotype + treatment + number_reads")), data = colData(InputMetaphlanData.tse)[colData(InputMetaphlanData.tse)$cohort == cohort_subdir,])
+  
+}, USE.NAMES = TRUE, simplify = FALSE)
+
+table_results.df <- tmp %>% lapply(broom::tidy) %>% 
+  bind_rows(.id = "AlphaIndex") %>% 
+  arrange(term) %>% 
+  relocate(term)
+
+write_tsv(table_results.df, file = file.path(params$basic_outdir, params$tax_level, paste("cohort",cohort_subdir, sep = "_"),  "alphas_vs_genotype_treatment.tsv"))
 
 table_results.df %>%
   kbl() %>% 
