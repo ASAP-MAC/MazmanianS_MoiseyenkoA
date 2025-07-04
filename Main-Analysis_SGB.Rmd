@@ -270,7 +270,7 @@ alpha_div_plotList <- lapply(c("dbp_dominance", "observed_richness", "shannon_di
      mutate(Treatment = factor(ifelse(treatment == "Vehicle", paste(genotype, "Control"), paste(genotype, "Treated")), levels = c("WT Control", "ASO Control", "ASO Treated"))) %>% 
   ggplot(aes(x = "", y = eval(parse(text = div)), color = Treatment)) + 
   geom_point(position = position_jitterdodge(dodge.width = 0.8, seed = 1234)) + 
-  geom_boxplot(alpha = 0.5, show.legend = FALSE) + 
+  geom_boxplot(alpha = 0.5, show.legend = FALSE, outliers = FALSE) + 
     facet_grid(cols = vars(cohort), scales = "free_y") +
     labs(
       title = div,
@@ -1491,18 +1491,44 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
   facet_grid(cols = vars(cohort), scales = "free_x")
 ```
 
-# PCoA plot with just ASO-C v ASO-Fp (no WT)
+# Bacteroides/Firmicutes ratio plot
 
 ```{r}
 
+InputMetaphlanData.tse@colData$BFRatio <- apply(assay(agglomerateByRank(InputMetaphlanData.tse, "phylum")), 2, function(x){
+  bactName <- "p__Bacteroidota"
+  firmName <- "p__Firmicutes"
+  return(x[bactName]/x[firmName])
+})
 ```
-
-# Microbiome-typical plot panel
 
 ```{r}
+tmpDF <- colData(InputMetaphlanData.tse) %>% 
+    as.data.frame() %>% 
+  mutate(Treatment = factor(ifelse(treatment == "Vehicle", paste(genotype, "Control", sep = "\n"), paste(genotype, "Treated", sep = "\n")), levels = c("WT\nControl", "ASO\nControl", "ASO\nTreated")))
 
+bfratio_plot <- tmpDF %>%
+  ggplot(aes(x = cohort, y = BFRatio, color = Treatment)) +
+  geom_point(position = position_jitterdodge(dodge.width = 0.8, seed = 1234), size = 2) +
+  geom_boxplot(alpha = 0.5,
+               show.legend = FALSE,
+               outliers = FALSE) +
+  stat_pvalue_manual(
+    data = tmpDF %>%
+        rstatix::group_by(cohort) %>% 
+      rstatix::pairwise_wilcox_test(
+      formula = BFRatio ~  Treatment,
+      p.adjust.method = "BH",
+    ) %>% rstatix::add_xy_position(x = "cohort"), label = "p.adj", bracket.size = 0.5,tip.length = 0.01
+  ) +
+  theme(legend.position = "top") +
+  labs(x = "Treatment Cohort", color = "Genotype\nTreatment", y = "Bacteroidetes:Firmicutes ratio", caption = "FDR from pairwise Wilcoxon Test")
 ```
 
+```{r, fig.height=5, fig.width=5}
+ggsave(plot = bfratio_plot, filename = file.path(params$basic_outdir, params$tax_level, "Bact_Firm_ratio.png"), dpi = 600, width = 6, height = 6)
+bfratio_plot
+```
 
 # Motor performances in response to treatments (Data needed)
   
