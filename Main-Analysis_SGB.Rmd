@@ -909,6 +909,15 @@ treatments_vs_vehicle_in_ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maasli
 write_maaslin3_curated_tables(treatments_vs_vehicle_in_ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
 saveRDS(treatments_vs_vehicle_in_ASO.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
+
+# copy their standard plot in
+invisible(file.copy(file.path(maaslin3_tmp_outdir, "figures", "summary_plot.png"), file.path(maaslin3_final_outdir, "summary_plot.png")))
+```
+
+####  Maaslin3 default plot
+
+```{r}
+knitr::include_graphics(file.path(maaslin3_final_outdir, "summary_plot.png"))
 ```
 
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
@@ -1259,6 +1268,15 @@ treatments_vs_vehicle_in_ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maasli
 write_maaslin3_curated_tables(treatments_vs_vehicle_in_ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
 saveRDS(treatments_vs_vehicle_in_ASO.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
+
+# copy their standard plot in
+invisible(file.copy(file.path(maaslin3_tmp_outdir, "figures", "summary_plot.png"), file.path(maaslin3_final_outdir, "summary_plot.png")))
+```
+
+####  Maaslin3 default plot
+
+```{r}
+knitr::include_graphics(file.path(maaslin3_final_outdir, "summary_plot.png"))
 ```
 
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
