@@ -531,8 +531,46 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) +
 
 ```
 
+```{r, fig.height=6, fig.width=6}
+ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.png", sep = "_")), dpi = 600, height = 6, width = 6)
+
+beta_plot_basic
+```
+
+Same plot as above, without WT 
+
 ```{r}
-ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.png", sep = "_")), dpi = 600, height = 6.5, width = 7)
+dimRedName <- paste("Fp7", params$beta_dist, "mds", sep = "_")
+# this will work once mia or TreeSummarizedExperiment fixes some things
+InputMetaphlanData_Fp7_noWT.tse <- InputMetaphlanData_Fp7.tse[,InputMetaphlanData_Fp7.tse@colData$genotype != "WT"]
+
+InputMetaphlanData_Fp7_noWT.tse <- mia::addMDS(
+  InputMetaphlanData_Fp7_noWT.tse,
+  assay.type = "metaphlan_RelAbund",
+  method = params$beta_dist,
+  ncomponents = 3, name = dimRedName
+  )
+
+variances_explained <- attr(reducedDim(InputMetaphlanData_Fp7_noWT.tse, dimRedName), "eig")
+prop_variances_explained <- variances_explained/sum(variances_explained)
+
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_Fp7_noWT.tse)), reducedDim(InputMetaphlanData_Fp7_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+
+beta_plot_basic <- project1_meta_with_MDS.df %>% 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) + 
+  geom_point(size = 2) + 
+  stat_ellipse(show.legend = FALSE) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 1, 2, 4, 5)]) +
+  theme(legend.position = "top") +
+  labs(color = "Genotype and Treatment",
+       x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
+       y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
+  )
+
+```
+
+```{r, 6}
+ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "noWT", "plot.png", sep = "_")), dpi = 600, height = 6, width = 6)
 
 beta_plot_basic
 ```
@@ -892,8 +930,8 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) +
 
 ```
 
-```{r}
-ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.png", sep = "_")), dpi = 600, height = 6.5, width = 7)
+```{r, fig.height=6, fig.width=6}
+ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.png", sep = "_")), dpi = 600, height = 6, width = 6)
 
 beta_plot_basic
 ```
