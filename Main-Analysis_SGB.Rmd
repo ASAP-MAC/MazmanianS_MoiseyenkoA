@@ -47,6 +47,8 @@ library(reactable)
 library(parkinsonsMetagenomicData)
 
 library(ggh4x) # for complex ggplot2 faceting
+# remotes::install_github("cmartin/ggConvexHull")
+library(ggConvexHull) # for convex hulls geometries
 # set ggplot2 plot themes 
 theme_set(theme_light())
 # set seed for reproducibility
@@ -87,7 +89,8 @@ metadata.df <- read_tsv("Data/metadata_4.0.tsv") %>%
     cage = as.factor(cage),
     cohort = as.factor(cohort),
     subcohort = as.factor(subcohort),
-    treatment = as.factor(treatment) %>% relevel(ref = "Vehicle")
+    treatment = as.factor(treatment) %>% relevel(ref = "Vehicle"), 
+    genotype_treatment = paste(genotype, treatment, sep = "|") %>% factor(levels = c("WT|Vehicle", "ASO|Vehicle", "ASO|Fp", "ASO|benCom"))
     )
 
 googleCloudStorageR::gcs_auth(json_file = "~/Downloads/curatedmetagenomicdata-232f4a306d1d.json")
@@ -126,6 +129,13 @@ InputMetaphlanData.tse <-  AddPhyloTree_to_mpa_tse(data.tse = InputMetaphlanData
 
 # rename strain column into SGB
 colnames(rowData(InputMetaphlanData.tse))[which(colnames(rowData(InputMetaphlanData.tse)) == "strain")] <- "SGB" 
+
+# calculate Bacteroidetes/Firmicutes ratio
+InputMetaphlanData.tse@colData$BFRatio <- apply(assay(agglomerateByRank(InputMetaphlanData.tse, "phylum")), 2, function(x){
+  bactName <- "p__Bacteroidota"
+  firmName <- "p__Firmicutes"
+  return(x[bactName]/x[firmName])
+})
 
 saveRDS(InputMetaphlanData.tse, "Data/InputMetaphlanData.tse.Rds")
 
@@ -195,7 +205,7 @@ for (tx in names(tmp)) {
   
   cat("\n")
 }
-checkTaxonomy(tmp[[tx]])
+
 ```
 
 This is again to show that there are too many taxa to easily visualize them.
@@ -261,7 +271,6 @@ table_results.df %>%
 # Alpha diversity does not vary in relation to genotype, treatment and cohort
 
 ## Overall plot
-
 
 ```{r}
 alpha_div_plotList <- lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
@@ -402,12 +411,12 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData.tse)), reducedDim(InputMetaphlanData.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
-ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) + 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
-  scale_color_manual(values = ggsci::pal_jco()(6)) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   theme(legend.position = "top") +
-  labs(color = "Genotype and Treatment",
+  labs(color = "Genotype|Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -607,12 +616,12 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_Fp7.tse)), reducedDim(InputMetaphlanData_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
-ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) + 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 1, 2, 4, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   theme(legend.position = "top") +
-  labs(color = "Genotype and Treatment",
+  labs(color = "Genotype|Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -645,12 +654,12 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_Fp7_noWT.tse)), reducedDim(InputMetaphlanData_Fp7_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
-ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) + 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 1, 2, 4, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   theme(legend.position = "top") +
-  labs(color = "Genotype and Treatment",
+  labs(color = "Genotype|Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -696,8 +705,8 @@ mtx[upper.tri(mtx,diag = TRUE)] <- NA
 
 pairwise_dissim_bray <- reshape2::melt(mtx) %>% 
   filter(complete.cases(.)) %>%
-  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var1 = uuid, genotype_treatment = paste(genotype, treatment)), by = "Var1") %>% 
-  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var2 = uuid, genotype_treatment = paste(genotype, treatment)), by = "Var2") %>% 
+  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var1 = uuid, genotype_treatment = genotype_treatment), by = "Var1") %>% 
+  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var2 = uuid, genotype_treatment = genotype_treatment), by = "Var2") %>% 
   select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
   mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs "))
 
@@ -990,6 +999,144 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
   * Looking at raw data, I tend to conclude the same thing: a signal is there 
   but we are underpowered to label it "statistically significant".
 
+## Microbiome-typical plots panel
+
+```{r}
+dimRedName <- paste("Fp7", params$beta_dist, "mds", sep = "_")
+# this will work once mia or TreeSummarizedExperiment fixes some things
+
+InputMetaphlanData_Fp7.tse <- mia::addMDS(
+  InputMetaphlanData_Fp7.tse,
+  assay.type = "metaphlan_RelAbund",
+  method = params$beta_dist,
+  ncomponents = 3, name = dimRedName
+  )
+
+variances_explained <- attr(reducedDim(InputMetaphlanData_Fp7.tse, dimRedName), "eig")
+prop_variances_explained <- variances_explained/sum(variances_explained)
+
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_Fp7.tse)), reducedDim(InputMetaphlanData_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+
+panelA_betaDiv <- project1_meta_with_MDS.df %>% 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_point(size = 3, stroke = 1, color = "black") +
+  geom_point(size = 3) +
+  ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.1) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  theme(legend.position = "top") +
+  labs(color = "Genotype|Treatment",
+       fill = "Genotype|Treatment",
+       x = paste0("PCoA axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
+       y = paste0("PCoA axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
+  )
+
+# panelA_betaDiv
+```
+
+```{r}
+# panel B, phylum level stack plot
+
+panelB <- plotAbundance(
+  x = InputMetaphlanData_Fp7.tse,
+  assay.type = "metaphlan_RelAbund", 
+  group = "phylum") + 
+  facet_grid(cols = vars(genotype_treatment), scales = "free_x") + 
+  theme(panel.spacing.x = unit(0.05, "lines")) + 
+  labs(
+    fill = "Phylum",
+    x = ""
+  )
+
+panelB
+```
+
+```{r}
+# panel C, differentially abundant features, or top 20 more strongly associated
+
+panelC <- readRDS("results/SGB/cohort_Fp7/treatments_vs_vehicle_in_ASO/summary_plot_gg.RDS") + theme(strip.text = element_blank())
+panelC
+```
+
+```{r}
+panelD_BFratio <- InputMetaphlanData_Fp7.tse %>% 
+  colData() %>% 
+  as.data.frame() %>% 
+  ggplot(aes(
+    x = "",
+    y = BFRatio, 
+    color = genotype_treatment, 
+    fill = genotype_treatment)
+  ) + 
+  geom_boxplot(alpha = 0.1, outliers = FALSE) +
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3, stroke = 1, color = "black") +
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) + 
+  labs(
+    x = "",
+  fill = "Genotype|Treatment",
+  color = "Genotype|Treatment",
+  y = "Bacteroidetes/Firmicutes Ratio"
+  )
+panelD_BFratio
+```
+
+```{r}
+# panel of alpha diversity
+panelE_alphaDiv <- InputMetaphlanData_Fp7.tse %>% 
+  colData() %>% 
+  as.data.frame() %>% 
+  dplyr::rename(
+    `Shannon Diversity` = shannon_diversity,
+    `Observed Richness` = observed_richness
+  ) %>% 
+  pivot_longer(cols = c("Shannon Diversity", "Observed Richness"),names_to = "AlphaEstimate", values_to = "Value") %>% 
+   ggplot(
+    aes(
+      x = "",
+      y = Value,
+      color = genotype_treatment,
+      fill = genotype_treatment
+    )
+  ) + 
+  geom_boxplot(alpha = 0.1, outliers = FALSE) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) + 
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3, stroke = 1, color = "black") +
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3) +
+  facet_wrap(~AlphaEstimate, scales = "free_y") +
+  labs(
+  x = "",
+  y = "Alpha diversity/Richness value"
+  )
+
+panelE_alphaDiv
+```
+
+```{r, fig.height=16, fig.width=12}
+legends_panel <- ggarrange(
+  get_legend(panelB + guides(fill = guide_legend(ncol = 2))), 
+  get_legend(panelA_betaDiv + guides(color = guide_legend(ncol = 1, title.position = "top", position = "left")), position = "left"),
+  ncol = 2)
+
+plotPanel_Fp7 <- ggarrange(
+    panelB + theme(legend.position = "right") + guides(fill = guide_legend(ncol = 1)),
+  ggarrange(
+    ggarrange(
+      panelA_betaDiv + theme(legend.position = "top"),
+      panelD_BFratio + theme(legend.position = "none"), 
+      panelE_alphaDiv + theme(legend.position = "none"), 
+      ncol = 1, 
+      common.legend = TRUE, labels = c("b", "c", "d")), 
+    panelC +
+      theme(legend.position = "right"), widths = c(0.5,1), labels = c("", "e")),
+  nrow = 2, ncol = 1, heights = c(0.3, 1), labels = c("a", "")
+)
+
+ggsave(plot = plotPanel_Fp7, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel.svg"), height = 14, width = 14, bg = "white")
+```
+
 # Cohort bCL
 
 ```{r}
@@ -1018,12 +1165,12 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_bCL.tse)), reducedDim(InputMetaphlanData_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
-ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = paste(genotype, treatment))) + 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 1, 2, 4, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
   theme(legend.position = "top") +
-  labs(color = "Genotype and Treatment",
+  labs(color = "Genotype|Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -1062,15 +1209,15 @@ permanova_table.df %>%
 ## Pairwise group comparison (PERMANOVA and boxplot of Bray-Curtis distances)
 
 ```{r}
-dissimName <- paste("Fp7", params$beta_dist, sep = "_")
-InputMetaphlanData_Fp7.tse <- addDissimilarity(InputMetaphlanData_Fp7.tse, method = "bray", name = dissimName, assay.type= "metaphlan_RelAbund")
-mtx <- metadata(InputMetaphlanData_Fp7.tse)[[dissimName]]
+dissimName <- paste("bCL", params$beta_dist, sep = "_")
+InputMetaphlanData_bCL.tse <- addDissimilarity(InputMetaphlanData_bCL.tse, method = "bray", name = dissimName, assay.type= "metaphlan_RelAbund")
+mtx <- metadata(InputMetaphlanData_bCL.tse)[[dissimName]]
 mtx[upper.tri(mtx,diag = TRUE)] <- NA
 
 pairwise_dissim_bray <- reshape2::melt(mtx) %>% 
   filter(complete.cases(.)) %>%
-  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var1 = uuid, genotype_treatment = paste(genotype, treatment)), by = "Var1") %>% 
-  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var2 = uuid, genotype_treatment = paste(genotype, treatment)), by = "Var2") %>% 
+  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_bCL.tse)) %>% transmute(Var1 = uuid, genotype_treatment = genotype_treatment), by = "Var1") %>% 
+  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_bCL.tse)) %>% transmute(Var2 = uuid, genotype_treatment = genotype_treatment), by = "Var2") %>% 
   select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
   mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs "))
 
@@ -1082,8 +1229,8 @@ pairwise_dissim_bray <- reshape2::melt(mtx) %>%
 source("https://raw.githubusercontent.com/pmartinezarbizu/pairwiseAdonis/refs/heads/master/pairwiseAdonis/R/pairwise.adonis.R")
 set.seed(1234)
 library(vegan)
-pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(InputMetaphlanData_Fp7.tse)[[dissimName]]), 
-                factors = paste(InputMetaphlanData_Fp7.tse@colData$genotype,InputMetaphlanData_Fp7.tse@colData$treatment), 
+pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(InputMetaphlanData_bCL.tse)[[dissimName]]), 
+                factors = paste(InputMetaphlanData_bCL.tse@colData$genotype,InputMetaphlanData_bCL.tse@colData$treatment), 
                 perm = 9999
                 )
 
@@ -1344,7 +1491,145 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 ### Conclusions
 
   * No statistically significant associations again, and again effect sizes 
-  are very large both positively and negetively.
+  are very large both positively and negatively.
+
+## Microbiome-typical plots panel
+
+```{r}
+dimRedName <- paste("bCL", params$beta_dist, "mds", sep = "_")
+# this will work once mia or TreeSummarizedExperiment fixes some things
+
+InputMetaphlanData_bCL.tse <- mia::addMDS(
+  InputMetaphlanData_bCL.tse,
+  assay.type = "metaphlan_RelAbund",
+  method = params$beta_dist,
+  ncomponents = 3, name = dimRedName
+  )
+
+variances_explained <- attr(reducedDim(InputMetaphlanData_bCL.tse, dimRedName), "eig")
+prop_variances_explained <- variances_explained/sum(variances_explained)
+
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_bCL.tse)), reducedDim(InputMetaphlanData_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+
+panelA_betaDiv <- project1_meta_with_MDS.df %>% 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_point(size = 3, stroke = 1, color = "black") +
+  geom_point(size = 3) +
+  ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.1) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  theme(legend.position = "top") +
+  labs(color = "Genotype|Treatment",
+       fill = "Genotype|Treatment",
+       x = paste0("PCoA axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
+       y = paste0("PCoA axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
+  )
+
+# panelA_betaDiv
+```
+
+```{r}
+# panel B, phylum level stack plot
+
+panelB <- plotAbundance(
+  x = InputMetaphlanData_bCL.tse,
+  assay.type = "metaphlan_RelAbund", 
+  group = "phylum") + 
+  facet_grid(cols = vars(genotype_treatment), scales = "free_x") + 
+  theme(panel.spacing.x = unit(0.05, "lines")) + 
+  labs(
+    fill = "Phylum",
+    x = ""
+  )
+
+panelB
+```
+
+```{r}
+# panel C, differentially abundant features, or top 20 more strongly associated
+
+panelC <- readRDS("results/SGB/cohort_bCL/treatments_vs_vehicle_in_ASO/summary_plot_gg.RDS") + theme(strip.text = element_blank())
+panelC
+```
+
+```{r}
+panelD_BFratio <- InputMetaphlanData_bCL.tse %>% 
+  colData() %>% 
+  as.data.frame() %>% 
+  ggplot(aes(
+    x = "",
+    y = BFRatio, 
+    color = genotype_treatment, 
+    fill = genotype_treatment)
+  ) + 
+  geom_boxplot(alpha = 0.1, outliers = FALSE) +
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3, stroke = 1, color = "black") +
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) + 
+  labs(
+    x = "",
+  fill = "Genotype|Treatment",
+  color = "Genotype|Treatment",
+  y = "Bacteroidetes/Firmicutes Ratio"
+  )
+panelD_BFratio
+```
+
+```{r}
+# panel of alpha diversity
+panelE_alphaDiv <- InputMetaphlanData_bCL.tse %>% 
+  colData() %>% 
+  as.data.frame() %>% 
+  dplyr::rename(
+    `Shannon Diversity` = shannon_diversity,
+    `Observed Richness` = observed_richness
+  ) %>% 
+  pivot_longer(cols = c("Shannon Diversity", "Observed Richness"),names_to = "AlphaEstimate", values_to = "Value") %>% 
+   ggplot(
+    aes(
+      x = "",
+      y = Value,
+      color = genotype_treatment,
+      fill = genotype_treatment
+    )
+  ) + 
+  geom_boxplot(alpha = 0.1, outliers = FALSE) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) + 
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3, stroke = 1, color = "black") +
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3) +
+  facet_wrap(~AlphaEstimate, scales = "free_y") +
+  labs(
+  x = "",
+  y = "Alpha diversity/Richness value"
+  )
+
+panelE_alphaDiv
+```
+
+```{r, fig.height=16, fig.width=12}
+legends_panel <- ggarrange(
+  get_legend(panelB + guides(fill = guide_legend(ncol = 2))), 
+  get_legend(panelA_betaDiv + guides(color = guide_legend(ncol = 1, title.position = "top", position = "left")), position = "left"),
+  ncol = 2)
+
+plotPanel_bCL <- ggarrange(
+    panelB + theme(legend.position = "right") + guides(fill = guide_legend(ncol = 1)),
+  ggarrange(
+    ggarrange(
+      panelA_betaDiv + theme(legend.position = "top"),
+      panelD_BFratio + theme(legend.position = "none"), 
+      panelE_alphaDiv + theme(legend.position = "none"), 
+      ncol = 1, 
+      common.legend = TRUE, labels = c("b", "c", "d")), 
+    panelC +
+      theme(legend.position = "right"), widths = c(0.5,1), labels = c("", "e")),
+  nrow = 2, ncol = 1, heights = c(0.3, 1), labels = c("a", "")
+)
+
+ggsave(plot = plotPanel_bCL, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel.svg"), height = 14, width = 14, bg = "white")
+```
 
 # Track probiotic species across all samples
 
@@ -1520,16 +1805,7 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
   facet_grid(cols = vars(cohort), scales = "free_x")
 ```
 
-# Bacteroides/Firmicutes ratio plot
-
-```{r}
-
-InputMetaphlanData.tse@colData$BFRatio <- apply(assay(agglomerateByRank(InputMetaphlanData.tse, "phylum")), 2, function(x){
-  bactName <- "p__Bacteroidota"
-  firmName <- "p__Firmicutes"
-  return(x[bactName]/x[firmName])
-})
-```
+# Bacteroidetes (Bacteroidota)/Firmicutes ratio plot
 
 ```{r}
 tmpDF <- colData(InputMetaphlanData.tse) %>% 
