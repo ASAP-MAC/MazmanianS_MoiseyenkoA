@@ -490,7 +490,8 @@ genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     # do not standardize continuous metadata variables in the model
     standardize = FALSE,
     plot_associations = TRUE,
-    verbosity = "ERROR"
+    save_plots_rds = TRUE,
+		verbosity = "ERROR"
   )
 
 # add taxonomy
@@ -499,7 +500,8 @@ genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maasl
 write_maaslin3_curated_tables(genotype_differences_in_ctrls.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
 saveRDS(genotype_differences_in_ctrls.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
-
+# copy their .RDS ggplot object 
+system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
 ```
 
 ## Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
@@ -775,7 +777,8 @@ genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     # do not standardize continuous metadata variables in the model
     standardize = FALSE,
     plot_associations = TRUE,
-    verbosity = "ERROR"
+    save_plots_rds = TRUE,
+		verbosity = "ERROR"
   )
 
 # add taxonomy
@@ -784,6 +787,8 @@ genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maasl
 write_maaslin3_curated_tables(genotype_differences_in_ctrls.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
 saveRDS(genotype_differences_in_ctrls.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
+# copy their .RDS ggplot object 
+system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
 ```
 
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
@@ -900,7 +905,8 @@ treatments_vs_vehicle_in_ASO.maaslin3 <- maaslin3(
     # do not standardize continuous metadata variables in the model
     standardize = FALSE, 
     plot_associations = TRUE,
-    verbosity = "ERROR"
+    save_plots_rds = TRUE,
+		verbosity = "ERROR"
   )
 
 # add taxonomy
@@ -909,15 +915,14 @@ treatments_vs_vehicle_in_ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maasli
 write_maaslin3_curated_tables(treatments_vs_vehicle_in_ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
 saveRDS(treatments_vs_vehicle_in_ASO.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
-
-# copy their standard plot in
-invisible(file.copy(file.path(maaslin3_tmp_outdir, "figures", "summary_plot.png"), file.path(maaslin3_final_outdir, "summary_plot.png")))
+# copy their .RDS ggplot object 
+system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
 ```
 
 ####  Maaslin3 default plot
 
-```{r}
-knitr::include_graphics(file.path(maaslin3_final_outdir, "summary_plot.png"))
+```{r, fig.height=7, fig.width=7}
+readRDS(file.path(maaslin3_final_outdir, "summary_plot_gg.RDS"))
 ```
 
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
@@ -984,7 +989,7 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 
   * Looking at raw data, I tend to conclude the same thing: a signal is there 
   but we are underpowered to label it "statistically significant".
-  
+
 # Cohort bCL
 
 ```{r}
@@ -1145,7 +1150,8 @@ genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     # do not standardize continuous metadata variables in the model
     standardize = FALSE, 
     plot_associations = TRUE,
-    verbosity = "ERROR"
+    save_plots_rds = TRUE,
+		verbosity = "ERROR"
   )
 
 # add taxonomy
@@ -1154,6 +1160,8 @@ genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maasl
 write_maaslin3_curated_tables(genotype_differences_in_ctrls.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
 saveRDS(genotype_differences_in_ctrls.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
+# copy their .RDS ggplot object 
+system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
 ```
 
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
@@ -1259,7 +1267,8 @@ treatments_vs_vehicle_in_ASO.maaslin3 <- maaslin3(
     # do not standardize continuous metadata variables in the model
     standardize = FALSE, 
     plot_associations = TRUE,
-    verbosity = "ERROR"
+    save_plots_rds = TRUE,
+		verbosity = "ERROR"
   )
 
 # add taxonomy
@@ -1268,15 +1277,14 @@ treatments_vs_vehicle_in_ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maasli
 write_maaslin3_curated_tables(treatments_vs_vehicle_in_ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
 saveRDS(treatments_vs_vehicle_in_ASO.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
-
-# copy their standard plot in
-invisible(file.copy(file.path(maaslin3_tmp_outdir, "figures", "summary_plot.png"), file.path(maaslin3_final_outdir, "summary_plot.png")))
+# copy their .RDS ggplot object 
+system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
 ```
 
 ####  Maaslin3 default plot
 
-```{r}
-knitr::include_graphics(file.path(maaslin3_final_outdir, "summary_plot.png"))
+```{r, fig.height=7, fig.width=7}
+readRDS(file.path(maaslin3_final_outdir, "summary_plot_gg.RDS"))
 ```
 
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
@@ -1444,7 +1452,8 @@ cohort_differences.maaslin3 <- maaslin3(
     # do not standardize continuous metadata variables in the model
     standardize = FALSE, 
     plot_associations = TRUE,
-    verbosity = "ERROR"
+    save_plots_rds = TRUE,
+		verbosity = "ERROR"
   )
 
 # add taxonomy
@@ -1453,6 +1462,8 @@ cohort_differences.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = c
 write_maaslin3_curated_tables(cohort_differences.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
 saveRDS(cohort_differences.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
+# copy their .RDS ggplot object 
+system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
 ```
 
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
@@ -1613,8 +1624,12 @@ ggsave(plot = bfratio_plot, filename = file.path(params$basic_outdir, params$tax
 bfratio_plot
 ```
 
-# Motor performances in response to treatments (Data needed)
-  
+# Motor performances in response to treatments (To be done)
+
+```{r}
+
+```
+
 # Overall Conclusions (to be done)
 
 # Session Info
