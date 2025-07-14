@@ -596,6 +596,7 @@ cohort_subdir <- "cohort_Fp7"
 dir.create(file.path(params$basic_outdir, params$tax_level, cohort_subdir), showWarnings = FALSE, recursive = TRUE)
 
 InputMetaphlanData_Fp7.tse <- InputMetaphlanData.tse[, InputMetaphlanData.tse@colData$cohort == "Fp7"] 
+InputMetaphlanData_Fp7.tse@colData$genotype_treatment <- droplevels(InputMetaphlanData_Fp7.tse@colData$genotype_treatment)
 ```
 
 ## Overall community trends (Beta diversity)
@@ -666,7 +667,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) +
 
 ```
 
-```{r, 6}
+```{r}
 ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "noWT", "plot.png", sep = "_")), dpi = 600, height = 6, width = 6)
 
 beta_plot_basic
@@ -678,7 +679,7 @@ InputMetaphlanData_Fp7.tse <- addPERMANOVA(
   InputMetaphlanData_Fp7.tse,
   assay.type = "metaphlan_RelAbund",
   method = "bray",
-  formula = x ~ genotype + treatment,
+  formula = x ~ genotype_treatment,
   name = "permanova",
   permutations = 999,
   test.homogeneity = TRUE
@@ -708,7 +709,8 @@ pairwise_dissim_bray <- reshape2::melt(mtx) %>%
   dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var1 = uuid, genotype_treatment = genotype_treatment), by = "Var1") %>% 
   dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var2 = uuid, genotype_treatment = genotype_treatment), by = "Var2") %>% 
   select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
-  mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs "))
+  mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs ")) %>% 
+  filter(genotype_treatment.x != genotype_treatment.y)
 
 ```
 
@@ -719,7 +721,7 @@ source("https://raw.githubusercontent.com/pmartinezarbizu/pairwiseAdonis/refs/he
 set.seed(1234)
 library(vegan)
 pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(InputMetaphlanData_Fp7.tse)[[dissimName]]), 
-                factors = paste(InputMetaphlanData_Fp7.tse@colData$genotype,InputMetaphlanData_Fp7.tse@colData$treatment), 
+                factors = InputMetaphlanData_Fp7.tse@colData$genotype_treatment, 
                 perm = 9999
                 )
 
@@ -729,17 +731,23 @@ kbl(pairwise_adonis_stats, caption = "Pairwise PERMANOVA test comparing groups a
 ```
 
 ```{r}
-pairwise_dissim_bray %>% 
-  filter(genotype_treatment.x != genotype_treatment.y) %>% 
-ggboxplot(
-  x = "pairs",
-  y = "value") + 
-  geom_point(position = position_jitter(width = 0.2, seed = 1234)) + 
-  geom_text(aes(x = pairs, y = max(pairwise_dissim_bray$value+0.1), label = paste("Pairwise adonis2\nP-value =", p.value)), data = pairwise_adonis_stats) +
-  
+
+pairwise_dissim_boxplot <-pairwise_dissim_bray %>% 
+ggplot(
+  aes(x = pairs,
+      y = value)) + 
+  geom_point(position = position_jitter(width = 0.2, seed = 1234), stroke = 1.1) + 
+  geom_point(position = position_jitter(width = 0.2, seed = 1234), color = "gray30") + 
+  geom_boxplot(outliers = FALSE, alpha = 0.6) + 
+  geom_text(data = pairwise_adonis_stats %>%
+  dplyr::left_join(group_by(pairwise_dissim_bray, pairs) %>% 
+                     reframe(value = max(value) + 0.05), by = "pairs"),
+  mapping = aes(x = pairs, y = value, label = paste("FDR =", p.adjusted)), hjust = 0, angle = 90) + 
+  theme(axis.text.x = element_text(angle = 90, hjust =1)) + 
+  ylim(0.3,0.9) +
   labs(
     x = "",
-    y = dissimName,
+    y = "Bray-Curtis pairwise dissimilarity",
   )
 ```
 
@@ -1012,6 +1020,12 @@ InputMetaphlanData_Fp7.tse <- mia::addMDS(
   ncomponents = 3, name = dimRedName
   )
 
+InputMetaphlanData_Fp7.tse <- addPERMANOVA(InputMetaphlanData_Fp7.tse, 
+             formula = x ~ genotype_treatment, 
+             assay.type = "metaphlan_RelAbund",
+             method = params$beta_dist, 
+             by = "margin")
+
 variances_explained <- attr(reducedDim(InputMetaphlanData_Fp7.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
@@ -1059,82 +1073,115 @@ panelC
 ```
 
 ```{r}
-panelD_BFratio <- InputMetaphlanData_Fp7.tse %>% 
-  colData() %>% 
-  as.data.frame() %>% 
-  ggplot(aes(
-    x = "",
-    y = BFRatio, 
-    color = genotype_treatment, 
-    fill = genotype_treatment)
-  ) + 
-  geom_boxplot(alpha = 0.1, outliers = FALSE) +
-  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3, stroke = 1, color = "black") +
-  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3) +
+
+panelD_BFratio.df <- InputMetaphlanData_Fp7.tse %>%
+  colData() %>%
+  as.data.frame()
+
+comparisons <- combn(levels(panelD_BFratio.df$genotype_treatment), 2, simplify = FALSE)
+
+panelD_BFratio <- panelD_BFratio.df %>% 
+  ggplot(aes(x = genotype_treatment, y = BFRatio, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.5) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) + 
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)) + 
+      theme(axis.text.x = element_blank()) +
   labs(
     x = "",
-  fill = "Genotype|Treatment",
-  color = "Genotype|Treatment",
-  y = "Bacteroidetes/Firmicutes Ratio"
+    y = "Bacteroidetes/Firmicutes Ratio"
   )
-panelD_BFratio
+
 ```
 
 ```{r}
-# panel of alpha diversity
-panelE_alphaDiv <- InputMetaphlanData_Fp7.tse %>% 
-  colData() %>% 
+alpha_data.df <- InputMetaphlanData_Fp7.tse %>%
+  colData() %>%
   as.data.frame() %>% 
   dplyr::rename(
     `Shannon Diversity` = shannon_diversity,
     `Observed Richness` = observed_richness
-  ) %>% 
-  pivot_longer(cols = c("Shannon Diversity", "Observed Richness"),names_to = "AlphaEstimate", values_to = "Value") %>% 
-   ggplot(
-    aes(
-      x = "",
-      y = Value,
-      color = genotype_treatment,
-      fill = genotype_treatment
-    )
-  ) + 
-  geom_boxplot(alpha = 0.1, outliers = FALSE) +
+  )
+comparisons <- combn(levels(alpha_data.df$genotype_treatment), 2, simplify = FALSE)
+
+panelE_Shannon.gg <- alpha_data.df %>% 
+  ggplot(aes(x = genotype_treatment, y = `Shannon Diversity`, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.5) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) + 
-  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3, stroke = 1, color = "black") +
-  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3) +
-  facet_wrap(~AlphaEstimate, scales = "free_y") +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
+  )+ 
+  theme(legend.position = "none", axis.text.x = element_blank()) +
   labs(
-  x = "",
-  y = "Alpha diversity/Richness value"
+    x = ""
+  )
+### same on observed richness
+
+panelE_Obs.gg <- alpha_data.df %>% 
+  ggplot(aes(x = genotype_treatment, y = `Observed Richness`, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.5) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
+  ) + 
+  theme(legend.position = "none", axis.text.x = element_blank()) +
+  labs(
+    x = ""
   )
 
-panelE_alphaDiv
+
+alpha_plots_panel <- ggarrange(panelE_Obs.gg, panelE_Shannon.gg )
+
 ```
 
-```{r, fig.height=16, fig.width=12}
-legends_panel <- ggarrange(
-  get_legend(panelB + guides(fill = guide_legend(ncol = 2))), 
-  get_legend(panelA_betaDiv + guides(color = guide_legend(ncol = 1, title.position = "top", position = "left")), position = "left"),
-  ncol = 2)
+```{r, fig.height=12, fig.width=16}
+# panelA_betaDiv
+# panelB
+# pairwise_dissim_boxplot
+# panelE_Obs.gg
+# panelE_Shannon.gg
+# panelD_BFratio
+# panelC
 
-plotPanel_Fp7 <- ggarrange(
-    panelB + theme(legend.position = "right") + guides(fill = guide_legend(ncol = 1)),
-  ggarrange(
-    ggarrange(
-      panelA_betaDiv + theme(legend.position = "top"),
-      panelD_BFratio + theme(legend.position = "none"), 
-      panelE_alphaDiv + theme(legend.position = "none"), 
-      ncol = 1, 
-      common.legend = TRUE, labels = c("b", "c", "d")), 
-    panelC +
-      theme(legend.position = "right"), widths = c(0.5,1), labels = c("", "e")),
-  nrow = 2, ncol = 1, heights = c(0.3, 1), labels = c("a", "")
-)
 
-ggsave(plot = plotPanel_Fp7, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel.svg"), height = 14, width = 14, bg = "white")
+piece1 <- panelB + theme(legend.position = "top") + guides(fill = guide_legend(ncol = 2, title = NULL))
+
+piece2 <- ggarrange(panelA_betaDiv, pairwise_dissim_boxplot, common.legend = TRUE, widths = c(1, 0.5), labels = c("b", "c"))
+
+piece3 <- ggarrange(
+  panelE_Obs.gg + theme(legend.position = "none"), 
+  panelE_Shannon.gg + theme(legend.position = "none"),
+  panelD_BFratio + theme(legend.position = "none"), nrow = 1, labels = c("d", "e", "f"))
+
+
+# piece3 <- ggarrange(
+#   pairwise_dissim_boxplot + coord_flip(),
+#   ggarrange(
+#   panelE_Obs.gg + theme(legend.position = "none"), 
+#   panelE_Shannon.gg + theme(legend.position = "none"),
+#   panelD_BFratio + theme(legend.position = "none"),
+#    nrow = 1
+# ), nrow = 2, heights = c(0.4,1))
+
+piece4 <- panelC + coord_flip() + theme(axis.text.x = element_text(angle = 90, hjust = 0.5))
+
+piece2_3 <- ggarrange(piece2, piece3, nrow = 2)
+
+piece_1_2_3 <- ggarrange(piece1, piece2_3, nrow = 1, ncol = 2, widths = c(0.5, 1),  labels = c("a", ""))
+# old panel code
+
+piece_1_2_3_4 <- ggarrange(piece_1_2_3, panelC, widths = c(1, 0.5), labels = c("", "g"))
+
+ggsave(plot = piece_1_2_3_4, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel.svg"), width = 17, height = 10)
 ```
 
 # Cohort bCL
@@ -1145,12 +1192,13 @@ cohort_subdir <- "cohort_bCL"
 dir.create(file.path(params$basic_outdir, params$tax_level, cohort_subdir), showWarnings = FALSE, recursive = TRUE)
 
 InputMetaphlanData_bCL.tse <- InputMetaphlanData.tse[, InputMetaphlanData.tse@colData$cohort == "bCL"] 
+InputMetaphlanData_bCL.tse@colData$genotype_treatment <- droplevels(InputMetaphlanData_bCL.tse@colData$genotype_treatment)
 ```
 
 ## Overall community trends (Beta diversity)
 
 ```{r}
-dimRedName <- paste(params$beta_dist, "mds", sep = "_")
+dimRedName <- paste("bCL", params$beta_dist, "mds", sep = "_")
 # this will work once mia or TreeSummarizedExperiment fixes some things
 InputMetaphlanData_bCL.tse <- mia::addMDS(
   InputMetaphlanData_bCL.tse,
@@ -1168,7 +1216,7 @@ beta_plot_basic <- project1_meta_with_MDS.df %>%
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   theme(legend.position = "top") +
   labs(color = "Genotype|Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
@@ -1183,13 +1231,51 @@ ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$
 beta_plot_basic
 ```
 
+Same plot as above, without WT 
+
+```{r}
+dimRedName <- paste("bCL", params$beta_dist, "mds", sep = "_")
+# this will work once mia or TreeSummarizedExperiment fixes some things
+InputMetaphlanData_bCL_noWT.tse <- InputMetaphlanData_bCL.tse[,InputMetaphlanData_bCL.tse@colData$genotype != "WT"]
+
+InputMetaphlanData_bCL_noWT.tse <- mia::addMDS(
+  InputMetaphlanData_bCL_noWT.tse,
+  assay.type = "metaphlan_RelAbund",
+  method = params$beta_dist,
+  ncomponents = 3, name = dimRedName
+  )
+
+variances_explained <- attr(reducedDim(InputMetaphlanData_bCL_noWT.tse, dimRedName), "eig")
+prop_variances_explained <- variances_explained/sum(variances_explained)
+
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_bCL_noWT.tse)), reducedDim(InputMetaphlanData_bCL_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+
+beta_plot_basic <- project1_meta_with_MDS.df %>% 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
+  geom_point(size = 2) + 
+  stat_ellipse(show.legend = FALSE) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  theme(legend.position = "top") +
+  labs(color = "Genotype|Treatment",
+       x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
+       y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
+  )
+
+```
+
+```{r}
+ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "noWT", "plot.png", sep = "_")), dpi = 600, height = 6, width = 6)
+
+beta_plot_basic
+```
+
 ```{r}
 
 InputMetaphlanData_bCL.tse <- addPERMANOVA(
   InputMetaphlanData_bCL.tse,
   assay.type = "metaphlan_RelAbund",
   method = "bray",
-  formula = x ~ genotype + treatment,
+  formula = x ~ genotype_treatment,
   name = "permanova",
   permutations = 999,
   test.homogeneity = TRUE
@@ -1219,7 +1305,8 @@ pairwise_dissim_bray <- reshape2::melt(mtx) %>%
   dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_bCL.tse)) %>% transmute(Var1 = uuid, genotype_treatment = genotype_treatment), by = "Var1") %>% 
   dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_bCL.tse)) %>% transmute(Var2 = uuid, genotype_treatment = genotype_treatment), by = "Var2") %>% 
   select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
-  mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs "))
+  mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs ")) %>% 
+  filter(genotype_treatment.x != genotype_treatment.y)
 
 ```
 
@@ -1230,7 +1317,7 @@ source("https://raw.githubusercontent.com/pmartinezarbizu/pairwiseAdonis/refs/he
 set.seed(1234)
 library(vegan)
 pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(InputMetaphlanData_bCL.tse)[[dissimName]]), 
-                factors = paste(InputMetaphlanData_bCL.tse@colData$genotype,InputMetaphlanData_bCL.tse@colData$treatment), 
+                factors = InputMetaphlanData_bCL.tse@colData$genotype_treatment, 
                 perm = 9999
                 )
 
@@ -1240,17 +1327,23 @@ kbl(pairwise_adonis_stats, caption = "Pairwise PERMANOVA test comparing groups a
 ```
 
 ```{r}
-pairwise_dissim_bray %>% 
-  filter(genotype_treatment.x != genotype_treatment.y) %>% 
-ggboxplot(
-  x = "pairs",
-  y = "value") + 
-  geom_point(position = position_jitter(width = 0.2, seed = 1234)) + 
-  geom_text(aes(x = pairs, y = max(pairwise_dissim_bray$value+0.1), label = paste("Pairwise adonis2\nP-value =", p.value)), data = pairwise_adonis_stats) +
-  
+
+pairwise_dissim_boxplot <-pairwise_dissim_bray %>% 
+ggplot(
+  aes(x = pairs,
+      y = value)) + 
+  geom_point(position = position_jitter(width = 0.2, seed = 1234), stroke = 1.1) + 
+  geom_point(position = position_jitter(width = 0.2, seed = 1234), color = "gray30") + 
+  geom_boxplot(outliers = FALSE, alpha = 0.6) + 
+  geom_text(data = pairwise_adonis_stats %>%
+  dplyr::left_join(group_by(pairwise_dissim_bray, pairs) %>% 
+                     reframe(value = max(value) + 0.05), by = "pairs"),
+  mapping = aes(x = pairs, y = value, label = paste("FDR =", p.adjusted)), hjust = 0, angle = 90) + 
+  theme(axis.text.x = element_text(angle = 90, hjust =1)) + 
+  ylim(0.3,0.9) +
   labs(
     x = "",
-    y = dissimName,
+    y = "Bray-Curtis pairwise dissimilarity",
   )
 ```
 
@@ -1295,7 +1388,7 @@ genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     transform = "LOG",
     output = maaslin3_tmp_outdir,
     # do not standardize continuous metadata variables in the model
-    standardize = FALSE, 
+    standardize = FALSE,
     plot_associations = TRUE,
     save_plots_rds = TRUE,
 		verbosity = "ERROR"
@@ -1367,8 +1460,17 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 
 ### Conclusions
 
-  * No statistical differences due to genotype in bCL cohort comparing mice
-  treated with `vehicle`.
+  * There are no differentially prevalent bacteria comparing ASO vs WT 
+  vehicle mice
+  
+  * 1 bacterium are decreased and 10 are increased in ASO mice.
+  
+  * The large effect sizes, however, point to a lack of statistical power to 
+  confidently say that there are differences. This does not mean that there are 
+  0 compositional shifts
+  
+  * Compared to Matheus' project 1 experiment, we find much fewer associations.
+  Matheus' comparison was 10 vs 10, this comparison has 8 vs 8
 
 ## Effects of `treatment` in ASO male mice
 
@@ -1389,6 +1491,8 @@ tmp.tse <- InputMetaphlanData_bCL.tse[,InputMetaphlanData_bCL.tse@colData$genoty
 tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Vehicle")
 tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
 tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, "metaphlan_RelAbund")) > 0,]
+
+tmp.tse
 
 # define experiment name and output directories
 maaslin3_expmt <- "treatments_vs_vehicle_in_ASO"
@@ -1490,8 +1594,14 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 
 ### Conclusions
 
-  * No statistically significant associations again, and again effect sizes 
-  are very large both positively and negatively.
+  * No differentially **prevalent** features with Q-value < 0.1 comparing `Fp`
+  against `vehicle` ASO controls
+  
+  * No differentially **abundant** features with Q-value < 0.1 comparing `Fp`
+  against `vehicle` ASO controls
+
+  * Looking at raw data, I tend to conclude the same thing: a signal is there 
+  but we are underpowered to label it "statistically significant".
 
 ## Microbiome-typical plots panel
 
@@ -1506,6 +1616,12 @@ InputMetaphlanData_bCL.tse <- mia::addMDS(
   ncomponents = 3, name = dimRedName
   )
 
+InputMetaphlanData_bCL.tse <- addPERMANOVA(InputMetaphlanData_bCL.tse, 
+             formula = x ~ genotype_treatment, 
+             assay.type = "metaphlan_RelAbund",
+             method = params$beta_dist, 
+             by = "margin")
+
 variances_explained <- attr(reducedDim(InputMetaphlanData_bCL.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
@@ -1516,8 +1632,8 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype
   geom_point(size = 3, stroke = 1, color = "black") +
   geom_point(size = 3) +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.1) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   theme(legend.position = "top") +
   labs(color = "Genotype|Treatment",
        fill = "Genotype|Treatment",
@@ -1553,82 +1669,115 @@ panelC
 ```
 
 ```{r}
-panelD_BFratio <- InputMetaphlanData_bCL.tse %>% 
-  colData() %>% 
-  as.data.frame() %>% 
-  ggplot(aes(
-    x = "",
-    y = BFRatio, 
-    color = genotype_treatment, 
-    fill = genotype_treatment)
-  ) + 
-  geom_boxplot(alpha = 0.1, outliers = FALSE) +
-  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3, stroke = 1, color = "black") +
-  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3) +
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) + 
+
+panelD_BFratio.df <- InputMetaphlanData_bCL.tse %>%
+  colData() %>%
+  as.data.frame()
+
+comparisons <- combn(levels(panelD_BFratio.df$genotype_treatment), 2, simplify = FALSE)
+
+panelD_BFratio <- panelD_BFratio.df %>% 
+  ggplot(aes(x = genotype_treatment, y = BFRatio, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.5) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)) + 
+      theme(axis.text.x = element_blank()) +
   labs(
     x = "",
-  fill = "Genotype|Treatment",
-  color = "Genotype|Treatment",
-  y = "Bacteroidetes/Firmicutes Ratio"
+    y = "Bacteroidetes/Firmicutes Ratio"
   )
-panelD_BFratio
+
 ```
 
 ```{r}
-# panel of alpha diversity
-panelE_alphaDiv <- InputMetaphlanData_bCL.tse %>% 
-  colData() %>% 
+alpha_data.df <- InputMetaphlanData_bCL.tse %>%
+  colData() %>%
   as.data.frame() %>% 
   dplyr::rename(
     `Shannon Diversity` = shannon_diversity,
     `Observed Richness` = observed_richness
-  ) %>% 
-  pivot_longer(cols = c("Shannon Diversity", "Observed Richness"),names_to = "AlphaEstimate", values_to = "Value") %>% 
-   ggplot(
-    aes(
-      x = "",
-      y = Value,
-      color = genotype_treatment,
-      fill = genotype_treatment
-    )
-  ) + 
-  geom_boxplot(alpha = 0.1, outliers = FALSE) +
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) + 
-  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3, stroke = 1, color = "black") +
-  geom_point(position = position_jitterdodge(jitter.width = 0.2, seed = 1234), size = 3) +
-  facet_wrap(~AlphaEstimate, scales = "free_y") +
+  )
+comparisons <- combn(levels(alpha_data.df$genotype_treatment), 2, simplify = FALSE)
+
+panelE_Shannon.gg <- alpha_data.df %>% 
+  ggplot(aes(x = genotype_treatment, y = `Shannon Diversity`, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.5) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
+  )+ 
+  theme(legend.position = "none", axis.text.x = element_blank()) +
   labs(
-  x = "",
-  y = "Alpha diversity/Richness value"
+    x = ""
+  )
+### same on observed richness
+
+panelE_Obs.gg <- alpha_data.df %>% 
+  ggplot(aes(x = genotype_treatment, y = `Observed Richness`, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.5) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
+  ) + 
+  theme(legend.position = "none", axis.text.x = element_blank()) +
+  labs(
+    x = ""
   )
 
-panelE_alphaDiv
+
+alpha_plots_panel <- ggarrange(panelE_Obs.gg, panelE_Shannon.gg )
+
 ```
 
-```{r, fig.height=16, fig.width=12}
-legends_panel <- ggarrange(
-  get_legend(panelB + guides(fill = guide_legend(ncol = 2))), 
-  get_legend(panelA_betaDiv + guides(color = guide_legend(ncol = 1, title.position = "top", position = "left")), position = "left"),
-  ncol = 2)
+```{r, fig.height=12, fig.width=16}
+# panelA_betaDiv
+# panelB
+# pairwise_dissim_boxplot
+# panelE_Obs.gg
+# panelE_Shannon.gg
+# panelD_BFratio
+# panelC
 
-plotPanel_bCL <- ggarrange(
-    panelB + theme(legend.position = "right") + guides(fill = guide_legend(ncol = 1)),
-  ggarrange(
-    ggarrange(
-      panelA_betaDiv + theme(legend.position = "top"),
-      panelD_BFratio + theme(legend.position = "none"), 
-      panelE_alphaDiv + theme(legend.position = "none"), 
-      ncol = 1, 
-      common.legend = TRUE, labels = c("b", "c", "d")), 
-    panelC +
-      theme(legend.position = "right"), widths = c(0.5,1), labels = c("", "e")),
-  nrow = 2, ncol = 1, heights = c(0.3, 1), labels = c("a", "")
-)
 
-ggsave(plot = plotPanel_bCL, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel.svg"), height = 14, width = 14, bg = "white")
+piece1 <- panelB + theme(legend.position = "top") + guides(fill = guide_legend(ncol = 2, title = NULL))
+
+piece2 <- ggarrange(panelA_betaDiv, pairwise_dissim_boxplot, common.legend = TRUE, widths = c(1, 0.5), labels = c("b", "c"))
+
+piece3 <- ggarrange(
+  panelE_Obs.gg + theme(legend.position = "none"), 
+  panelE_Shannon.gg + theme(legend.position = "none"),
+  panelD_BFratio + theme(legend.position = "none"), nrow = 1, labels = c("d", "e", "f"))
+
+
+# piece3 <- ggarrange(
+#   pairwise_dissim_boxplot + coord_flip(),
+#   ggarrange(
+#   panelE_Obs.gg + theme(legend.position = "none"), 
+#   panelE_Shannon.gg + theme(legend.position = "none"),
+#   panelD_BFratio + theme(legend.position = "none"),
+#    nrow = 1
+# ), nrow = 2, heights = c(0.4,1))
+
+piece4 <- panelC + coord_flip() + theme(axis.text.x = element_text(angle = 90, hjust = 0.5))
+
+piece2_3 <- ggarrange(piece2, piece3, nrow = 2)
+
+piece_1_2_3 <- ggarrange(piece1, piece2_3, nrow = 1, ncol = 2, widths = c(0.5, 1),  labels = c("a", ""))
+# old panel code
+
+piece_1_2_3_4 <- ggarrange(piece_1_2_3, panelC, widths = c(1, 0.5), labels = c("", "g"))
+
+ggsave(plot = piece_1_2_3_4, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel.svg"), width = 17, height = 10)
 ```
 
 # Track probiotic species across all samples
@@ -1870,34 +2019,6 @@ e.coli_relAbund_plot <- tmpDF %>%
   labs(x = "Treatment Cohort", color = "Genotype\nTreatment", y = "E. coli", caption = "FDR from pairwise Wilcoxon Test")
   
 e.coli_relAbund_plot
-```
-
-```{r}
-tmpDF <- colData(InputMetaphlanData.tse) %>% 
-    as.data.frame() %>% 
-  mutate(Treatment = factor(ifelse(treatment == "Vehicle", paste(genotype, "Control", sep = "\n"), paste(genotype, "Treated", sep = "\n")), levels = c("WT\nControl", "ASO\nControl", "ASO\nTreated")))
-
-bfratio_plot <- tmpDF %>%
-  ggplot(aes(x = cohort, y = BFRatio, color = Treatment)) +
-  geom_point(position = position_jitterdodge(dodge.width = 0.8, seed = 1234), size = 2) +
-  geom_boxplot(alpha = 0.5,
-               show.legend = FALSE,
-               outliers = FALSE) +
-  stat_pvalue_manual(
-    data = tmpDF %>%
-        rstatix::group_by(cohort) %>% 
-      rstatix::pairwise_wilcox_test(
-      formula = BFRatio ~  Treatment,
-      p.adjust.method = "BH"
-    ) %>% rstatix::add_xy_position(x = "cohort"), label = "p.adj", bracket.size = 0.5,tip.length = 0.01
-  ) +
-  theme(legend.position = "top") +
-  labs(x = "Treatment Cohort", color = "Genotype\nTreatment", y = "Bacteroidetes:Firmicutes ratio", caption = "FDR from pairwise Wilcoxon Test")
-```
-
-```{r, fig.height=5, fig.width=5}
-ggsave(plot = bfratio_plot, filename = file.path(params$basic_outdir, params$tax_level, "Bact_Firm_ratio.png"), dpi = 600, width = 6, height = 6)
-bfratio_plot
 ```
 
 # Motor performances in response to treatments (To be done)
