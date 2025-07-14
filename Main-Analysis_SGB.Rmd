@@ -1041,8 +1041,8 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype
   theme(legend.position = "top") +
   labs(color = "Genotype|Treatment",
        fill = "Genotype|Treatment",
-       x = paste0("PCoA axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
-       y = paste0("PCoA axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
+       x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
+       y = paste0("PCoA Axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
 
 # panelA_betaDiv
@@ -1637,8 +1637,8 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype
   theme(legend.position = "top") +
   labs(color = "Genotype|Treatment",
        fill = "Genotype|Treatment",
-       x = paste0("PCoA axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
-       y = paste0("PCoA axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
+       x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
+       y = paste0("PCoA Axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
 
 # panelA_betaDiv
