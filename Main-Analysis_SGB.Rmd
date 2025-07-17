@@ -74,7 +74,7 @@ output_directories.list <- list(
   # cohort Fp7 directory
   cohort_Fp7_Dir = file.path(params$basic_outdir, params$tax_level, "cohort_Fp7"),
   # cohort Fp7 directory
-  cohort_Fp7_Dir = file.path(params$basic_outdir, params$tax_level, "cohort_bCL")
+  cohort_bCL_Dir = file.path(params$basic_outdir, params$tax_level, "cohort_bCL")
 )
 
 tmp_out <- capture.output(sapply(output_directories.list, dir.create, showWarnings = FALSE, recursive = TRUE))
@@ -96,7 +96,7 @@ metadata.df <- read_tsv("Data/metadata_4.0.tsv") %>%
     cohort = as.factor(cohort),
     subcohort = as.factor(subcohort),
     treatment = as.factor(treatment) %>% relevel(ref = "Vehicle"), 
-    genotype_treatment = paste(genotype, treatment, sep = "|") %>% factor(levels = c("WT|Vehicle", "ASO|Vehicle", "ASO|Fp", "ASO|benCom"))
+    genotype_treatment = paste(genotype, treatment, sep = "-") %>% factor(levels = c("WT-Vehicle", "ASO-Vehicle", "ASO-Fp", "ASO-benCom"))
     )
 
 googleCloudStorageR::gcs_auth(json_file = "~/Downloads/curatedmetagenomicdata-232f4a306d1d.json")
@@ -426,7 +426,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) +
   stat_ellipse(show.legend = FALSE) + 
   scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   theme(legend.position = "top") +
-  labs(color = "Genotype|Treatment",
+  labs(color = "Genotype-Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -633,8 +633,8 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype
   scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   theme(legend.position = "top") +
-  labs(color = "Genotype|Treatment",
-       fill = "Genotype|Treatment",
+  labs(color = "Genotype-Treatment",
+       fill = "Genotype-Treatment",
        x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("PCoA Axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -671,7 +671,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) +
   stat_ellipse(show.legend = FALSE) + 
   scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   theme(legend.position = "top") +
-  labs(color = "Genotype|Treatment",
+  labs(color = "Genotype-Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -738,64 +738,6 @@ pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_Fp7.tse)
 
 kbl(pairwise_adonis_stats, caption = "Pairwise PERMANOVA test comparing groups as seen above") %>% 
   kable_styling()
-
-```
-
-```{r}
-# function to colorize labels of ggplot object
-# This function will apply ALL color rules to EACH label string
-colorize_labels <- function(labels, mapping) {
-  # Start with the original labels
-  colored_labels <- labels
-  
-  # Loop through each pattern-color rule in your map
-  for (pattern in names(mapping)) {
-    color <- mapping[[pattern]]
-    
-    # The text to display is the pattern without the escape slashes
-    display_text <- gsub("\\\\", "", pattern) 
-    
-    # Apply the coloring rule. This will modify labels that have already been partially colored.
-    colored_labels <- gsub(
-      pattern, 
-      paste0("<span style='color:", color, ";'>", display_text, "</span>"), 
-      colored_labels
-    )
-  }
-  
-  return(colored_labels)
-}
-
-color_map <- set_names(ggsci::pal_jco()(5)[c(3, 2, 1)]) %>% set_names(c("WT\\|Vehicle", "ASO\\|Vehicle", "ASO\\|Fp"))
-
-# Your full plot code
-pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
-  ggplot(
-    aes(x = pairs, y = value)
-  ) +
-  # ... (all your geom layers like geom_point, geom_boxplot, etc.)
-  geom_point(position = position_jitter(width = 0.2, seed = 1234), stroke = 1.1) +
-  geom_point(position = position_jitter(width = 0.2, seed = 1234), color = "gray30") +
-  geom_boxplot(outliers = FALSE, alpha = 0.6, width = 0.3) +
-  geom_text(data = pairwise_adonis_stats %>%
-              dplyr::left_join(
-                group_by(pairwise_dissim_bray, pairs) %>%
-                  reframe(value = max(value) + 0.05), by = "pairs") %>% 
-              mutate(pairs = factor(pairs, levels = pairs)),
-            mapping = aes(x = pairs, y = value, label = sprintf("FDR = %.3f", p.adjusted)), hjust = 0, angle = 90) +
-  # Apply the colorize_labels function to your x-axis labels
-  scale_x_discrete(labels = function(x) colorize_labels(x, color_map)) +
-
-  # Tell ggplot to render the axis text as Markdown/HTML
-  theme(axis.text.x = ggtext::element_markdown(angle = 60, hjust = 1)) +
-  
-  ylim(0.3, 0.9) +
-  labs(
-    x = "",
-    y = "Bray-Curtis pairwise dissimilarity"
-  )
-
-print(pairwise_dissim_boxplot)
 
 ```
 
@@ -1044,8 +986,6 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
   facet_grid(cols = vars(paste(treatment, genotype)), scales = "free_x")
 ```
 
-
-
 ### Conclusions
 
   * No differentially **prevalent** features with Q-value < 0.1 comparing `Fp`
@@ -1058,6 +998,22 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
   but we are underpowered to label it "statistically significant".
 
 ## Microbiome-typical plots panel
+
+```{r}
+# panel B, phylum level stack plot
+
+panelA_stackplot <- plotAbundance(
+  x = MetaPhlAn_Fp7.tse,
+  assay.type = "metaphlan_RelAbund", 
+  group = "phylum") + 
+  facet_grid(cols = vars(genotype_treatment), scales = "free_x") + 
+  theme(panel.spacing.x = unit(0.05, "lines")) + 
+  labs(
+    fill = "Phylum",
+    x = ""
+  )
+
+```
 
 ```{r}
 set.seed(1234)
@@ -1082,7 +1038,7 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7.tse)), reducedDim(MetaPhlAn_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
-panelA_betaDiv <- project1_meta_with_MDS.df %>% 
+panelB_PCoA <- project1_meta_with_MDS.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment)) + 
   geom_point(size = 2.5, stroke = 1, color = "black") +
   geom_point(size = 2.5) +
@@ -1090,50 +1046,150 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype
   scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   theme(legend.position = "top") +
-  labs(color = "Genotype|Treatment",
-       fill = "Genotype|Treatment",
+  labs(color = "Genotype-Treatment",
+       fill = "Genotype-Treatment",
        x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("PCoA Axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
 
-# panelA_betaDiv
+# panelB_PCoA
 ```
 
 ```{r}
-# panel B, phylum level stack plot
+# function to colorize labels of ggplot object
+# This function will apply ALL color rules to EACH label string
+colorize_labels <- function(labels, mapping) {
+  # Start with the original labels
+  colored_labels <- labels
+  
+  # Loop through each pattern-color rule in your map
+  for (pattern in names(mapping)) {
+    color <- mapping[[pattern]]
+    
+    # The text to display is the pattern without the escape slashes
+    display_text <- gsub("\\\\", "", pattern) 
+    
+    # Apply the coloring rule. This will modify labels that have already been partially colored.
+    colored_labels <- gsub(
+      pattern, 
+      paste0("<span style='color:", color, ";'>", display_text, "</span>"), 
+      colored_labels
+    )
+  }
+  
+  return(colored_labels)
+}
 
-panelB <- plotAbundance(
-  x = MetaPhlAn_Fp7.tse,
-  assay.type = "metaphlan_RelAbund", 
-  group = "phylum") + 
-  facet_grid(cols = vars(genotype_treatment), scales = "free_x") + 
-  theme(panel.spacing.x = unit(0.05, "lines")) + 
+color_map <- set_names(ggsci::pal_jco()(5)[c(3, 2, 1)]) %>% set_names(c("WT\\-Vehicle", "ASO\\-Vehicle", "ASO\\-Fp"))
+
+# Your full plot code
+panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
+  ggplot(
+    aes(x = pairs, y = value)
+  ) +
+  geom_point(position = position_jitter(width = 0.2, seed = 1234), stroke = 1.1) +
+  geom_point(position = position_jitter(width = 0.2, seed = 1234), color = "gray30") +
+  geom_boxplot(outliers = FALSE, alpha = 0.6, width = 0.3) +
+  geom_text(data = pairwise_adonis_stats %>%
+              dplyr::left_join(
+                group_by(pairwise_dissim_bray, pairs) %>%
+                  reframe(value = max(value) + 0.05), by = "pairs") %>% 
+              mutate(pairs = factor(pairs, levels = pairs)),
+            mapping = aes(x = pairs, y = value, label = sprintf("FDR = %.3f", p.adjusted)), hjust = 0, angle = 90) +
+  # Apply the colorize_labels function to your x-axis labels
+  scale_x_discrete(labels = function(x) colorize_labels(x, color_map)) +
+  # Tell ggplot to render the axis text as Markdown/HTML
+  theme(axis.text.x = ggtext::element_markdown(angle = 60, hjust = 1)) +
+  ylim(0.3, 0.9) +
   labs(
-    fill = "Phylum",
+    x = "",
+    y = "Bray-Curtis pairwise dissimilarity"
+  )
+
+# make a horizontal version just in case
+
+panelC_pairwise_dissim_boxplot_horiz <- pairwise_dissim_bray %>%
+  ggplot(
+    aes(y = pairs, x = value)
+  ) +
+  geom_point(position = position_jitter(height = 0.2, seed = 1234), stroke = 1.1) +
+  geom_point(position = position_jitter(height = 0.2, seed = 1234), color = "gray30") +
+  geom_boxplot(outliers = FALSE, alpha = 0.6, width = 0.3) +
+  geom_text(data = pairwise_adonis_stats %>%
+              dplyr::left_join(
+                group_by(pairwise_dissim_bray, pairs) %>%
+                  reframe(value = max(value) + 0.05), by = "pairs") %>% 
+              mutate(pairs = factor(pairs, levels = pairs)),
+            mapping = aes(y = pairs, x = value, label = sprintf("FDR = %.3f", p.adjusted)), hjust = 0) +
+  # Apply the colorize_labels function to your x-axis labels
+  scale_y_discrete(labels = function(x) colorize_labels(x, color_map)) +
+  # Tell ggplot to render the axis text as Markdown/HTML
+  theme(axis.text.y = ggtext::element_markdown(angle = 0, hjust = 1)) +
+  xlim(0.3, 0.9) +
+  labs(
+    y = "",
+    y = "Bray-Curtis pairwise dissimilarity"
+  )
+
+```
+
+```{r}
+alpha_data.df <- MetaPhlAn_Fp7.tse %>%
+  colData() %>%
+  as.data.frame() %>% 
+  dplyr::rename(
+    `Shannon Diversity` = shannon_diversity,
+    `Observed Richness` = observed_richness
+  )
+comparisons <- combn(levels(alpha_data.df$genotype_treatment), 2, simplify = FALSE)
+
+# Observed richness diversity vs genotype-treatment
+panelD_Obs_boxplot <- alpha_data.df %>% 
+  ggplot(aes(x = genotype_treatment, y = `Observed Richness`, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
+  ) + 
+  theme(legend.position = "none", axis.text.x = element_blank()) +
+  labs(
     x = ""
   )
 
-panelB
+# Shannon diversity vs genotype-treatment
+panelE_Shannon_boxplot <- alpha_data.df %>% 
+  ggplot(aes(x = genotype_treatment, y = `Shannon Diversity`, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
+  )+ 
+  theme(legend.position = "none", axis.text.x = element_blank()) +
+  labs(
+    x = ""
+  )
+
+# alpha_plots_panel <- ggarrange(panelE_Obs.gg, panelE_Shannon_boxplot)
+
 ```
 
 ```{r}
-# panel C, differentially abundant features, or top 20 more strongly associated
 
-panelC <- readRDS("results/SGB/cohort_Fp7/treatments_vs_vehicle_in_ASO/summary_plot_gg.RDS") + theme(strip.text = element_blank())
-panelC
-```
-
-```{r}
-
-panelD_FB.Ratio.df <- MetaPhlAn_Fp7.tse %>%
+panelF_FB.Ratio.df <- MetaPhlAn_Fp7.tse %>%
   colData() %>%
   as.data.frame()
 
-comparisons <- combn(levels(panelD_FB.Ratio.df$genotype_treatment), 2, simplify = FALSE)
+comparisons <- combn(levels(panelF_FB.Ratio.df$genotype_treatment), 2, simplify = FALSE)
 
-panelD_FB.Ratio <- panelD_FB.Ratio.df %>% 
+panelF_FB.Ratio <- panelF_FB.Ratio.df %>% 
   ggplot(aes(x = genotype_treatment, y = FB.Ratio, color = genotype_treatment, fill = genotype_treatment)) + 
-  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.2) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
@@ -1149,89 +1205,85 @@ panelD_FB.Ratio <- panelD_FB.Ratio.df %>%
 ```
 
 ```{r}
-alpha_data.df <- MetaPhlAn_Fp7.tse %>%
-  colData() %>%
-  as.data.frame() %>% 
-  dplyr::rename(
-    `Shannon Diversity` = shannon_diversity,
-    `Observed Richness` = observed_richness
-  )
-comparisons <- combn(levels(alpha_data.df$genotype_treatment), 2, simplify = FALSE)
+# panel C, differentially abundant features, or top 20 more strongly associated
 
-panelE_Shannon.gg <- alpha_data.df %>% 
-  ggplot(aes(x = genotype_treatment, y = `Shannon Diversity`, color = genotype_treatment, fill = genotype_treatment)) + 
-  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
-  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  stat_compare_means(
-    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
-  )+ 
-  theme(legend.position = "none", axis.text.x = element_blank()) +
-  labs(
-    x = ""
-  )
-### same on observed richness
-
-panelE_Obs.gg <- alpha_data.df %>% 
-  ggplot(aes(x = genotype_treatment, y = `Observed Richness`, color = genotype_treatment, fill = genotype_treatment)) + 
-  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
-  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  stat_compare_means(
-    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
-  ) + 
-  theme(legend.position = "none", axis.text.x = element_blank()) +
-  labs(
-    x = ""
-  )
-
-# alpha_plots_panel <- ggarrange(panelE_Obs.gg, panelE_Shannon.gg)
-
+panelG_diffAbund <- readRDS("results/SGB/cohort_Fp7/treatments_vs_vehicle_in_ASO/summary_plot_gg.RDS") + 
+  theme_light() + 
+  theme(strip.text = element_blank(), axis.text.y = element_text(size = 12), axis.title.x = element_text(size = 12), axis.title.y = element_blank()) 
+  
+panelG_diffAbund
+# panelG_diffAbund
 ```
 
 ```{r, fig.height=12, fig.width=16}
-# panelA_betaDiv
-# panelB
-# pairwise_dissim_boxplot
-# panelE_Obs.gg
-# panelE_Shannon.gg
-# panelD_FB.Ratio
-# panelC
+#' panelA_stackplot
+#' panelB_PCoA
+#' panelC_pairwise_dissim_boxplot
+#' pairwise_dissim_boxplot
+#' panelD_Obs_boxplot
+#' panelE_Shannon_boxplot
+#' panelF_FB.Ratio
+#' panelG_diffAbund
 
+piece1 <- panelA_stackplot + theme(legend.position = "top") + guides(fill = guide_legend(ncol = 2, title = NULL))
 
-piece1 <- panelB + theme(legend.position = "top") + guides(fill = guide_legend(ncol = 2, title = NULL))
-
-piece2 <- ggarrange(panelA_betaDiv, pairwise_dissim_boxplot, common.legend = TRUE, widths = c(1, 0.5), labels = c("b", "c"))
+piece2 <- ggarrange(panelB_PCoA, panelC_pairwise_dissim_boxplot, common.legend = TRUE, widths = c(1, 0.5), labels = c("b", "c"))
 
 piece3 <- ggarrange(
-  panelE_Obs.gg + theme(legend.position = "none"), 
-  panelE_Shannon.gg + theme(legend.position = "none"),
-  panelD_FB.Ratio + theme(legend.position = "none"), nrow = 1, labels = c("d", "e", "f"))
-
-
-# piece3 <- ggarrange(
-#   pairwise_dissim_boxplot + coord_flip(),
-#   ggarrange(
-#   panelE_Obs.gg + theme(legend.position = "none"), 
-#   panelE_Shannon.gg + theme(legend.position = "none"),
-#   panelD_FB.Ratio + theme(legend.position = "none"),
-#    nrow = 1
-# ), nrow = 2, heights = c(0.4,1))
-
-piece4 <- panelC + coord_flip() + theme(axis.text.x = element_text(angle = 90, hjust = 0.5))
+  panelD_Obs_boxplot + theme(legend.position = "none"), 
+  panelE_Shannon_boxplot + theme(legend.position = "none"),
+  panelF_FB.Ratio + theme(legend.position = "none"), nrow = 1, labels = c("d", "e", "f")
+  )
 
 piece2_3 <- ggarrange(piece2, piece3, nrow = 2)
 
 piece_1_2_3 <- ggarrange(piece1, piece2_3, nrow = 1, ncol = 2, widths = c(0.6, 1),  labels = c("a", ""))
-# old panel code
 
-piece_1_2_3_4 <- ggarrange(piece_1_2_3, panelC, widths = c(1, 0.6), labels = c("", "g"))
+piece_1_2_3_4 <- ggarrange(piece_1_2_3, panelG_diffAbund, widths = c(1, 0.6), labels = c("", "g"))
 
-ggsave(plot = piece_1_2_3_4, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel.svg"), width = 18, height = 10)
+ggsave(plot = piece_1_2_3_4, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_Full.svg"), width = 18, height = 10)
+
+piece_1_2_3_4
+```
+
+```{r,fig.height=8, fig.width=12}
+microbiome_panel_MainText <- ggarrange(
+  panelA_stackplot + theme(legend.position = "top") + guides(fill = guide_legend(ncol = 2, title = NULL)),
+    ggarrange(
+      get_legend(panelB_PCoA),
+      ggarrange(
+        panelF_FB.Ratio + theme(legend.position = "none"), 
+        panelB_PCoA + theme(legend.position = "none"), 
+        ncol = 2, widths = c(0.7,1), align = "h", labels = c("b", "c")
+        ),
+      panelC_pairwise_dissim_boxplot_horiz,
+      ncol= 1,
+      heights = c(0.05, 1, 0.8), 
+      labels = c("", "", "d")
+      ),
+    widths = c(0.6, 1),
+  labels = c("a", "")
+)
+
+ggsave(plot = microbiome_panel_MainText, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_MainText.svg"), width = 12, height = 8)
+
+microbiome_panel_MainText
+```
+
+```{r}
+microbiome_panel_Supplementary <- ggarrange(
+  ggarrange(
+    panelD_Obs_boxplot,
+    panelE_Shannon_boxplot + xlab(" ") + theme(axis.title.x = element_text(size = 34)),
+    nrow = 2, labels = c("a", "b")),
+  panelG_diffAbund, 
+  widths = c(0.5,1), 
+  labels = c("", "c")
+  )
+
+ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_Supplementary.svg"), width = 9, height = 8)
+
+microbiome_panel_Supplementary
 ```
 
 ## Motor performance associations with the Microbiome
@@ -1305,7 +1357,6 @@ readRDS(file.path(tempdir(), "figures", "summary_plot_gg.RDS"))
 DT::datatable(beam_steps_assoc_microbiome$fit_data_abundance$results)
 ```
 
-
 ## Fecal output association with the microbiome
 
 ```{r}
@@ -1368,11 +1419,11 @@ beta_plot_basic <- project1_meta_with_MDS.df %>%
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment, label = cage)) + 
   geom_text(show.legend = FALSE) +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   theme(legend.position = "top") +
-  labs(color = "Genotype|Treatment",
-       fill = "Genotype|Treatment",
+  labs(color = "Genotype-Treatment",
+       fill = "Genotype-Treatment",
        x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("PCoA Axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -1407,9 +1458,9 @@ beta_plot_basic <- project1_meta_with_MDS.df %>%
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   theme(legend.position = "top") +
-  labs(color = "Genotype|Treatment",
+  labs(color = "Genotype-Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -1476,64 +1527,6 @@ pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_bCL.tse)
 
 kbl(pairwise_adonis_stats, caption = "Pairwise PERMANOVA test comparing groups as seen above") %>% 
   kable_styling()
-
-```
-
-```{r}
-# function to colorize labels of ggplot object
-# This function will apply ALL color rules to EACH label string
-colorize_labels <- function(labels, mapping) {
-  # Start with the original labels
-  colored_labels <- labels
-  
-  # Loop through each pattern-color rule in your map
-  for (pattern in names(mapping)) {
-    color <- mapping[[pattern]]
-    
-    # The text to display is the pattern without the escape slashes
-    display_text <- gsub("\\\\", "", pattern) 
-    
-    # Apply the coloring rule. This will modify labels that have already been partially colored.
-    colored_labels <- gsub(
-      pattern, 
-      paste0("<span style='color:", color, ";'>", display_text, "</span>"), 
-      colored_labels
-    )
-  }
-  
-  return(colored_labels)
-}
-
-color_map <- set_names(ggsci::pal_jco()(5)[c(3, 2, 4)]) %>% set_names(c("WT\\|Vehicle", "ASO\\|Vehicle", "ASO\\|benCom"))
-
-# Your full plot code
-pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
-  ggplot(
-    aes(x = pairs, y = value)
-  ) +
-  # ... (all your geom layers like geom_point, geom_boxplot, etc.)
-  geom_point(position = position_jitter(width = 0.2, seed = 1234), stroke = 1.1) +
-  geom_point(position = position_jitter(width = 0.2, seed = 1234), color = "gray30") +
-  geom_boxplot(outliers = FALSE, alpha = 0.6, width = 0.3) +
-  geom_text(data = pairwise_adonis_stats %>%
-              dplyr::left_join(
-                group_by(pairwise_dissim_bray, pairs) %>%
-                  reframe(value = max(value) + 0.05), by = "pairs") %>% 
-              mutate(pairs = factor(pairs, levels = pairs)),
-            mapping = aes(x = pairs, y = value, label = sprintf("FDR = %.3f", p.adjusted)), hjust = 0, angle = 90) +
-  # Apply the colorize_labels function to your x-axis labels
-  scale_x_discrete(labels = function(x) colorize_labels(x, color_map)) +
-
-  # Tell ggplot to render the axis text as Markdown/HTML
-  theme(axis.text.x = ggtext::element_markdown(angle = 60, hjust = 1)) +
-  
-  ylim(0.3, 0.9) +
-  labs(
-    x = "",
-    y = "Bray-Curtis pairwise dissimilarity"
-  )
-
-print(pairwise_dissim_boxplot)
 
 ```
 
@@ -1646,23 +1639,6 @@ rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse))
 
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
   facet_grid(cols = vars(paste(treatment, genotype)), scales = "free_x")
-```
-
-## Is there a cage effect?
-
-```{r}
-project1_meta_with_MDS.df %>% 
-ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment, label = cage)) + 
-  geom_text() +
-  ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  theme(legend.position = "top") +
-  labs(color = "Genotype|Treatment",
-       fill = "Genotype|Treatment",
-       x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
-       y = paste0("PCoA Axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
-  )
 ```
 
 ### Conclusions
@@ -1813,9 +1789,26 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 ## Microbiome-typical plots panel
 
 ```{r}
+# panel B, phylum level stack plot
+
+panelA_stackplot <- plotAbundance(
+  x = MetaPhlAn_bCL.tse,
+  assay.type = "metaphlan_RelAbund", 
+  group = "phylum") + 
+  facet_grid(cols = vars(genotype_treatment), scales = "free_x") + 
+  theme(panel.spacing.x = unit(0.05, "lines")) + 
+  labs(
+    fill = "Phylum",
+    x = ""
+  )
+
+```
+
+```{r}
+set.seed(1234)
 dimRedName <- paste("bCL", params$beta_dist, "mds", sep = "_")
 # this will work once mia or TreeSummarizedExperiment fixes some things
-set.seed(1234)
+
 MetaPhlAn_bCL.tse <- mia::addMDS(
   MetaPhlAn_bCL.tse,
   assay.type = "metaphlan_RelAbund",
@@ -1834,68 +1827,97 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL.tse)), reducedDim(MetaPhlAn_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
-panelA_betaDiv <- project1_meta_with_MDS.df %>% 
+panelB_PCoA <- project1_meta_with_MDS.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment)) + 
   geom_point(size = 2.5, stroke = 1, color = "black") +
   geom_point(size = 2.5) +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   theme(legend.position = "top") +
-  labs(color = "Genotype|Treatment",
-       fill = "Genotype|Treatment",
+  labs(color = "Genotype-Treatment",
+       fill = "Genotype-Treatment",
        x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("PCoA Axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
 
-# panelA_betaDiv
+# panelB_PCoA
 ```
 
 ```{r}
-# panel B, phylum level stack plot
+# function to colorize labels of ggplot object
+# This function will apply ALL color rules to EACH label string
+colorize_labels <- function(labels, mapping) {
+  # Start with the original labels
+  colored_labels <- labels
+  
+  # Loop through each pattern-color rule in your map
+  for (pattern in names(mapping)) {
+    color <- mapping[[pattern]]
+    
+    # The text to display is the pattern without the escape slashes
+    display_text <- gsub("\\\\", "", pattern) 
+    
+    # Apply the coloring rule. This will modify labels that have already been partially colored.
+    colored_labels <- gsub(
+      pattern, 
+      paste0("<span style='color:", color, ";'>", display_text, "</span>"), 
+      colored_labels
+    )
+  }
+  
+  return(colored_labels)
+}
 
-panelB <- plotAbundance(
-  x = MetaPhlAn_bCL.tse,
-  assay.type = "metaphlan_RelAbund", 
-  group = "phylum") + 
-  facet_grid(cols = vars(genotype_treatment), scales = "free_x") + 
-  theme(panel.spacing.x = unit(0.05, "lines")) + 
-  labs(
-    fill = "Phylum",
-    x = ""
-  )
+color_map <- set_names(ggsci::pal_jco()(5)[c(3, 2, 1)]) %>% set_names(c("WT\\-Vehicle", "ASO\\-Vehicle", "ASO\\-benCom"))
 
-panelB
-```
-
-```{r}
-# panel C, differentially abundant features, or top 20 more strongly associated
-
-panelC <- readRDS("results/SGB/cohort_bCL/treatments_vs_vehicle_in_ASO/summary_plot_gg.RDS") + theme(strip.text = element_blank())
-panelC
-```
-
-```{r}
-
-panelD_FB.Ratio.df <- MetaPhlAn_bCL.tse %>%
-  colData() %>%
-  as.data.frame()
-
-comparisons <- combn(levels(panelD_FB.Ratio.df$genotype_treatment), 2, simplify = FALSE)
-
-panelD_FB.Ratio <- panelD_FB.Ratio.df %>% 
-  ggplot(aes(x = genotype_treatment, y = FB.Ratio, color = genotype_treatment, fill = genotype_treatment)) + 
-  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.2) + 
-  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  stat_compare_means(
-    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)) + 
-      theme(axis.text.x = element_blank()) +
+# Your full plot code
+panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
+  ggplot(
+    aes(x = pairs, y = value)
+  ) +
+  geom_point(position = position_jitter(width = 0.2, seed = 1234), stroke = 1.1) +
+  geom_point(position = position_jitter(width = 0.2, seed = 1234), color = "gray30") +
+  geom_boxplot(outliers = FALSE, alpha = 0.6, width = 0.3) +
+  geom_text(data = pairwise_adonis_stats %>%
+              dplyr::left_join(
+                group_by(pairwise_dissim_bray, pairs) %>%
+                  reframe(value = max(value) + 0.05), by = "pairs") %>% 
+              mutate(pairs = factor(pairs, levels = pairs)),
+            mapping = aes(x = pairs, y = value, label = sprintf("FDR = %.3f", p.adjusted)), hjust = 0, angle = 90) +
+  # Apply the colorize_labels function to your x-axis labels
+  scale_x_discrete(labels = function(x) colorize_labels(x, color_map)) +
+  # Tell ggplot to render the axis text as Markdown/HTML
+  theme(axis.text.x = ggtext::element_markdown(angle = 60, hjust = 1)) +
+  ylim(0.3, 0.9) +
   labs(
     x = "",
-    y = "Firmicutes/Bacteroidetes Ratio"
+    y = "Bray-Curtis pairwise dissimilarity"
+  )
+
+# make a horizontal version just in case
+
+panelC_pairwise_dissim_boxplot_horiz <- pairwise_dissim_bray %>%
+  ggplot(
+    aes(y = pairs, x = value)
+  ) +
+  geom_point(position = position_jitter(height = 0.2, seed = 1234), stroke = 1.1) +
+  geom_point(position = position_jitter(height = 0.2, seed = 1234), color = "gray30") +
+  geom_boxplot(outliers = FALSE, alpha = 0.6, width = 0.3) +
+  geom_text(data = pairwise_adonis_stats %>%
+              dplyr::left_join(
+                group_by(pairwise_dissim_bray, pairs) %>%
+                  reframe(value = max(value) + 0.05), by = "pairs") %>% 
+              mutate(pairs = factor(pairs, levels = pairs)),
+            mapping = aes(y = pairs, x = value, label = sprintf("FDR = %.3f", p.adjusted)), hjust = 0) +
+  # Apply the colorize_labels function to your x-axis labels
+  scale_y_discrete(labels = function(x) colorize_labels(x, color_map)) +
+  # Tell ggplot to render the axis text as Markdown/HTML
+  theme(axis.text.y = ggtext::element_markdown(angle = 0, hjust = 1)) +
+  xlim(0.3, 0.9) +
+  labs(
+    y = "",
+    y = "Bray-Curtis pairwise dissimilarity"
   )
 
 ```
@@ -1910,29 +1932,14 @@ alpha_data.df <- MetaPhlAn_bCL.tse %>%
   )
 comparisons <- combn(levels(alpha_data.df$genotype_treatment), 2, simplify = FALSE)
 
-panelE_Shannon.gg <- alpha_data.df %>% 
-  ggplot(aes(x = genotype_treatment, y = `Shannon Diversity`, color = genotype_treatment, fill = genotype_treatment)) + 
-  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.2) + 
-  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.4, seed = 1234)) + 
-  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  stat_compare_means(
-    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
-  )+ 
-  theme(legend.position = "none", axis.text.x = element_blank()) +
-  labs(
-    x = ""
-  )
-### same on observed richness
-
-panelE_Obs.gg <- alpha_data.df %>% 
+# Observed richness diversity vs genotype-treatment
+panelD_Obs_boxplot <- alpha_data.df %>% 
   ggplot(aes(x = genotype_treatment, y = `Observed Richness`, color = genotype_treatment, fill = genotype_treatment)) + 
-  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.2) + 
-  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.4, seed = 1234)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   ) + 
@@ -1941,50 +1948,133 @@ panelE_Obs.gg <- alpha_data.df %>%
     x = ""
   )
 
-# alpha_plots_panel <- ggarrange(panelE_Obs.gg, panelE_Shannon.gg)
+# Shannon diversity vs genotype-treatment
+panelE_Shannon_boxplot <- alpha_data.df %>% 
+  ggplot(aes(x = genotype_treatment, y = `Shannon Diversity`, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
+  )+ 
+  theme(legend.position = "none", axis.text.x = element_blank()) +
+  labs(
+    x = ""
+  )
+
+# alpha_plots_panel <- ggarrange(panelE_Obs.gg, panelE_Shannon_boxplot)
 
 ```
 
+```{r}
+
+panelF_FB.Ratio.df <- MetaPhlAn_bCL.tse %>%
+  colData() %>%
+  as.data.frame()
+
+comparisons <- combn(levels(panelF_FB.Ratio.df$genotype_treatment), 2, simplify = FALSE)
+
+panelF_FB.Ratio <- panelF_FB.Ratio.df %>% 
+  ggplot(aes(x = genotype_treatment, y = FB.Ratio, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)) + 
+      theme(axis.text.x = element_blank()) +
+  labs(
+    x = "",
+    y = "Firmicutes/Bacteroidetes Ratio"
+  )
+
+```
+
+```{r}
+# panel C, differentially abundant features, or top 20 more strongly associated
+
+panelG_diffAbund <- readRDS("results/SGB/cohort_bCL/treatments_vs_vehicle_in_ASO/summary_plot_gg.RDS") + 
+  theme_light() + 
+  theme(strip.text = element_blank(), axis.text.y = element_text(size = 12), axis.title.x = element_text(size = 12), axis.title.y = element_blank()) 
+  
+panelG_diffAbund
+# panelG_diffAbund
+```
+
 ```{r, fig.height=12, fig.width=16}
-# panelA_betaDiv
-# panelB
-# pairwise_dissim_boxplot
-# panelE_Obs.gg
-# panelE_Shannon.gg
-# panelD_FB.Ratio
-# panelC
+#' panelA_stackplot
+#' panelB_PCoA
+#' panelC_pairwise_dissim_boxplot
+#' pairwise_dissim_boxplot
+#' panelD_Obs_boxplot
+#' panelE_Shannon_boxplot
+#' panelF_FB.Ratio
+#' panelG_diffAbund
 
+piece1 <- panelA_stackplot + theme(legend.position = "top") + guides(fill = guide_legend(ncol = 2, title = NULL))
 
-piece1 <- panelB + theme(legend.position = "top") + guides(fill = guide_legend(ncol = 2, title = NULL))
-
-piece2 <- ggarrange(panelA_betaDiv, pairwise_dissim_boxplot, common.legend = TRUE, widths = c(1, 0.5), labels = c("b", "c"))
+piece2 <- ggarrange(panelB_PCoA, panelC_pairwise_dissim_boxplot, common.legend = TRUE, widths = c(1, 0.5), labels = c("b", "c"))
 
 piece3 <- ggarrange(
-  panelE_Obs.gg + theme(legend.position = "none"), 
-  panelE_Shannon.gg + theme(legend.position = "none"),
-  panelD_FB.Ratio + theme(legend.position = "none"), nrow = 1, labels = c("d", "e", "f"))
-
-
-# piece3 <- ggarrange(
-#   pairwise_dissim_boxplot + coord_flip(),
-#   ggarrange(
-#   panelE_Obs.gg + theme(legend.position = "none"), 
-#   panelE_Shannon.gg + theme(legend.position = "none"),
-#   panelD_FB.Ratio + theme(legend.position = "none"),
-#    nrow = 1
-# ), nrow = 2, heights = c(0.4,1))
-
-piece4 <- panelC + coord_flip() + theme(axis.text.x = element_text(angle = 90, hjust = 0.5))
+  panelD_Obs_boxplot + theme(legend.position = "none"), 
+  panelE_Shannon_boxplot + theme(legend.position = "none"),
+  panelF_FB.Ratio + theme(legend.position = "none"), nrow = 1, labels = c("d", "e", "f")
+  )
 
 piece2_3 <- ggarrange(piece2, piece3, nrow = 2)
 
 piece_1_2_3 <- ggarrange(piece1, piece2_3, nrow = 1, ncol = 2, widths = c(0.6, 1),  labels = c("a", ""))
-# old panel code
 
-piece_1_2_3_4 <- ggarrange(piece_1_2_3, panelC, widths = c(1, 0.6), labels = c("", "g"))
+piece_1_2_3_4 <- ggarrange(piece_1_2_3, panelG_diffAbund, widths = c(1, 0.6), labels = c("", "g"))
 
-ggsave(plot = piece_1_2_3_4, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel.svg"), width = 18, height = 10)
+ggsave(plot = piece_1_2_3_4, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_Full.svg"), width = 18, height = 10)
+
+piece_1_2_3_4
 ```
+
+```{r,fig.height=8, fig.width=12}
+microbiome_panel_MainText <- ggarrange(
+  panelA_stackplot + theme(legend.position = "top") + guides(fill = guide_legend(ncol = 2, title = NULL)),
+    ggarrange(
+      get_legend(panelB_PCoA),
+      ggarrange(
+        panelF_FB.Ratio + theme(legend.position = "none"), 
+        panelB_PCoA + theme(legend.position = "none"), 
+        ncol = 2, widths = c(0.7,1), align = "h", labels = c("b", "c")
+        ),
+      panelC_pairwise_dissim_boxplot_horiz,
+      ncol= 1,
+      heights = c(0.05, 1, 0.8), 
+      labels = c("", "", "d")
+      ),
+    widths = c(0.6, 1),
+  labels = c("a", "")
+)
+
+ggsave(plot = microbiome_panel_MainText, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_MainText.svg"), width = 12, height = 8)
+
+microbiome_panel_MainText
+```
+
+```{r}
+microbiome_panel_Supplementary <- ggarrange(
+  ggarrange(
+    panelD_Obs_boxplot,
+    panelE_Shannon_boxplot + xlab(" ") + theme(axis.title.x = element_text(size = 34)),
+    nrow = 2, labels = c("a", "b")),
+  panelG_diffAbund, 
+  widths = c(0.5,1), 
+  labels = c("", "c")
+  )
+
+ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_Supplementary.svg"), width = 9, height = 8)
+
+microbiome_panel_Supplementary
+```
+
 
 ## Motor performance associations with the Microbiome
 

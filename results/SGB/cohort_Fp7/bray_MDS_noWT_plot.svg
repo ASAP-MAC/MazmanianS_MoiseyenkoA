@@ -93,14 +93,14 @@
 <text x='391.31' y='411.74' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='17.11px' lengthAdjust='spacingAndGlyphs'>0.50</text>
 <text x='234.95' y='424.20' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='74.03px' lengthAdjust='spacingAndGlyphs'>MDS 1 [27.2%]</text>
 <text transform='translate(13.36,222.59) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='80.16px' lengthAdjust='spacingAndGlyphs'>MDS 2 [19.33%]</text>
-<rect x='110.86' y='5.48' width='248.19' height='28.24' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<text x='116.33' y='23.54' style='font-size: 11.00px; font-family: "Arial";' textLength='100.36px' lengthAdjust='spacingAndGlyphs'>Genotype|Treatment</text>
-<rect x='222.17' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='230.81' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #868686; fill: #868686;' />
-<rect x='299.66' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='308.30' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #EFC000; fill: #EFC000;' />
-<text x='244.93' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='49.25px' lengthAdjust='spacingAndGlyphs'>ASO|Vehicle</text>
-<text x='322.42' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='31.14px' lengthAdjust='spacingAndGlyphs'>ASO|Fp</text>
+<rect x='109.82' y='5.48' width='250.26' height='28.24' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<text x='115.30' y='23.54' style='font-size: 11.00px; font-family: "Arial";' textLength='101.16px' lengthAdjust='spacingAndGlyphs'>Genotype-Treatment</text>
+<rect x='221.93' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<circle cx='230.57' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #868686; fill: #868686;' />
+<rect x='300.06' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<circle cx='308.70' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #EFC000; fill: #EFC000;' />
+<text x='244.69' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='49.89px' lengthAdjust='spacingAndGlyphs'>ASO-Vehicle</text>
+<text x='322.82' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='31.78px' lengthAdjust='spacingAndGlyphs'>ASO-Fp</text>
 </g>
 </g>
 </svg>
