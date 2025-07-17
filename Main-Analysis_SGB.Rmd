@@ -302,7 +302,7 @@ alpha_div_plotList <- lapply(c("dbp_dominance", "observed_richness", "shannon_di
 ```{r}
 ggarranged_plotlist <-  ggarrange(plotlist = alpha_div_plotList, common.legend = TRUE)
 
-ggsave(plot = ggarranged_plotlist, filename = file.path(output_directories.list$alpha_div_outdir, "alphas_vs_genotype_cohort_treatment.png"), dpi = 600, height = 5, width = 6)
+ggsave(plot = ggarranged_plotlist, filename = file.path(output_directories.list$alpha_div_outdir, "alphas_vs_genotype_cohort_treatment.svg"), dpi = 600, height = 5, width = 6)
 ggarranged_plotlist
 ```
 
@@ -434,7 +434,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) +
 ```
 
 ```{r}
-ggsave(plot = beta_plot_basic, filename = file.path(output_directories.list$beta_div_outdir, "bray_MDS_plot.png"), dpi = 600, height = 6.5, width = 7)
+ggsave(plot = beta_plot_basic, filename = file.path(output_directories.list$beta_div_outdir, "bray_MDS_plot.svg"), dpi = 600, height = 6.5, width = 7)
 
 beta_plot_basic
 ```
@@ -641,7 +641,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype
 ```
 
 ```{r, fig.height=6, fig.width=6}
-ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.png", sep = "_")), dpi = 600, height = 6, width = 6)
+ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.svg", sep = "_")), dpi = 600, height = 6, width = 6)
 
 beta_plot_basic
 ```
@@ -679,7 +679,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) +
 ```
 
 ```{r}
-ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "noWT", "plot.png", sep = "_")), dpi = 600, height = 6, width = 6)
+ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "noWT", "plot.svg", sep = "_")), dpi = 600, height = 6, width = 6)
 
 beta_plot_basic
 ```
@@ -1379,7 +1379,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype
 ```
 
 ```{r, fig.height=6, fig.width=6}
-ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.png", sep = "_")), dpi = 600, height = 6, width = 6)
+ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.svg", sep = "_")), dpi = 600, height = 6, width = 6)
 
 beta_plot_basic
 ```
@@ -1417,7 +1417,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) +
 ```
 
 ```{r}
-ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "noWT", "plot.png", sep = "_")), dpi = 600, height = 6, width = 6)
+ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "noWT", "plot.svg", sep = "_")), dpi = 600, height = 6, width = 6)
 
 beta_plot_basic
 ```
