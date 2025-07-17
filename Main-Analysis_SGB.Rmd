@@ -100,12 +100,12 @@ cache_table <- cacheMetagenomicData(metadata.df$uuid, data_type = "relative_abun
 
 # metaphlan <- get_metaphlan_locators(metadata.df$uuid, data_type = "relative_abundance")
 
-InputMetaphlanData.tse <- suppressMessages(biobakeryUtils::loadMetagenomicData(cache_table))
+MetaPhlAn.tse <- suppressMessages(biobakeryUtils::loadMetagenomicData(cache_table))
 
 # bypass the metadata including only what is important for us:
 
 ## get uuid and number_reads
-important_pieces_from_parkinsonsMetagenomicData <- InputMetaphlanData.tse %>% 
+important_pieces_from_parkinsonsMetagenomicData <- MetaPhlAn.tse %>% 
   colData() %>% 
   as.data.frame() %>% 
   select(uuid, number_reads)
@@ -113,37 +113,41 @@ important_pieces_from_parkinsonsMetagenomicData <- InputMetaphlanData.tse %>%
 ## generate a new colData data.frame with rows already ordered
 new_colData <- as.data.frame(dplyr::left_join(metadata.df, important_pieces_from_parkinsonsMetagenomicData, by = "uuid"))
 rownames(new_colData) <- new_colData$uuid
-new_colData <- new_colData[colnames(InputMetaphlanData.tse),]
+new_colData <- new_colData[colnames(MetaPhlAn.tse),]
 ## replace the old colData with the new one
-colData(InputMetaphlanData.tse) <- DataFrame(new_colData)
+colData(MetaPhlAn.tse) <- DataFrame(new_colData)
 
 # create assay of Relative abundance as opposed to metaphlan's default percent
-assay(InputMetaphlanData.tse, "metaphlan_RelAbund") <- assay(InputMetaphlanData.tse)/100
+assay(MetaPhlAn.tse, "metaphlan_RelAbund") <- assay(MetaPhlAn.tse)/100
 # order relative abundance [0,1]assay first 
-assays(InputMetaphlanData.tse) <- rev(assays(InputMetaphlanData.tse))
+assays(MetaPhlAn.tse) <- rev(assays(MetaPhlAn.tse))
 # create a new assay with approximated counts as relAbund * reads_processed
-assay(InputMetaphlanData.tse, "metaphlan_Counts") <- t(round(apply(assay(InputMetaphlanData.tse, "metaphlan_RelAbund"), 1, function(x) x * InputMetaphlanData.tse@colData$number_reads), 0))
+assay(MetaPhlAn.tse, "metaphlan_Counts") <- t(round(apply(assay(MetaPhlAn.tse, "metaphlan_RelAbund"), 1, function(x) x * MetaPhlAn.tse@colData$number_reads), 0))
 
 # add phylogenetic tree
-InputMetaphlanData.tse <-  AddPhyloTree_to_mpa_tse(data.tse = InputMetaphlanData.tse, CHOCOPhlAn_version = "202403")
+MetaPhlAn.tse <-  AddPhyloTree_to_mpa_tse(data.tse = MetaPhlAn.tse, CHOCOPhlAn_version = "202403")
 
 # rename strain column into SGB
-colnames(rowData(InputMetaphlanData.tse))[which(colnames(rowData(InputMetaphlanData.tse)) == "strain")] <- "SGB" 
+colnames(rowData(MetaPhlAn.tse))[which(colnames(rowData(MetaPhlAn.tse)) == "strain")] <- "SGB" 
 
-# calculate Bacteroidetes/Firmicutes ratio
-InputMetaphlanData.tse@colData$BFRatio <- apply(assay(agglomerateByRank(InputMetaphlanData.tse, "phylum")), 2, function(x){
+# calculate Firmicutes/Bacteroidetes Ratio
+MetaPhlAn.tse@colData$BF.Ratio <- apply(assay(agglomerateByRank(MetaPhlAn.tse, "phylum")), 2, function(x){
   bactName <- "p__Bacteroidota"
   firmName <- "p__Firmicutes"
   return(x[bactName]/x[firmName])
 })
 
-saveRDS(InputMetaphlanData.tse, "Data/InputMetaphlanData.tse.Rds")
+MetaPhlAn.tse@colData$FB.Ratio <- apply(assay(agglomerateByRank(MetaPhlAn.tse, "phylum")), 2, function(x){
+  bactName <- "p__Bacteroidota"
+  firmName <- "p__Firmicutes"
+  return(x[firmName]/x[bactName])
+})
 
+saveRDS(MetaPhlAn.tse, "Data/MetaPhlAn.tse.Rds")
 ```
 
 ```{r}
-InputMetaphlanData.tse <- readRDS("Data/InputMetaphlanData.tse.Rds")
-InputMetaphlanData.tse
+MetaPhlAn.tse <- readRDS("Data/MetaPhlAn.tse.Rds")
 ```
 
 # Dataset-wide microbiome composition statistics
@@ -151,7 +155,7 @@ InputMetaphlanData.tse
 ## Number of taxa per taxonomic level
 
 ```{r}
-InputData_splitByRanks.tse <- append(splitByRanks(InputMetaphlanData.tse), list("SGB" = InputMetaphlanData.tse))
+InputData_splitByRanks.tse <- append(splitByRanks(MetaPhlAn.tse), list("SGB" = MetaPhlAn.tse))
  
 InputData_splitByRanks.tse %>%  
   sapply(nrow)
@@ -215,7 +219,7 @@ We need to rely on other methods.
 
 ```{r, fig.cap="Heatmap of full microbiome composition of the dataset. Relative abundances have been Z-scaled by taxon, to account for intrinsic differences in relative abundances in the microbiome"}
 
-pheatmap::pheatmap(assay(InputMetaphlanData.tse) %>% magrittr::set_colnames(colData(InputMetaphlanData.tse)$sample_name), scale = "row", annotation_col = colData(InputMetaphlanData.tse) %>% as.data.frame() %>%  magrittr::set_rownames(.$sample_name) %>% select(treatment, cohort), angle_col = 315, show_rownames = FALSE)
+pheatmap::pheatmap(assay(MetaPhlAn.tse) %>% magrittr::set_colnames(colData(MetaPhlAn.tse)$sample_name), scale = "row", annotation_col = colData(MetaPhlAn.tse) %>% as.data.frame() %>%  magrittr::set_rownames(.$sample_name) %>% select(treatment, cohort), angle_col = 315, show_rownames = FALSE)
 
 ```
 
@@ -225,21 +229,21 @@ Below the `TreeSummarizedExperiment` object summary that is going to be used
 in all following analyses
 
 ```{r}
-InputMetaphlanData.tse <- InputData_splitByRanks.tse[[params$tax_level]]
+MetaPhlAn.tse <- InputData_splitByRanks.tse[[params$tax_level]]
 
-InputMetaphlanData.tse
+MetaPhlAn.tse
 ```
 
 # Alpha diversity does not vary in relation to sequencing depth
 
 ```{r}
-InputMetaphlanData.tse <- addAlpha(InputMetaphlanData.tse, assay.type = "metaphlan_RelAbund", index = c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"))
+MetaPhlAn.tse <- addAlpha(MetaPhlAn.tse, assay.type = "metaphlan_RelAbund", index = c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"))
 
 lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), 
        function(div) {
-         stats_basic <- shapiro.test(as.data.frame(colData(InputMetaphlanData.tse))[[div]])
+         stats_basic <- shapiro.test(as.data.frame(colData(MetaPhlAn.tse))[[div]])
          text <- paste0("Shapiro-Wilk test: W = ", round(stats_basic$statistic, 2), "; P-value = ", round(stats_basic$p.value, 3))
-         plot <- ggplot(as.data.frame(colData(InputMetaphlanData.tse)), aes(x = !!sym(div))) +
+         plot <- ggplot(as.data.frame(colData(MetaPhlAn.tse)), aes(x = !!sym(div))) +
            geom_histogram() + 
            labs(
              title = div, 
@@ -254,7 +258,7 @@ lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"),
 
 ```{r, tab.cap="Assessment of dependence of alpha diversity measures in relation to sequencing depth"}
 tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
-  lm(as.formula(paste(div, "~", "number_reads")), data = colData(InputMetaphlanData.tse))
+  lm(as.formula(paste(div, "~", "number_reads")), data = colData(MetaPhlAn.tse))
   
 }, USE.NAMES = TRUE, simplify = FALSE)
 
@@ -274,7 +278,7 @@ table_results.df %>%
 
 ```{r}
 alpha_div_plotList <- lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
-  colData(InputMetaphlanData.tse) %>% 
+  colData(MetaPhlAn.tse) %>% 
     as.data.frame() %>% 
      mutate(Treatment = factor(ifelse(treatment == "Vehicle", paste(genotype, "Control"), paste(genotype, "Treated")), levels = c("WT Control", "ASO Control", "ASO Treated"))) %>% 
   ggplot(aes(x = "", y = eval(parse(text = div)), color = Treatment)) + 
@@ -306,7 +310,7 @@ $$
 
 ```{r}
 tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
-  lm(as.formula(paste(div, "~", "genotype + treatment + cohort + number_reads")), data = colData(InputMetaphlanData.tse))
+  lm(as.formula(paste(div, "~", "genotype + treatment + cohort + number_reads")), data = colData(MetaPhlAn.tse))
   
 }, USE.NAMES = TRUE, simplify = FALSE)
 
@@ -334,7 +338,7 @@ $$
 cohort_subdir <- "Fp7"
 
 tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
-  lm(as.formula(paste(div, "~", "genotype + treatment + number_reads")), data = colData(InputMetaphlanData.tse)[colData(InputMetaphlanData.tse)$cohort == cohort_subdir,])
+  lm(as.formula(paste(div, "~", "genotype + treatment + number_reads")), data = colData(MetaPhlAn.tse)[colData(MetaPhlAn.tse)$cohort == cohort_subdir,])
   
 }, USE.NAMES = TRUE, simplify = FALSE)
 
@@ -362,7 +366,7 @@ $$
 cohort_subdir <- "bCL"
 
 tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
-  lm(as.formula(paste(div, "~", "genotype + treatment + number_reads")), data = colData(InputMetaphlanData.tse)[colData(InputMetaphlanData.tse)$cohort == cohort_subdir,])
+  lm(as.formula(paste(div, "~", "genotype + treatment + number_reads")), data = colData(MetaPhlAn.tse)[colData(MetaPhlAn.tse)$cohort == cohort_subdir,])
   
 }, USE.NAMES = TRUE, simplify = FALSE)
 
@@ -398,17 +402,17 @@ Possible confounders:
 ```{r}
 dimRedName <- paste(params$beta_dist, "mds", sep = "_")
 # this will work once mia or TreeSummarizedExperiment fixes some things
-InputMetaphlanData.tse <- mia::addMDS(
-  InputMetaphlanData.tse,
+MetaPhlAn.tse <- mia::addMDS(
+  MetaPhlAn.tse,
   assay.type = "metaphlan_RelAbund",
   method = params$beta_dist,
   ncomponents = 3, name = dimRedName
   )
 
-variances_explained <- attr(reducedDim(InputMetaphlanData.tse, dimRedName), "eig")
+variances_explained <- attr(reducedDim(MetaPhlAn.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData.tse)), reducedDim(InputMetaphlanData.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn.tse)), reducedDim(MetaPhlAn.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
@@ -432,9 +436,9 @@ beta_plot_basic
 ## PERMANOVA statistics
 
 ```{r}
-
-InputMetaphlanData.tse <- addPERMANOVA(
-  InputMetaphlanData.tse,
+set.seed(1234)
+MetaPhlAn.tse <- addPERMANOVA(
+  MetaPhlAn.tse,
   assay.type = "metaphlan_RelAbund",
   method = "bray",
   formula = x ~ genotype + treatment + cohort,
@@ -443,7 +447,7 @@ InputMetaphlanData.tse <- addPERMANOVA(
   test.homogeneity = TRUE
 )
 
-permanova_table.df <- PERMANOVA_to_table(InputMetaphlanData.tse)
+permanova_table.df <- PERMANOVA_to_table(MetaPhlAn.tse)
 
 write_tsv(permanova_table.df, file = file.path(output_directories.list$beta_div_outdir, paste(params$beta_dist, "adonisPermanova", "genotype", "treatment", "cohort.tsv", sep = "_")))
 ```
@@ -471,7 +475,7 @@ $$
 ```{r}
 # prepare input data
 
-tmp.tse <- InputMetaphlanData.tse[,InputMetaphlanData.tse@colData$treatment == "Vehicle"] 
+tmp.tse <- MetaPhlAn.tse[,MetaPhlAn.tse@colData$treatment == "Vehicle"] 
 tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT") # not needed, but better safe than sorry
 tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
 
@@ -595,8 +599,8 @@ cohort_subdir <- "cohort_Fp7"
 
 dir.create(file.path(params$basic_outdir, params$tax_level, cohort_subdir), showWarnings = FALSE, recursive = TRUE)
 
-InputMetaphlanData_Fp7.tse <- InputMetaphlanData.tse[, InputMetaphlanData.tse@colData$cohort == "Fp7"] 
-InputMetaphlanData_Fp7.tse@colData$genotype_treatment <- droplevels(InputMetaphlanData_Fp7.tse@colData$genotype_treatment)
+MetaPhlAn_Fp7.tse <- MetaPhlAn.tse[, MetaPhlAn.tse@colData$cohort == "Fp7"] 
+MetaPhlAn_Fp7.tse@colData$genotype_treatment <- droplevels(MetaPhlAn_Fp7.tse@colData$genotype_treatment)
 ```
 
 ## Overall community trends (Beta diversity)
@@ -604,17 +608,17 @@ InputMetaphlanData_Fp7.tse@colData$genotype_treatment <- droplevels(InputMetaphl
 ```{r}
 dimRedName <- paste("Fp7", params$beta_dist, "mds", sep = "_")
 # this will work once mia or TreeSummarizedExperiment fixes some things
-InputMetaphlanData_Fp7.tse <- mia::addMDS(
-  InputMetaphlanData_Fp7.tse,
+MetaPhlAn_Fp7.tse <- mia::addMDS(
+  MetaPhlAn_Fp7.tse,
   assay.type = "metaphlan_RelAbund",
   method = params$beta_dist,
   ncomponents = 3, name = dimRedName
   )
 
-variances_explained <- attr(reducedDim(InputMetaphlanData_Fp7.tse, dimRedName), "eig")
+variances_explained <- attr(reducedDim(MetaPhlAn_Fp7.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_Fp7.tse)), reducedDim(InputMetaphlanData_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7.tse)), reducedDim(MetaPhlAn_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment, label = cage)) + 
@@ -641,19 +645,19 @@ Same plot as above, without WT
 ```{r}
 dimRedName <- paste("Fp7", params$beta_dist, "mds", sep = "_")
 # this will work once mia or TreeSummarizedExperiment fixes some things
-InputMetaphlanData_Fp7_noWT.tse <- InputMetaphlanData_Fp7.tse[,InputMetaphlanData_Fp7.tse@colData$genotype != "WT"]
+MetaPhlAn_Fp7_noWT.tse <- MetaPhlAn_Fp7.tse[,MetaPhlAn_Fp7.tse@colData$genotype != "WT"]
 
-InputMetaphlanData_Fp7_noWT.tse <- mia::addMDS(
-  InputMetaphlanData_Fp7_noWT.tse,
+MetaPhlAn_Fp7_noWT.tse <- mia::addMDS(
+  MetaPhlAn_Fp7_noWT.tse,
   assay.type = "metaphlan_RelAbund",
   method = params$beta_dist,
   ncomponents = 3, name = dimRedName
   )
 
-variances_explained <- attr(reducedDim(InputMetaphlanData_Fp7_noWT.tse, dimRedName), "eig")
+variances_explained <- attr(reducedDim(MetaPhlAn_Fp7_noWT.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_Fp7_noWT.tse)), reducedDim(InputMetaphlanData_Fp7_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7_noWT.tse)), reducedDim(MetaPhlAn_Fp7_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
@@ -675,9 +679,9 @@ beta_plot_basic
 ```
 
 ```{r}
-
-InputMetaphlanData_Fp7.tse <- addPERMANOVA(
-  InputMetaphlanData_Fp7.tse,
+set.seed(1234)
+MetaPhlAn_Fp7.tse <- addPERMANOVA(
+  MetaPhlAn_Fp7.tse,
   assay.type = "metaphlan_RelAbund",
   method = "bray",
   formula = x ~ genotype_treatment,
@@ -686,7 +690,7 @@ InputMetaphlanData_Fp7.tse <- addPERMANOVA(
   test.homogeneity = TRUE
 )
 
-permanova_table.df <- PERMANOVA_to_table(InputMetaphlanData_Fp7.tse)
+permanova_table.df <- PERMANOVA_to_table(MetaPhlAn_Fp7.tse)
 
 write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, "PERMANOVA.tsv", sep = "_")))
 ```
@@ -701,14 +705,14 @@ permanova_table.df %>%
 
 ```{r}
 dissimName <- paste("Fp7", params$beta_dist, sep = "_")
-InputMetaphlanData_Fp7.tse <- addDissimilarity(InputMetaphlanData_Fp7.tse, method = "bray", name = dissimName, assay.type= "metaphlan_RelAbund")
-mtx <- metadata(InputMetaphlanData_Fp7.tse)[[dissimName]]
+MetaPhlAn_Fp7.tse <- addDissimilarity(MetaPhlAn_Fp7.tse, method = "bray", name = dissimName, assay.type= "metaphlan_RelAbund")
+mtx <- metadata(MetaPhlAn_Fp7.tse)[[dissimName]]
 mtx[upper.tri(mtx,diag = TRUE)] <- NA
 
 pairwise_dissim_bray <- reshape2::melt(mtx) %>% 
   filter(complete.cases(.)) %>%
-  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var1 = uuid, genotype_treatment = genotype_treatment), by = "Var1") %>% 
-  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_Fp7.tse)) %>% transmute(Var2 = uuid, genotype_treatment = genotype_treatment), by = "Var2") %>% 
+  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_Fp7.tse)) %>% transmute(Var1 = uuid, genotype_treatment = genotype_treatment), by = "Var1") %>% 
+  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_Fp7.tse)) %>% transmute(Var2 = uuid, genotype_treatment = genotype_treatment), by = "Var2") %>% 
   select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
   mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs ")) %>% 
   filter(genotype_treatment.x != genotype_treatment.y)
@@ -721,8 +725,8 @@ pairwise_dissim_bray <- reshape2::melt(mtx) %>%
 source("https://raw.githubusercontent.com/pmartinezarbizu/pairwiseAdonis/refs/heads/master/pairwiseAdonis/R/pairwise.adonis.R")
 set.seed(1234)
 library(vegan)
-pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(InputMetaphlanData_Fp7.tse)[[dissimName]]), 
-                factors = InputMetaphlanData_Fp7.tse@colData$genotype_treatment, 
+pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_Fp7.tse)[[dissimName]]), 
+                factors = MetaPhlAn_Fp7.tse@colData$genotype_treatment, 
                 perm = 9999
                 )
 
@@ -804,7 +808,7 @@ $$
 ```{r}
 # prepare input data
 
-tmp.tse <- InputMetaphlanData_Fp7.tse[,InputMetaphlanData_Fp7.tse@colData$treatment == "Vehicle"] 
+tmp.tse <- MetaPhlAn_Fp7.tse[,MetaPhlAn_Fp7.tse@colData$treatment == "Vehicle"] 
 tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT")
 tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
 
@@ -929,7 +933,7 @@ probiotic formulation, so they are incomparable.
 
 ```{r}
 # prepare input data
-tmp.tse <- InputMetaphlanData_Fp7.tse[,InputMetaphlanData_Fp7.tse@colData$genotype != "WT"]
+tmp.tse <- MetaPhlAn_Fp7.tse[,MetaPhlAn_Fp7.tse@colData$genotype != "WT"]
 tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Vehicle")
 tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
 tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, "metaphlan_RelAbund")) > 0,]
@@ -1050,26 +1054,27 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 ## Microbiome-typical plots panel
 
 ```{r}
+set.seed(1234)
 dimRedName <- paste("Fp7", params$beta_dist, "mds", sep = "_")
 # this will work once mia or TreeSummarizedExperiment fixes some things
 
-InputMetaphlanData_Fp7.tse <- mia::addMDS(
-  InputMetaphlanData_Fp7.tse,
+MetaPhlAn_Fp7.tse <- mia::addMDS(
+  MetaPhlAn_Fp7.tse,
   assay.type = "metaphlan_RelAbund",
   method = params$beta_dist,
   ncomponents = 3, name = dimRedName
   )
 
-InputMetaphlanData_Fp7.tse <- addPERMANOVA(InputMetaphlanData_Fp7.tse, 
+MetaPhlAn_Fp7.tse <- addPERMANOVA(MetaPhlAn_Fp7.tse, 
              formula = x ~ genotype_treatment, 
              assay.type = "metaphlan_RelAbund",
              method = params$beta_dist, 
              by = "margin")
 
-variances_explained <- attr(reducedDim(InputMetaphlanData_Fp7.tse, dimRedName), "eig")
+variances_explained <- attr(reducedDim(MetaPhlAn_Fp7.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_Fp7.tse)), reducedDim(InputMetaphlanData_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7.tse)), reducedDim(MetaPhlAn_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 panelA_betaDiv <- project1_meta_with_MDS.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment)) + 
@@ -1092,7 +1097,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype
 # panel B, phylum level stack plot
 
 panelB <- plotAbundance(
-  x = InputMetaphlanData_Fp7.tse,
+  x = MetaPhlAn_Fp7.tse,
   assay.type = "metaphlan_RelAbund", 
   group = "phylum") + 
   facet_grid(cols = vars(genotype_treatment), scales = "free_x") + 
@@ -1114,14 +1119,14 @@ panelC
 
 ```{r}
 
-panelD_BFratio.df <- InputMetaphlanData_Fp7.tse %>%
+panelD_FB.Ratio.df <- MetaPhlAn_Fp7.tse %>%
   colData() %>%
   as.data.frame()
 
-comparisons <- combn(levels(panelD_BFratio.df$genotype_treatment), 2, simplify = FALSE)
+comparisons <- combn(levels(panelD_FB.Ratio.df$genotype_treatment), 2, simplify = FALSE)
 
-panelD_BFratio <- panelD_BFratio.df %>% 
-  ggplot(aes(x = genotype_treatment, y = BFRatio, color = genotype_treatment, fill = genotype_treatment)) + 
+panelD_FB.Ratio <- panelD_FB.Ratio.df %>% 
+  ggplot(aes(x = genotype_treatment, y = FB.Ratio, color = genotype_treatment, fill = genotype_treatment)) + 
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.2) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
@@ -1132,13 +1137,13 @@ panelD_BFratio <- panelD_BFratio.df %>%
       theme(axis.text.x = element_blank()) +
   labs(
     x = "",
-    y = "Bacteroidetes/Firmicutes Ratio"
+    y = "Firmicutes/Bacteroidetes Ratio"
   )
 
 ```
 
 ```{r}
-alpha_data.df <- InputMetaphlanData_Fp7.tse %>%
+alpha_data.df <- MetaPhlAn_Fp7.tse %>%
   colData() %>%
   as.data.frame() %>% 
   dplyr::rename(
@@ -1188,7 +1193,7 @@ panelE_Obs.gg <- alpha_data.df %>%
 # pairwise_dissim_boxplot
 # panelE_Obs.gg
 # panelE_Shannon.gg
-# panelD_BFratio
+# panelD_FB.Ratio
 # panelC
 
 
@@ -1199,7 +1204,7 @@ piece2 <- ggarrange(panelA_betaDiv, pairwise_dissim_boxplot, common.legend = TRU
 piece3 <- ggarrange(
   panelE_Obs.gg + theme(legend.position = "none"), 
   panelE_Shannon.gg + theme(legend.position = "none"),
-  panelD_BFratio + theme(legend.position = "none"), nrow = 1, labels = c("d", "e", "f"))
+  panelD_FB.Ratio + theme(legend.position = "none"), nrow = 1, labels = c("d", "e", "f"))
 
 
 # piece3 <- ggarrange(
@@ -1207,7 +1212,7 @@ piece3 <- ggarrange(
 #   ggarrange(
 #   panelE_Obs.gg + theme(legend.position = "none"), 
 #   panelE_Shannon.gg + theme(legend.position = "none"),
-#   panelD_BFratio + theme(legend.position = "none"),
+#   panelD_FB.Ratio + theme(legend.position = "none"),
 #    nrow = 1
 # ), nrow = 2, heights = c(0.4,1))
 
@@ -1223,6 +1228,108 @@ piece_1_2_3_4 <- ggarrange(piece_1_2_3, panelC, widths = c(1, 0.6), labels = c("
 ggsave(plot = piece_1_2_3_4, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel.svg"), width = 18, height = 10)
 ```
 
+## Motor performance associations with the Microbiome
+
+```{r}
+motor_performance.df <- openxlsx::read.xlsx("Data/motor_performance/data_clean_ga.xlsx") %>% 
+  dplyr::rename(mouse_id = ID)
+# print column names
+head(motor_performance.df)
+# incorporate these columns into the colData of the input
+new_df <- DataFrame(dplyr::left_join(as.data.frame(colData(MetaPhlAn_Fp7.tse)), motor_performance.df, by = "mouse_id"))
+rownames(new_df) <- new_df$uuid
+
+colData(MetaPhlAn_Fp7.tse) <- new_df
+
+```
+
+```{r}
+motor_variables <- grepv("beam|pole", colnames(colData(MetaPhlAn_Fp7.tse)))
+
+comparisons <- combn(levels(colData(MetaPhlAn_Fp7.tse)$genotype_treatment), 2, simplify = FALSE)
+
+input.df <- as.data.frame(colData(MetaPhlAn_Fp7.tse))
+
+motor_performance_per_group.gg.list <- sapply(motor_variables, function(mot) {
+  na.logical <- is.na(input.df[[mot]])
+  ggplot(
+    input.df %>% filter(!na.logical),
+         aes(x = genotype_treatment, y = eval(parse(text = mot)), color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
+  )+ 
+  theme(legend.position = "none", axis.text.x = element_blank()) +
+  labs(
+    x = "",
+    y = mot,
+    caption = sprintf("N. NAs: %d", sum(na.logical))
+  )
+}, USE.NAMES = TRUE, simplify = FALSE)
+
+ggarrange(plotlist = motor_performance_per_group.gg.list, common.legend = TRUE)
+
+```
+
+```{r, message=FALSE}
+beam_steps_assoc_microbiome <- maaslin3(
+    input_data = as.data.frame(t(assay(MetaPhlAn_Fp7.tse))),
+    input_metadata = as.data.frame(colData(MetaPhlAn_Fp7.tse)),
+    fixed_effects = "beam_steps_n",
+    random_effects = "genotype_treatment",
+    transform = "LOG",
+    output = tempdir(),
+    # do not standardize continuous metadata variables in the model
+    standardize = FALSE,
+    plot_associations = TRUE,
+    save_plots_rds = TRUE,
+		verbosity = "ERROR"
+  )
+
+beam_steps_assoc_microbiome_clean <- biobakeryUtils::add_taxonomy_to_maaslin3(beam_steps_assoc_microbiome, MetaPhlAn_Fp7.tse, "SGB")
+
+readRDS(file.path(tempdir(), "figures", "summary_plot_gg.RDS"))
+```
+
+```{r}
+DT::datatable(beam_steps_assoc_microbiome$fit_data_abundance$results)
+```
+
+
+## Fecal output association with the microbiome
+
+```{r}
+fecal_output_variab <- grepv("fecal|carmine|bead", colnames(colData(MetaPhlAn_Fp7.tse)))
+
+comparisons <- combn(levels(colData(MetaPhlAn_Fp7.tse)$genotype_treatment), 2, simplify = FALSE)
+
+fecal_output_per_group.gg.list <- sapply(fecal_output_variab, function(fec) {
+  
+  ggplot(
+    colData(MetaPhlAn_Fp7.tse), 
+         aes(x = genotype_treatment, y = eval(parse(text = fec)), color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
+  ) +
+  theme(legend.position = "none", axis.text.x = element_blank()) +
+  labs(
+    x = "",
+    y = fec
+  )
+}, USE.NAMES = TRUE, simplify = FALSE)
+
+ggarrange(plotlist = fecal_output_per_group.gg.list, common.legend = TRUE)
+```
+
 # Cohort bCL
 
 ```{r}
@@ -1230,8 +1337,8 @@ cohort_subdir <- "cohort_bCL"
 
 dir.create(file.path(params$basic_outdir, params$tax_level, cohort_subdir), showWarnings = FALSE, recursive = TRUE)
 
-InputMetaphlanData_bCL.tse <- InputMetaphlanData.tse[, InputMetaphlanData.tse@colData$cohort == "bCL"] 
-InputMetaphlanData_bCL.tse@colData$genotype_treatment <- droplevels(InputMetaphlanData_bCL.tse@colData$genotype_treatment)
+MetaPhlAn_bCL.tse <- MetaPhlAn.tse[, MetaPhlAn.tse@colData$cohort == "bCL"] 
+MetaPhlAn_bCL.tse@colData$genotype_treatment <- droplevels(MetaPhlAn_bCL.tse@colData$genotype_treatment)
 ```
 
 ## Overall community trends (Beta diversity)
@@ -1239,17 +1346,17 @@ InputMetaphlanData_bCL.tse@colData$genotype_treatment <- droplevels(InputMetaphl
 ```{r}
 dimRedName <- paste("bCL", params$beta_dist, "mds", sep = "_")
 # this will work once mia or TreeSummarizedExperiment fixes some things
-InputMetaphlanData_bCL.tse <- mia::addMDS(
-  InputMetaphlanData_bCL.tse,
+MetaPhlAn_bCL.tse <- mia::addMDS(
+  MetaPhlAn_bCL.tse,
   assay.type = "metaphlan_RelAbund",
   method = params$beta_dist,
   ncomponents = 3, name = dimRedName
   )
 
-variances_explained <- attr(reducedDim(InputMetaphlanData_bCL.tse, dimRedName), "eig")
+variances_explained <- attr(reducedDim(MetaPhlAn_bCL.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_bCL.tse)), reducedDim(InputMetaphlanData_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL.tse)), reducedDim(MetaPhlAn_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment, label = cage)) + 
@@ -1276,19 +1383,19 @@ Same plot as above, without WT
 ```{r}
 dimRedName <- paste("bCL", params$beta_dist, "mds", sep = "_")
 # this will work once mia or TreeSummarizedExperiment fixes some things
-InputMetaphlanData_bCL_noWT.tse <- InputMetaphlanData_bCL.tse[,InputMetaphlanData_bCL.tse@colData$genotype != "WT"]
+MetaPhlAn_bCL_noWT.tse <- MetaPhlAn_bCL.tse[,MetaPhlAn_bCL.tse@colData$genotype != "WT"]
 
-InputMetaphlanData_bCL_noWT.tse <- mia::addMDS(
-  InputMetaphlanData_bCL_noWT.tse,
+MetaPhlAn_bCL_noWT.tse <- mia::addMDS(
+  MetaPhlAn_bCL_noWT.tse,
   assay.type = "metaphlan_RelAbund",
   method = params$beta_dist,
   ncomponents = 3, name = dimRedName
   )
 
-variances_explained <- attr(reducedDim(InputMetaphlanData_bCL_noWT.tse, dimRedName), "eig")
+variances_explained <- attr(reducedDim(MetaPhlAn_bCL_noWT.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_bCL_noWT.tse)), reducedDim(InputMetaphlanData_bCL_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL_noWT.tse)), reducedDim(MetaPhlAn_bCL_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
@@ -1310,9 +1417,9 @@ beta_plot_basic
 ```
 
 ```{r}
-
-InputMetaphlanData_bCL.tse <- addPERMANOVA(
-  InputMetaphlanData_bCL.tse,
+set.seed(1234)
+MetaPhlAn_bCL.tse <- addPERMANOVA(
+  MetaPhlAn_bCL.tse,
   assay.type = "metaphlan_RelAbund",
   method = "bray",
   formula = x ~ genotype_treatment,
@@ -1321,7 +1428,7 @@ InputMetaphlanData_bCL.tse <- addPERMANOVA(
   test.homogeneity = TRUE
 )
 
-permanova_table.df <- PERMANOVA_to_table(InputMetaphlanData_bCL.tse)
+permanova_table.df <- PERMANOVA_to_table(MetaPhlAn_bCL.tse)
 
 write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, "PERMANOVA.tsv", sep = "_")))
 ```
@@ -1336,14 +1443,14 @@ permanova_table.df %>%
 
 ```{r}
 dissimName <- paste("bCL", params$beta_dist, sep = "_")
-InputMetaphlanData_bCL.tse <- addDissimilarity(InputMetaphlanData_bCL.tse, method = "bray", name = dissimName, assay.type= "metaphlan_RelAbund")
-mtx <- metadata(InputMetaphlanData_bCL.tse)[[dissimName]]
+MetaPhlAn_bCL.tse <- addDissimilarity(MetaPhlAn_bCL.tse, method = "bray", name = dissimName, assay.type= "metaphlan_RelAbund")
+mtx <- metadata(MetaPhlAn_bCL.tse)[[dissimName]]
 mtx[upper.tri(mtx,diag = TRUE)] <- NA
 
 pairwise_dissim_bray <- reshape2::melt(mtx) %>% 
   filter(complete.cases(.)) %>%
-  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_bCL.tse)) %>% transmute(Var1 = uuid, genotype_treatment = genotype_treatment), by = "Var1") %>% 
-  dplyr::inner_join(., as.data.frame(colData(InputMetaphlanData_bCL.tse)) %>% transmute(Var2 = uuid, genotype_treatment = genotype_treatment), by = "Var2") %>% 
+  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_bCL.tse)) %>% transmute(Var1 = uuid, genotype_treatment = genotype_treatment), by = "Var1") %>% 
+  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_bCL.tse)) %>% transmute(Var2 = uuid, genotype_treatment = genotype_treatment), by = "Var2") %>% 
   select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
   mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs ")) %>% 
   filter(genotype_treatment.x != genotype_treatment.y)
@@ -1356,8 +1463,8 @@ pairwise_dissim_bray <- reshape2::melt(mtx) %>%
 source("https://raw.githubusercontent.com/pmartinezarbizu/pairwiseAdonis/refs/heads/master/pairwiseAdonis/R/pairwise.adonis.R")
 set.seed(1234)
 library(vegan)
-pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(InputMetaphlanData_bCL.tse)[[dissimName]]), 
-                factors = InputMetaphlanData_bCL.tse@colData$genotype_treatment, 
+pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_bCL.tse)[[dissimName]]), 
+                factors = MetaPhlAn_bCL.tse@colData$genotype_treatment, 
                 perm = 9999
                 )
 
@@ -1439,7 +1546,7 @@ $$
 ```{r}
 # prepare input data
 
-tmp.tse <- InputMetaphlanData_bCL.tse[,InputMetaphlanData_bCL.tse@colData$treatment == "Vehicle"] 
+tmp.tse <- MetaPhlAn_bCL.tse[,MetaPhlAn_bCL.tse@colData$treatment == "Vehicle"] 
 tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT")
 tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
 
@@ -1581,7 +1688,7 @@ probiotic formulation, so they are incomparable.
 
 ```{r}
 # prepare input data
-tmp.tse <- InputMetaphlanData_bCL.tse[,InputMetaphlanData_bCL.tse@colData$genotype != "WT"]
+tmp.tse <- MetaPhlAn_bCL.tse[,MetaPhlAn_bCL.tse@colData$genotype != "WT"]
 tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Vehicle")
 tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
 tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, "metaphlan_RelAbund")) > 0,]
@@ -1702,24 +1809,24 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 ```{r}
 dimRedName <- paste("bCL", params$beta_dist, "mds", sep = "_")
 # this will work once mia or TreeSummarizedExperiment fixes some things
-
-InputMetaphlanData_bCL.tse <- mia::addMDS(
-  InputMetaphlanData_bCL.tse,
+set.seed(1234)
+MetaPhlAn_bCL.tse <- mia::addMDS(
+  MetaPhlAn_bCL.tse,
   assay.type = "metaphlan_RelAbund",
   method = params$beta_dist,
   ncomponents = 3, name = dimRedName
   )
 
-InputMetaphlanData_bCL.tse <- addPERMANOVA(InputMetaphlanData_bCL.tse, 
+MetaPhlAn_bCL.tse <- addPERMANOVA(MetaPhlAn_bCL.tse, 
              formula = x ~ genotype_treatment, 
              assay.type = "metaphlan_RelAbund",
              method = params$beta_dist, 
              by = "margin")
 
-variances_explained <- attr(reducedDim(InputMetaphlanData_bCL.tse, dimRedName), "eig")
+variances_explained <- attr(reducedDim(MetaPhlAn_bCL.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(InputMetaphlanData_bCL.tse)), reducedDim(InputMetaphlanData_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL.tse)), reducedDim(MetaPhlAn_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 panelA_betaDiv <- project1_meta_with_MDS.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment)) + 
@@ -1742,7 +1849,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype
 # panel B, phylum level stack plot
 
 panelB <- plotAbundance(
-  x = InputMetaphlanData_bCL.tse,
+  x = MetaPhlAn_bCL.tse,
   assay.type = "metaphlan_RelAbund", 
   group = "phylum") + 
   facet_grid(cols = vars(genotype_treatment), scales = "free_x") + 
@@ -1764,14 +1871,14 @@ panelC
 
 ```{r}
 
-panelD_BFratio.df <- InputMetaphlanData_bCL.tse %>%
+panelD_FB.Ratio.df <- MetaPhlAn_bCL.tse %>%
   colData() %>%
   as.data.frame()
 
-comparisons <- combn(levels(panelD_BFratio.df$genotype_treatment), 2, simplify = FALSE)
+comparisons <- combn(levels(panelD_FB.Ratio.df$genotype_treatment), 2, simplify = FALSE)
 
-panelD_BFratio <- panelD_BFratio.df %>% 
-  ggplot(aes(x = genotype_treatment, y = BFRatio, color = genotype_treatment, fill = genotype_treatment)) + 
+panelD_FB.Ratio <- panelD_FB.Ratio.df %>% 
+  ggplot(aes(x = genotype_treatment, y = FB.Ratio, color = genotype_treatment, fill = genotype_treatment)) + 
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.2) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
@@ -1782,13 +1889,13 @@ panelD_BFratio <- panelD_BFratio.df %>%
       theme(axis.text.x = element_blank()) +
   labs(
     x = "",
-    y = "Bacteroidetes/Firmicutes Ratio"
+    y = "Firmicutes/Bacteroidetes Ratio"
   )
 
 ```
 
 ```{r}
-alpha_data.df <- InputMetaphlanData_bCL.tse %>%
+alpha_data.df <- MetaPhlAn_bCL.tse %>%
   colData() %>%
   as.data.frame() %>% 
   dplyr::rename(
@@ -1838,7 +1945,7 @@ panelE_Obs.gg <- alpha_data.df %>%
 # pairwise_dissim_boxplot
 # panelE_Obs.gg
 # panelE_Shannon.gg
-# panelD_BFratio
+# panelD_FB.Ratio
 # panelC
 
 
@@ -1849,7 +1956,7 @@ piece2 <- ggarrange(panelA_betaDiv, pairwise_dissim_boxplot, common.legend = TRU
 piece3 <- ggarrange(
   panelE_Obs.gg + theme(legend.position = "none"), 
   panelE_Shannon.gg + theme(legend.position = "none"),
-  panelD_BFratio + theme(legend.position = "none"), nrow = 1, labels = c("d", "e", "f"))
+  panelD_FB.Ratio + theme(legend.position = "none"), nrow = 1, labels = c("d", "e", "f"))
 
 
 # piece3 <- ggarrange(
@@ -1857,7 +1964,7 @@ piece3 <- ggarrange(
 #   ggarrange(
 #   panelE_Obs.gg + theme(legend.position = "none"), 
 #   panelE_Shannon.gg + theme(legend.position = "none"),
-#   panelD_BFratio + theme(legend.position = "none"),
+#   panelD_FB.Ratio + theme(legend.position = "none"),
 #    nrow = 1
 # ), nrow = 2, heights = c(0.4,1))
 
@@ -1873,6 +1980,107 @@ piece_1_2_3_4 <- ggarrange(piece_1_2_3, panelC, widths = c(1, 0.6), labels = c("
 ggsave(plot = piece_1_2_3_4, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel.svg"), width = 18, height = 10)
 ```
 
+## Motor performance associations with the Microbiome
+
+```{r}
+motor_performance.df <- openxlsx::read.xlsx("Data/motor_performance/data_clean_ga.xlsx") %>% 
+  dplyr::rename(mouse_id = ID)
+# print column names
+head(motor_performance.df)
+# incorporate these columns into the colData of the input
+new_df <- DataFrame(dplyr::left_join(as.data.frame(colData(MetaPhlAn_bCL.tse)), motor_performance.df, by = "mouse_id"))
+rownames(new_df) <- new_df$uuid
+
+colData(MetaPhlAn_bCL.tse) <- new_df
+
+```
+
+```{r}
+motor_variables <- grepv("beam|pole", colnames(colData(MetaPhlAn_bCL.tse)))
+
+comparisons <- combn(levels(colData(MetaPhlAn_bCL.tse)$genotype_treatment), 2, simplify = FALSE)
+
+input.df <- as.data.frame(colData(MetaPhlAn_bCL.tse))
+
+motor_performance_per_group.gg.list <- sapply(motor_variables, function(mot) {
+  na.logical <- is.na(input.df[[mot]])
+  ggplot(
+    input.df %>% filter(!na.logical),
+         aes(x = genotype_treatment, y = eval(parse(text = mot)), color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
+  )+ 
+  theme(legend.position = "none", axis.text.x = element_blank()) +
+  labs(
+    x = "",
+    y = mot,
+    caption = sprintf("N. NAs: %d", sum(na.logical))
+  )
+}, USE.NAMES = TRUE, simplify = FALSE)
+
+ggarrange(plotlist = motor_performance_per_group.gg.list, common.legend = TRUE)
+
+```
+
+```{r, message=FALSE}
+beam_steps_assoc_microbiome <- maaslin3(
+    input_data = as.data.frame(t(assay(MetaPhlAn_bCL.tse))),
+    input_metadata = as.data.frame(colData(MetaPhlAn_bCL.tse)),
+    fixed_effects = "beam_steps_n",
+    random_effects = "genotype_treatment",
+    transform = "LOG",
+    output = tempdir(),
+    # do not standardize continuous metadata variables in the model
+    standardize = FALSE,
+    plot_associations = TRUE,
+    save_plots_rds = TRUE,
+		verbosity = "ERROR"
+  )
+
+beam_steps_assoc_microbiome_clean <- biobakeryUtils::add_taxonomy_to_maaslin3(beam_steps_assoc_microbiome, MetaPhlAn_bCL.tse, "SGB")
+
+readRDS(file.path(tempdir(), "figures", "summary_plot_gg.RDS"))
+```
+
+```{r}
+DT::datatable(beam_steps_assoc_microbiome$fit_data_abundance$results)
+```
+
+## Fecal output association with the microbiome
+
+```{r}
+fecal_output_variab <- grepv("fecal|carmine|bead", colnames(colData(MetaPhlAn_bCL.tse)))
+
+comparisons <- combn(levels(colData(MetaPhlAn_bCL.tse)$genotype_treatment), 2, simplify = FALSE)
+
+fecal_output_per_group.gg.list <- sapply(fecal_output_variab, function(fec) {
+  
+  ggplot(
+    colData(MetaPhlAn_bCL.tse), 
+         aes(x = genotype_treatment, y = eval(parse(text = fec)), color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
+  ) +
+  theme(legend.position = "none", axis.text.x = element_blank()) +
+  labs(
+    x = "",
+    y = fec
+  )
+}, USE.NAMES = TRUE, simplify = FALSE)
+
+ggarrange(plotlist = fecal_output_per_group.gg.list, common.legend = TRUE)
+```
+
 # Track probiotic species across all samples
 
 ## Fp (F. prausnitzii)
@@ -1883,7 +2091,7 @@ Fp_species <- "s__Faecalibacterium_prausnitzii"
 
 
 ```{r}
-tmp.tse <- InputMetaphlanData.tse
+tmp.tse <- MetaPhlAn.tse
 rownames(tmp.tse) <- collapse_taxonomy(as.data.frame(rowData(tmp.tse)))
 
 tmp.tse %>% 
@@ -1911,7 +2119,7 @@ benCom_species
 
 
 ```{r}
-tmp.tse <- InputMetaphlanData.tse
+tmp.tse <- MetaPhlAn.tse
 rownames(tmp.tse) <- collapse_taxonomy(as.data.frame(rowData(tmp.tse)))
 
 tmp.tse %>% 
@@ -1938,7 +2146,6 @@ tmp.tse %>%
     
     * Phylogenetically close bacteria may have taken the niche or serve a 
     similar purpose (i.e. butyrate production)?
-    
 
 # Are there cohort-specific bacteria in the dataset?
 
@@ -1953,7 +2160,7 @@ $$
 ```{r}
 # prepare input data
 
-tmp.tse <- InputMetaphlanData.tse 
+tmp.tse <- MetaPhlAn.tse 
 
 tmp.tse
 
@@ -2050,12 +2257,12 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 # Bacteroidetes (Bacteroidota)/Firmicutes ratio plot
 
 ```{r}
-tmpDF <- colData(InputMetaphlanData.tse) %>% 
+tmpDF <- colData(MetaPhlAn.tse) %>% 
     as.data.frame() %>% 
   mutate(Treatment = factor(ifelse(treatment == "Vehicle", paste(genotype, "Control", sep = "\n"), paste(genotype, "Treated", sep = "\n")), levels = c("WT\nControl", "ASO\nControl", "ASO\nTreated")))
 
-bfratio_plot <- tmpDF %>%
-  ggplot(aes(x = cohort, y = BFRatio, color = Treatment)) +
+FB.Ratio_plot <- tmpDF %>%
+  ggplot(aes(x = cohort, y = FB.Ratio, color = Treatment)) +
   geom_point(position = position_jitterdodge(dodge.width = 0.8, seed = 1234), size = 2) +
   geom_boxplot(alpha = 0.5,
                show.legend = FALSE,
@@ -2064,7 +2271,7 @@ bfratio_plot <- tmpDF %>%
     data = tmpDF %>%
         rstatix::group_by(cohort) %>% 
       rstatix::pairwise_wilcox_test(
-      formula = BFRatio ~  Treatment,
+      formula = FB.Ratio ~  Treatment,
       p.adjust.method = "BH",
     ) %>% rstatix::add_xy_position(x = "cohort"), label = "p.adj", bracket.size = 0.5,tip.length = 0.01
   ) +
@@ -2073,20 +2280,20 @@ bfratio_plot <- tmpDF %>%
 ```
 
 ```{r, fig.height=5, fig.width=5}
-ggsave(plot = bfratio_plot, filename = file.path(params$basic_outdir, params$tax_level, "Bact_Firm_ratio.png"), dpi = 600, width = 6, height = 6)
-bfratio_plot
+ggsave(plot = FB.Ratio_plot, filename = file.path(params$basic_outdir, params$tax_level, "Bact_Firm_ratio.png"), dpi = 600, width = 6, height = 6)
+FB.Ratio_plot
 ```
 
 # Enterobacteria abundances in relation to the treatment
 
 ```{r}
-enteros_SGBs <- rowData(InputMetaphlanData.tse) %>% 
+enteros_SGBs <- rowData(MetaPhlAn.tse) %>% 
   as.data.frame() %>% 
   filter(family == "f__Enterobacteriaceae") %>% 
   .$SGB
 
 # set names of SGBs as specie
-names(enteros_SGBs) <- rowData(InputMetaphlanData.tse) %>% 
+names(enteros_SGBs) <- rowData(MetaPhlAn.tse) %>% 
   as.data.frame() %>% 
   filter(family == "f__Enterobacteriaceae") %>% 
   .$species
@@ -2097,7 +2304,7 @@ enteros_SGBs_top4
 ```
 
 ```{r}
-tmpDF <- meltSE(InputMetaphlanData.tse, assay.type = "metaphlan_RelAbund", add.col = c("cohort", "genotype", "treatment")) %>% 
+tmpDF <- meltSE(MetaPhlAn.tse, assay.type = "metaphlan_RelAbund", add.col = c("cohort", "genotype", "treatment")) %>% 
   filter(FeatureID == "t__SGB10068") %>% 
     mutate(Treatment = factor(ifelse(treatment == "Vehicle", paste(genotype, "Control", sep = "\n"), paste(genotype, "Treated", sep = "\n")), levels = c("WT\nControl", "ASO\nControl", "ASO\nTreated")))
 
@@ -2114,11 +2321,6 @@ e.coli_relAbund_plot <- tmpDF %>%
 e.coli_relAbund_plot
 ```
 
-# Motor performances in response to treatments (To be done)
-
-```{r}
-
-```
 
 # Overall Conclusions (to be done)
 
