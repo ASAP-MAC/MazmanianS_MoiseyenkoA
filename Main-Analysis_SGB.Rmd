@@ -63,12 +63,18 @@ library(biobakeryUtils)
 ```{r}
 
 output_directories.list <- list(
+  # basic output directory for SGB
+  baseDir = file.path(params$basic_outdir, params$tax_level),
   # alpha diversity directory
   alpha_div_outdir = file.path(params$basic_outdir, params$tax_level, "01_alpha_diversity"),
   # beta diversity output directory
   beta_div_outdir = file.path(params$basic_outdir, params$tax_level, "02_beta_diversity"),
   # differential abundance temporary directory
-  maaslin_tmpdir = "~/Documents/maaslin3_tmp_results/mazmanian_Ana"
+  maaslin_tmpdir = "~/Documents/maaslin3_tmp_results/mazmanian_Ana",
+  # cohort Fp7 directory
+  cohort_Fp7_Dir = file.path(params$basic_outdir, params$tax_level, "cohort_Fp7"),
+  # cohort Fp7 directory
+  cohort_Fp7_Dir = file.path(params$basic_outdir, params$tax_level, "cohort_bCL")
 )
 
 tmp_out <- capture.output(sapply(output_directories.list, dir.create, showWarnings = FALSE, recursive = TRUE))
@@ -294,7 +300,7 @@ alpha_div_plotList <- lapply(c("dbp_dominance", "observed_richness", "shannon_di
 
 
 ```{r}
-ggarranged_plotlist <-  ggarrange(plotlist= alpha_div_plotList, common.legend = TRUE)
+ggarranged_plotlist <-  ggarrange(plotlist = alpha_div_plotList, common.legend = TRUE)
 
 ggsave(plot = ggarranged_plotlist, filename = file.path(output_directories.list$alpha_div_outdir, "alphas_vs_genotype_cohort_treatment.png"), dpi = 600, height = 5, width = 6)
 ggarranged_plotlist
@@ -2254,36 +2260,6 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
   facet_grid(cols = vars(cohort), scales = "free_x")
 ```
 
-# Bacteroidetes (Bacteroidota)/Firmicutes ratio plot
-
-```{r}
-tmpDF <- colData(MetaPhlAn.tse) %>% 
-    as.data.frame() %>% 
-  mutate(Treatment = factor(ifelse(treatment == "Vehicle", paste(genotype, "Control", sep = "\n"), paste(genotype, "Treated", sep = "\n")), levels = c("WT\nControl", "ASO\nControl", "ASO\nTreated")))
-
-FB.Ratio_plot <- tmpDF %>%
-  ggplot(aes(x = cohort, y = FB.Ratio, color = Treatment)) +
-  geom_point(position = position_jitterdodge(dodge.width = 0.8, seed = 1234), size = 2) +
-  geom_boxplot(alpha = 0.5,
-               show.legend = FALSE,
-               outliers = FALSE) +
-  stat_pvalue_manual(
-    data = tmpDF %>%
-        rstatix::group_by(cohort) %>% 
-      rstatix::pairwise_wilcox_test(
-      formula = FB.Ratio ~  Treatment,
-      p.adjust.method = "BH",
-    ) %>% rstatix::add_xy_position(x = "cohort"), label = "p.adj", bracket.size = 0.5,tip.length = 0.01
-  ) +
-  theme(legend.position = "top") +
-  labs(x = "Treatment Cohort", color = "Genotype\nTreatment", y = "Bacteroidetes:Firmicutes ratio", caption = "FDR from pairwise Wilcoxon Test")
-```
-
-```{r, fig.height=5, fig.width=5}
-ggsave(plot = FB.Ratio_plot, filename = file.path(params$basic_outdir, params$tax_level, "Bact_Firm_ratio.png"), dpi = 600, width = 6, height = 6)
-FB.Ratio_plot
-```
-
 # Enterobacteria abundances in relation to the treatment
 
 ```{r}
@@ -2320,7 +2296,6 @@ e.coli_relAbund_plot <- tmpDF %>%
   
 e.coli_relAbund_plot
 ```
-
 
 # Overall Conclusions (to be done)
 
