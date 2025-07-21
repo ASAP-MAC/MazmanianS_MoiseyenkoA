@@ -2404,6 +2404,13 @@ e.coli_relAbund_plot
 
 # Overall Conclusions (to be done)
 
+# Save taxonomy table as supplementary
+
+```{r}
+write_tsv(as_tibble(rowData(MetaPhlAn.tse)), file = file.path(params$basic_outdir, params$tax_level, "Supplementary table 1 - taxonomy.tsv"))
+```
+
+
 # Session Info
 
 ```{r}
