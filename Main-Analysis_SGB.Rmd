@@ -1099,7 +1099,7 @@ panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   # Apply the colorize_labels function to your x-axis labels
   scale_x_discrete(labels = function(x) colorize_labels(x, color_map)) +
   # Tell ggplot to render the axis text as Markdown/HTML
-  theme(axis.text.x = ggtext::element_markdown(angle = 60, hjust = 1)) +
+  theme(axis.text.x = ggtext::element_markdown(angle = 90, hjust = 1)) +
   ylim(0.3, 0.9) +
   labs(
     x = "",
@@ -1202,6 +1202,21 @@ panelF_FB.Ratio <- panelF_FB.Ratio.df %>%
     y = "Firmicutes/Bacteroidetes Ratio"
   )
 
+panelF_FB.Ratio_horiz <- panelF_FB.Ratio.df %>% 
+  mutate(genotype_treatment = factor(genotype_treatment, levels = rev(levels(genotype_treatment)))) %>% 
+  ggplot(aes(y = genotype_treatment, x = FB.Ratio, color = genotype_treatment, fill = genotype_treatment)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.height = 0.4, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.height = 0.4, seed = 1234)) + 
+  scale_color_manual(values = ggsci::pal_jco()(3)) +
+  scale_fill_manual(values = ggsci::pal_jco()(3)) +
+  stat_compare_means(
+    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)) + 
+      theme(axis.text.y = element_blank()) +
+  labs(
+    y = "",
+    x = "Firmicutes/Bacteroidetes Ratio"
+  )
 ```
 
 ```{r}
@@ -1252,14 +1267,14 @@ microbiome_panel_MainText <- ggarrange(
     ggarrange(
       get_legend(panelB_PCoA),
       ggarrange(
-        panelF_FB.Ratio + theme(legend.position = "none"), 
         panelB_PCoA + theme(legend.position = "none"), 
-        ncol = 2, widths = c(0.7,1), align = "h", labels = c("b", "c")
+        panelC_pairwise_dissim_boxplot,
+        ncol = 2, widths = c(1, 0.7), align = "h", labels = c("b", "d")
         ),
-      panelC_pairwise_dissim_boxplot_horiz,
+      # panelF_FB.Ratio_horiz + theme(legend.position = "none") + coord_flip(), 
       ncol= 1,
       heights = c(0.05, 1, 0.8), 
-      labels = c("", "", "d")
+      labels = c("", "", "c")
       ),
     widths = c(0.6, 1),
   labels = c("a", "")
@@ -1419,8 +1434,8 @@ beta_plot_basic <- project1_meta_with_MDS.df %>%
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment, label = cage)) + 
   geom_text(show.legend = FALSE) +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
   theme(legend.position = "top") +
   labs(color = "Genotype-Treatment",
        fill = "Genotype-Treatment",
@@ -1458,7 +1473,7 @@ beta_plot_basic <- project1_meta_with_MDS.df %>%
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
   theme(legend.position = "top") +
   labs(color = "Genotype-Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
@@ -1832,8 +1847,8 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype
   geom_point(size = 2.5, stroke = 1, color = "black") +
   geom_point(size = 2.5) +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
   theme(legend.position = "top") +
   labs(color = "Genotype-Treatment",
        fill = "Genotype-Treatment",
@@ -1869,7 +1884,7 @@ colorize_labels <- function(labels, mapping) {
   return(colored_labels)
 }
 
-color_map <- set_names(ggsci::pal_jco()(5)[c(3, 2, 1)]) %>% set_names(c("WT\\-Vehicle", "ASO\\-Vehicle", "ASO\\-benCom"))
+color_map <- set_names(ggsci::pal_jco()(5)[c(3, 2, 4)]) %>% set_names(c("WT\\-Vehicle", "ASO\\-Vehicle", "ASO\\-benCom"))
 
 # Your full plot code
 panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
@@ -1938,8 +1953,8 @@ panelD_Obs_boxplot <- alpha_data.df %>%
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   ) + 
@@ -1954,8 +1969,8 @@ panelE_Shannon_boxplot <- alpha_data.df %>%
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   )+ 
@@ -1981,8 +1996,8 @@ panelF_FB.Ratio <- panelF_FB.Ratio.df %>%
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)) + 
       theme(axis.text.x = element_blank()) +
@@ -2041,14 +2056,14 @@ microbiome_panel_MainText <- ggarrange(
     ggarrange(
       get_legend(panelB_PCoA),
       ggarrange(
-        panelF_FB.Ratio + theme(legend.position = "none"), 
         panelB_PCoA + theme(legend.position = "none"), 
-        ncol = 2, widths = c(0.7,1), align = "h", labels = c("b", "c")
+        panelF_FB.Ratio + theme(legend.position = "none"), 
+        ncol = 2, widths = c(1, 0.7), align = "h", labels = c("b", "d")
         ),
       panelC_pairwise_dissim_boxplot_horiz,
       ncol= 1,
       heights = c(0.05, 1, 0.8), 
-      labels = c("", "", "d")
+      labels = c("", "", "c")
       ),
     widths = c(0.6, 1),
   labels = c("a", "")
@@ -2106,8 +2121,8 @@ motor_performance_per_group.gg.list <- sapply(motor_variables, function(mot) {
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   )+ 
@@ -2162,8 +2177,8 @@ fecal_output_per_group.gg.list <- sapply(fecal_output_variab, function(fec) {
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   ) +
