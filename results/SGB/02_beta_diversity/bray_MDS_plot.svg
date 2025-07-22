@@ -127,20 +127,20 @@
 <text x='497.91' y='447.74' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='17.11px' lengthAdjust='spacingAndGlyphs'>0.50</text>
 <text x='268.50' y='460.20' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='74.03px' lengthAdjust='spacingAndGlyphs'>MDS 1 [22.2%]</text>
 <text transform='translate(13.36,240.59) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='80.16px' lengthAdjust='spacingAndGlyphs'>MDS 2 [10.45%]</text>
-<rect x='65.51' y='5.48' width='405.99' height='28.24' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<text x='70.99' y='23.54' style='font-size: 11.00px; font-family: "Arial";' textLength='101.16px' lengthAdjust='spacingAndGlyphs'>Genotype-Treatment</text>
-<rect x='177.62' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='186.26' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #868686; fill: #868686;' />
-<rect x='250.35' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='258.99' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #EFC000; fill: #EFC000;' />
-<rect x='328.48' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='337.12' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #0073C2; fill: #0073C2;' />
-<rect x='388.50' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='397.14' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #CD534C; fill: #CD534C;' />
-<text x='200.38' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='44.48px' lengthAdjust='spacingAndGlyphs'>WT-Vehicle</text>
-<text x='273.11' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='49.89px' lengthAdjust='spacingAndGlyphs'>ASO-Vehicle</text>
-<text x='351.23' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='31.78px' lengthAdjust='spacingAndGlyphs'>ASO-Fp</text>
-<text x='411.25' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='54.77px' lengthAdjust='spacingAndGlyphs'>ASO-benCom</text>
+<rect x='66.31' y='5.48' width='404.38' height='28.24' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<text x='71.79' y='23.54' style='font-size: 11.00px; font-family: "Arial";' textLength='101.16px' lengthAdjust='spacingAndGlyphs'>Genotype-Treatment</text>
+<rect x='178.43' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<circle cx='187.07' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #868686; fill: #868686;' />
+<rect x='250.99' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<circle cx='259.63' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #EFC000; fill: #EFC000;' />
+<rect x='328.64' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<circle cx='337.28' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #0073C2; fill: #0073C2;' />
+<rect x='388.18' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<circle cx='396.82' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #CD534C; fill: #CD534C;' />
+<text x='201.19' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='44.33px' lengthAdjust='spacingAndGlyphs'>WT Vehicle</text>
+<text x='273.75' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='49.41px' lengthAdjust='spacingAndGlyphs'>ASO Vehicle</text>
+<text x='351.40' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='31.30px' lengthAdjust='spacingAndGlyphs'>ASO Fp</text>
+<text x='410.93' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='54.28px' lengthAdjust='spacingAndGlyphs'>ASO benCom</text>
 </g>
 </g>
 </svg>
