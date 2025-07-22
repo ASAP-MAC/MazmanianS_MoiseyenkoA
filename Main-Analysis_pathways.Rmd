@@ -47,10 +47,15 @@ library(reactable)
 library(parkinsonsMetagenomicData)
 
 library(ggh4x) # for complex ggplot2 faceting
+# remotes::install_github("cmartin/ggConvexHull")
+library(ggConvexHull) # for convex hulls geometries
 # set ggplot2 plot themes 
 theme_set(theme_light())
 # set seed for reproducibility
 set.seed(1234)
+
+library(biobakeryUtils)
+
 ```
 
 # Create output directories all in one chunk
@@ -58,12 +63,18 @@ set.seed(1234)
 ```{r}
 
 output_directories.list <- list(
+  # basic output directory for SGB
+  baseDir = file.path(params$basic_outdir, params$humann_data_type),
   # alpha diversity directory
   alpha_div_outdir = file.path(params$basic_outdir, params$humann_data_type, "01_alpha_diversity"),
   # beta diversity output directory
   beta_div_outdir = file.path(params$basic_outdir, params$humann_data_type, "02_beta_diversity"),
   # differential abundance temporary directory
-  maaslin_tmpdir = "~/Documents/maaslin3_tmp_results/mazmanian_Ana"
+  maaslin_tmpdir = "~/Documents/maaslin3_tmp_results/mazmanian_Ana",
+  # cohort Fp7 directory
+  cohort_Fp7_Dir = file.path(params$basic_outdir, params$humann_data_type, "cohort_Fp7"),
+  # cohort Fp7 directory
+  cohort_bCL_Dir = file.path(params$basic_outdir, params$humann_data_type, "cohort_bCL")
 )
 
 tmp_out <- capture.output(sapply(output_directories.list, dir.create, showWarnings = FALSE, recursive = TRUE))
@@ -84,32 +95,30 @@ metadata.df <- read_tsv("Data/metadata_4.0.tsv") %>%
     cage = as.factor(cage),
     cohort = as.factor(cohort),
     subcohort = as.factor(subcohort),
-    treatment = as.factor(treatment) %>% relevel(ref = "Vehicle")
-    ) %>% 
-  as.data.frame()
+    treatment = as.factor(treatment) %>% relevel(ref = "Vehicle"), 
+    genotype_treatment = paste(genotype, treatment, sep = "-") %>% factor(levels = c("WT-Vehicle", "ASO-Vehicle", "ASO-Fp", "ASO-benCom"))
+    )
 
 rownames(metadata.df) <- metadata.df$uuid
+
 
 googleCloudStorageR::gcs_auth(json_file = "~/Downloads/curatedmetagenomicdata-232f4a306d1d.json")
 
 # HUMAnN_3.9 pathway abundance unstratified
 humann_unstrat_cache <- cacheMetagenomicData(metadata.df$uuid, data_type = "pathabundance_unstratified", redownload = "no")
 
-humann_unstrat.se <- loadMetagenomicData(humann_unstrat_cache)
+humann_unstrat.se <- parkinsonsMetagenomicData::loadMetagenomicData(humann_unstrat_cache)
 
 # identical(metadata.df$uuid, colnames(humann_basic_obj.se)) # TRUE
 
 colData(humann_unstrat.se) <- DataFrame(metadata.df)
 assayNames(humann_unstrat.se) <- "AbsAbund"
 # round assay values to closest integer
-assay(humann_unstrat.se, "AbsAbund_rounded") <- round(assay(humann_basic_obj.se), 0)
+assay(humann_unstrat.se, "AbsAbund_rounded") <- round(assay(humann_unstrat.se), 0)
 # create a relabund assay as well
 assay(humann_unstrat.se, "RelAbund") <- apply(assay(humann_unstrat.se), 2, function(x) x/sum(x))
 
-dir.create("Data/humann_data", recursive = TRUE, showWarnings = FALSE)
-write_tsv(as.data.frame(assay(humann_unstrat.se, "AbsAbund")), "Data/humann_data/humann3.9_unstratified_AbsCounts_raw.tsv")
-
-InputHumannData.tse <- TreeSummarizedExperiment(humann_unstrat.se)
+InputHumannData.tse <- TreeSummarizedExperiment(assays = assays(humann_unstrat.se), colData = DataFrame(metadata.df))
 
 saveRDS(InputHumannData.tse, "Data/InputHumannData.tse.Rds")
 rm(list = ls())
@@ -118,5 +127,70 @@ rm(list = ls())
 ```{r}
 InputHumannData.tse <- readRDS("Data/InputHumannData.tse.Rds")
 InputHumannData.tse
+```
+
+# Abundance of fermentative pathways in Fp7 {.tabset}
+
+```{r}
+cohort_subdir <- "Fp7"
+InputHumannData_Fp7.tse <- InputHumannData.tse[,colData(InputHumannData.tse)$cohort == cohort_subdir]
+
+fermentative_pathways <- grepv(" acetate| propionate| butanoate| lactate", rownames(InputHumannData_Fp7.tse))
+
+fermentative_pathways
+```
+
+
+
+```{r, results="asis"}
+moltenAssay_Abs <- meltSE(
+  InputHumannData_Fp7.tse,
+  add.col = c("genotype_treatment"),
+  assay.type = "AbsAbund"
+)
+moltenAssay_Rel <- meltSE(
+  InputHumannData_Fp7.tse,
+  add.col = c("genotype_treatment"),
+  assay.type = "RelAbund"
+)
+
+for (pathway in fermentative_pathways) {
+  cat("\n##", pathway, sep = " ")
+  cat("\n")
+  
+  print(
+    ggarrange(
+      moltenAssay_Abs %>%
+        filter(FeatureID == pathway) %>%
+        
+        ggplot(
+          aes(x = genotype_treatment, y = AbsAbund, color = genotype_treatment)
+        ) +
+        geom_point(position = position_jitterdodge(
+          jitter.width = 0.3, seed = 1234
+        )) +
+        geom_boxplot(alpha = 0.4) +
+        labs(title = "Absolute Counts"),
+      
+        moltenAssay_Rel %>%
+          filter(FeatureID == pathway) %>%
+          
+          ggplot(
+            aes(x = genotype_treatment, y = RelAbund, color = genotype_treatment)
+          ) +
+          geom_point(position = position_jitterdodge(
+            jitter.width = 0.3, seed = 1234
+          )) +
+          geom_boxplot(alpha = 0.4) +
+          labs(title = "Rel. Abund Counts"),
+      
+      common.legend = TRUE, legend = "bottom"
+      )%>% annotate_figure(top = text_grob(pathway, face = "bold", size = 14))
+        
+      )
+      
+  cat("\n")
+}
+
 ```
 
