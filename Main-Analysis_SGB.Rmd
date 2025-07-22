@@ -56,6 +56,7 @@ set.seed(1234)
 
 library(biobakeryUtils)
 
+joe_palette <- c("WT Vehicle" = "#b2df8a", "ASO Vehicle" = "#a4cde2", "ASO Fp" = "#1e78b4", "ASO benCom" = "indianred3")
 ```
 
 # Create output directories all in one chunk
@@ -424,7 +425,7 @@ beta_plot_basic <- project1_meta_with_MDS.df %>%
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = joe_palette) +
   theme(legend.position = "top") +
   labs(color = "Genotype-Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
@@ -630,8 +631,8 @@ beta_plot_basic <- project1_meta_with_MDS.df %>%
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment, label = cage)) + 
   geom_text() +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   theme(legend.position = "top") +
   labs(color = "Genotype-Treatment",
        fill = "Genotype-Treatment",
@@ -669,7 +670,7 @@ beta_plot_basic <- project1_meta_with_MDS.df %>%
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = joe_palette) +
   theme(legend.position = "top") +
   labs(color = "Genotype-Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
@@ -1052,8 +1053,8 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype
   geom_point(size = 2.5, stroke = 1, color = "black") +
   geom_point(size = 2.5) +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   theme(legend.position = "top") +
   labs(color = "Genotype-Treatment",
        fill = "Genotype-Treatment",
@@ -1089,8 +1090,6 @@ colorize_labels <- function(labels, mapping) {
   return(colored_labels)
 }
 
-color_map <- set_names(ggsci::pal_jco()(5)[c(3, 2, 1)]) %>% set_names(c("WT\\ Vehicle", "ASO\\ Vehicle", "ASO\\ Fp"))
-
 # Your full plot code
 panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   ggplot(
@@ -1106,7 +1105,7 @@ panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
               mutate(pairs = factor(pairs, levels = pairs)),
             mapping = aes(x = pairs, y = value, label = sprintf("FDR = %.3f", p.adjusted)), hjust = 0, angle = 90) +
   # Apply the colorize_labels function to your x-axis labels
-  scale_x_discrete(labels = function(x) colorize_labels(x, color_map)) +
+  scale_x_discrete(labels = function(x) colorize_labels(x, joe_palette)) +
   # Tell ggplot to render the axis text as Markdown/HTML
   theme(axis.text.x = ggtext::element_markdown(angle = 90, hjust = 1)) +
   ylim(0.3, 0.9) +
@@ -1131,7 +1130,7 @@ panelC_pairwise_dissim_boxplot_horiz <- pairwise_dissim_bray %>%
               mutate(pairs = factor(pairs, levels = pairs)),
             mapping = aes(y = pairs, x = value, label = sprintf("FDR = %.3f", p.adjusted)), hjust = 0) +
   # Apply the colorize_labels function to your x-axis labels
-  scale_y_discrete(labels = function(x) colorize_labels(x, color_map)) +
+  scale_y_discrete(labels = function(x) colorize_labels(x, joe_palette)) +
   # Tell ggplot to render the axis text as Markdown/HTML
   theme(axis.text.y = ggtext::element_markdown(angle = 0, hjust = 1)) +
   xlim(0.3, 0.9) +
@@ -1158,8 +1157,8 @@ panelD_Obs_boxplot <- alpha_data.df %>%
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   ) + 
@@ -1174,8 +1173,8 @@ panelE_Shannon_boxplot <- alpha_data.df %>%
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   )+ 
@@ -1201,8 +1200,8 @@ panelF_FB.Ratio <- panelF_FB.Ratio.df %>%
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE), label = "p.format") + 
       theme(axis.text.x = element_blank()) +
@@ -1342,8 +1341,8 @@ motor_performance_per_group.gg.list <- sapply(motor_variables, function(mot) {
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   )+ 
@@ -1398,8 +1397,8 @@ fecal_output_per_group.gg.list <- sapply(fecal_output_variab, function(fec) {
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 1, 4, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   ) +
@@ -1445,8 +1444,8 @@ beta_plot_basic <- project1_meta_with_MDS.df %>%
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment, label = cage)) + 
   geom_text() +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   theme(legend.position = "top") +
   labs(color = "Genotype-Treatment",
        fill = "Genotype-Treatment",
@@ -1484,7 +1483,7 @@ beta_plot_basic <- project1_meta_with_MDS.df %>%
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = joe_palette) +
   theme(legend.position = "top") +
   labs(color = "Genotype-Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
@@ -1867,8 +1866,8 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype
   geom_point(size = 2.5, stroke = 1, color = "black") +
   geom_point(size = 2.5) +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   theme(legend.position = "top") +
   labs(color = "Genotype-Treatment",
        fill = "Genotype-Treatment",
@@ -1904,8 +1903,6 @@ colorize_labels <- function(labels, mapping) {
   return(colored_labels)
 }
 
-color_map <- set_names(ggsci::pal_jco()(5)[c(3, 2, 1)]) %>% set_names(c("WT\\ Vehicle", "ASO\\ Vehicle", "ASO\\ benCom"))
-
 # Your full plot code
 panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   ggplot(
@@ -1921,7 +1918,7 @@ panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
               mutate(pairs = factor(pairs, levels = pairs)),
             mapping = aes(x = pairs, y = value, label = sprintf("FDR = %.3f", p.adjusted)), hjust = 0, angle = 90) +
   # Apply the colorize_labels function to your x-axis labels
-  scale_x_discrete(labels = function(x) colorize_labels(x, color_map)) +
+  scale_x_discrete(labels = function(x) colorize_labels(x, joe_palette)) +
   # Tell ggplot to render the axis text as Markdown/HTML
   theme(axis.text.x = ggtext::element_markdown(angle = 90, hjust = 1)) +
   ylim(0.3, 0.9) +
@@ -1946,7 +1943,7 @@ panelC_pairwise_dissim_boxplot_horiz <- pairwise_dissim_bray %>%
               mutate(pairs = factor(pairs, levels = pairs)),
             mapping = aes(y = pairs, x = value, label = sprintf("FDR = %.3f", p.adjusted)), hjust = 0) +
   # Apply the colorize_labels function to your x-axis labels
-  scale_y_discrete(labels = function(x) colorize_labels(x, color_map)) +
+  scale_y_discrete(labels = function(x) colorize_labels(x, joe_palette)) +
   # Tell ggplot to render the axis text as Markdown/HTML
   theme(axis.text.y = ggtext::element_markdown(angle = 0, hjust = 1)) +
   xlim(0.3, 0.9) +
@@ -1973,8 +1970,8 @@ panelD_Obs_boxplot <- alpha_data.df %>%
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   ) + 
@@ -1989,8 +1986,8 @@ panelE_Shannon_boxplot <- alpha_data.df %>%
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   )+ 
@@ -2016,8 +2013,8 @@ panelF_FB.Ratio <- panelF_FB.Ratio.df %>%
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE), label = "p.format") + 
       theme(axis.text.x = element_blank()) +
@@ -2157,8 +2154,8 @@ motor_performance_per_group.gg.list <- sapply(motor_variables, function(mot) {
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   )+ 
@@ -2213,8 +2210,8 @@ fecal_output_per_group.gg.list <- sapply(fecal_output_variab, function(fec) {
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
-  scale_color_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
-  scale_fill_manual(values = ggsci::pal_jco()(5)[c(3, 2, 4, 1, 5)]) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
   stat_compare_means(
     comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
   ) +
