@@ -450,7 +450,7 @@ MetaPhlAn.tse <- addPERMANOVA(
   method = "bray",
   formula = x ~ genotype + treatment + cohort,
   name = "permanova",
-  permutations = 999,
+  permutations = 9999,
   test.homogeneity = TRUE
 )
 
@@ -693,7 +693,7 @@ MetaPhlAn_Fp7.tse <- addPERMANOVA(
   method = "bray",
   formula = x ~ genotype_treatment,
   name = "permanova",
-  permutations = 999,
+  permutations = 9999,
   test.homogeneity = TRUE
 )
 
@@ -734,7 +734,7 @@ set.seed(1234)
 library(vegan)
 pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_Fp7.tse)[[dissimName]]), 
                 factors = MetaPhlAn_Fp7.tse@colData$genotype_treatment, 
-                perm = 999,
+                perm = 9999,
                 p.adjust.m = "BH"
                 )
 
@@ -759,7 +759,7 @@ MetaPhlAn_Fp7.tse <- addPERMANOVA(
   method = "euclidean",
   formula = x ~ genotype_treatment,
   name = "permanova_aitchison",
-  permutations = 999,
+  permutations = 9999,
   test.homogeneity = TRUE
 )
 ```
@@ -779,7 +779,7 @@ MetaPhlAn_Fp7.tse <- addDissimilarity(MetaPhlAn_Fp7.tse, method = "euclidean", n
 
 pairwise_adonis_stats_aitchison <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_Fp7.tse)[["aitchison"]]), 
                 factors = MetaPhlAn_Fp7.tse@colData$genotype_treatment, 
-                perm = 999, 
+                perm = 9999, 
                 p.adjust.m = "BH"
 )
 
@@ -1085,7 +1085,7 @@ MetaPhlAn_Fp7.tse <- addPERMANOVA(MetaPhlAn_Fp7.tse,
              formula = x ~ genotype_treatment, 
              assay.type = "metaphlan_RelAbund",
              method = params$beta_dist,
-             permutations = 999, 
+             permutations = 9999, 
              by = "margin")
 
 variances_explained <- attr(reducedDim(MetaPhlAn_Fp7.tse, dimRedName), "eig")
@@ -1551,7 +1551,7 @@ MetaPhlAn_bCL.tse <- addPERMANOVA(
   method = "bray",
   formula = x ~ genotype_treatment,
   name = "permanova",
-  permutations = 999,
+  permutations = 9999,
   test.homogeneity = TRUE
 )
 
@@ -1610,7 +1610,7 @@ set.seed(1234)
 library(vegan)
 pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_Fp7.tse)[[dissimName]]), 
                 factors = MetaPhlAn_Fp7.tse@colData$genotype_treatment, 
-                perm = 999,
+                perm = 9999,
                 p.adjust.m = "BH"
                 )
 
@@ -1635,7 +1635,7 @@ MetaPhlAn_bCL.tse <- addPERMANOVA(
   method = "euclidean",
   formula = x ~ genotype_treatment,
   name = "permanova_aitchison",
-  permutations = 999,
+  permutations = 9999,
   test.homogeneity = TRUE
 )
 ```
@@ -1655,7 +1655,7 @@ MetaPhlAn_bCL.tse <- addDissimilarity(MetaPhlAn_bCL.tse, method = "euclidean", n
 
 pairwise_adonis_stats_aitchison <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_bCL.tse)[["aitchison"]]), 
                 factors = MetaPhlAn_bCL.tse@colData$genotype_treatment, 
-                perm = 999, 
+                perm = 9999, 
                 p.adjust.m = "BH"
 )
 
@@ -1961,7 +1961,7 @@ MetaPhlAn_bCL.tse <- addPERMANOVA(MetaPhlAn_bCL.tse,
              formula = x ~ genotype_treatment, 
              assay.type = "metaphlan_RelAbund",
              method = params$beta_dist,
-             permutations = 999,
+             permutations = 9999,
              by = "margin")
 
 variances_explained <- attr(reducedDim(MetaPhlAn_bCL.tse, dimRedName), "eig")
