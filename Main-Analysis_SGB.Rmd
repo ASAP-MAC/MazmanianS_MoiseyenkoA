@@ -1084,7 +1084,8 @@ MetaPhlAn_Fp7.tse <- mia::addMDS(
 MetaPhlAn_Fp7.tse <- addPERMANOVA(MetaPhlAn_Fp7.tse, 
              formula = x ~ genotype_treatment, 
              assay.type = "metaphlan_RelAbund",
-             method = params$beta_dist, 
+             method = params$beta_dist,
+             permutations = 999, 
              by = "margin")
 
 variances_explained <- attr(reducedDim(MetaPhlAn_Fp7.tse, dimRedName), "eig")
@@ -1959,7 +1960,8 @@ MetaPhlAn_bCL.tse <- mia::addMDS(
 MetaPhlAn_bCL.tse <- addPERMANOVA(MetaPhlAn_bCL.tse, 
              formula = x ~ genotype_treatment, 
              assay.type = "metaphlan_RelAbund",
-             method = params$beta_dist, 
+             method = params$beta_dist,
+             permutations = 999,
              by = "margin")
 
 variances_explained <- attr(reducedDim(MetaPhlAn_bCL.tse, dimRedName), "eig")
