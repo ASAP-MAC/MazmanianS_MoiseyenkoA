@@ -952,9 +952,9 @@
 <line x1='701.08' y1='180.94' x2='701.08' y2='203.37' style='stroke-width: 1.07; stroke: #333333; stroke-linecap: butt;' />
 <polygon points='695.11,158.57 695.11,180.94 707.05,180.94 707.05,158.57 695.11,158.57 ' style='stroke-width: 1.07; stroke: #333333; stroke-linecap: butt; stroke-linejoin: miter; fill: #FFFFFF; fill-opacity: 0.60;' />
 <line x1='695.11' y1='170.16' x2='707.05' y2='170.16' style='stroke-width: 2.13; stroke: #333333; stroke-linecap: butt; stroke-linejoin: miter;' />
-<text transform='translate(705.03,105.72) rotate(-90)' style='font-size: 11.04px; font-family: "Arial";' textLength='62.05px' lengthAdjust='spacingAndGlyphs'>FDR = 0.011</text>
-<text transform='translate(744.81,126.97) rotate(-90)' style='font-size: 11.04px; font-family: "Arial";' textLength='62.86px' lengthAdjust='spacingAndGlyphs'>FDR = 0.750</text>
-<text transform='translate(784.60,103.59) rotate(-90)' style='font-size: 11.04px; font-family: "Arial";' textLength='62.86px' lengthAdjust='spacingAndGlyphs'>FDR = 0.040</text>
+<text transform='translate(705.03,105.72) rotate(-90)' style='font-size: 11.04px; font-family: "Arial";' textLength='62.86px' lengthAdjust='spacingAndGlyphs'>FDR = 0.015</text>
+<text transform='translate(744.81,126.97) rotate(-90)' style='font-size: 11.04px; font-family: "Arial";' textLength='62.86px' lengthAdjust='spacingAndGlyphs'>FDR = 0.249</text>
+<text transform='translate(784.60,103.59) rotate(-90)' style='font-size: 11.04px; font-family: "Arial";' textLength='62.86px' lengthAdjust='spacingAndGlyphs'>FDR = 0.015</text>
 <rect x='677.21' y='33.72' width='127.31' height='193.24' style='stroke-width: 1.07; stroke: #B3B3B3;' />
 </g>
 <g clip-path='url(#cpMC4wMHwxMjk2LjAwfDAuMDB8NzIwLjAw)'>

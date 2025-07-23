@@ -734,12 +734,56 @@ set.seed(1234)
 library(vegan)
 pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_Fp7.tse)[[dissimName]]), 
                 factors = MetaPhlAn_Fp7.tse@colData$genotype_treatment, 
-                perm = 9999
+                perm = 999,
+                p.adjust.m = "BH"
                 )
 
 kbl(pairwise_adonis_stats, caption = "Pairwise PERMANOVA test comparing groups as seen above") %>% 
   kable_styling()
 
+write_tsv(pairwise_adonis_stats, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, "PERMANOVA_pairwise.tsv", sep = "_")))
+```
+
+## Same PERMANOVA statistics, but on Aitchison distance for robustness check
+
+Input data: `MetaPhlAn counts (rel.ab x number_reads)`
+Transformation: `rclr` (CLR on non-0 counts, 0 remain untouched)
+Distance metric: `euclidean`
+
+```{r}
+MetaPhlAn_Fp7.tse <- transformAssay(MetaPhlAn_Fp7.tse, assay.type = "metaphlan_Counts", method = "rclr", name = "metaphlan_Counts_rclr")
+
+MetaPhlAn_Fp7.tse <- addPERMANOVA(
+  MetaPhlAn_Fp7.tse,
+  assay.type = "metaphlan_Counts_rclr",
+  method = "euclidean",
+  formula = x ~ genotype_treatment,
+  name = "permanova_aitchison",
+  permutations = 999,
+  test.homogeneity = TRUE
+)
+```
+
+
+```{r}
+# group-wise PERMANOVA
+permanova_table_aitchison.df <- PERMANOVA_to_table(MetaPhlAn_Fp7.tse, name = "permanova_aitchison")
+
+write_tsv(permanova_table_aitchison.df, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste("aitchison", "PERMANOVA.tsv", sep = "_")))
+```
+
+
+```{r}
+# pairwise PERMANOVA
+MetaPhlAn_Fp7.tse <- addDissimilarity(MetaPhlAn_Fp7.tse, method = "euclidean", name = "aitchison", assay.type= "metaphlan_Counts_rclr")
+
+pairwise_adonis_stats_aitchison <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_Fp7.tse)[["aitchison"]]), 
+                factors = MetaPhlAn_Fp7.tse@colData$genotype_treatment, 
+                perm = 999, 
+                p.adjust.m = "BH"
+)
+
+write_tsv(pairwise_adonis_stats_aitchison, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste("aitchison", "PERMANOVA_pairwise.tsv", sep = "_")))
 ```
 
 ## What microbes differ between `genotypes` in vehicle controls?
@@ -1539,20 +1583,82 @@ pairwise_dissim_bray <- reshape2::melt(mtx) %>%
 
 ```
 
+## Pairwise group comparison (PERMANOVA and boxplot of Bray-Curtis distances)
+
+```{r}
+dissimName <- paste("Fp7", params$beta_dist, sep = "_")
+MetaPhlAn_Fp7.tse <- addDissimilarity(MetaPhlAn_Fp7.tse, method = "bray", name = dissimName, assay.type= "metaphlan_RelAbund")
+mtx <- metadata(MetaPhlAn_Fp7.tse)[[dissimName]]
+mtx[upper.tri(mtx,diag = TRUE)] <- NA
+
+pairwise_dissim_bray <- reshape2::melt(mtx) %>% 
+  filter(complete.cases(.)) %>%
+  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_Fp7.tse)) %>% transmute(Var1 = uuid, genotype_treatment = genotype_treatment), by = "Var1") %>% 
+  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_Fp7.tse)) %>% transmute(Var2 = uuid, genotype_treatment = genotype_treatment), by = "Var2") %>% 
+  select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
+  mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs ")) %>% 
+  filter(genotype_treatment.x != genotype_treatment.y)
+
+```
+
 ## Pairwise PERMANOVA
 
 ```{r}
 source("https://raw.githubusercontent.com/pmartinezarbizu/pairwiseAdonis/refs/heads/master/pairwiseAdonis/R/pairwise.adonis.R")
 set.seed(1234)
 library(vegan)
-pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_bCL.tse)[[dissimName]]), 
-                factors = MetaPhlAn_bCL.tse@colData$genotype_treatment, 
-                perm = 9999
+pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_Fp7.tse)[[dissimName]]), 
+                factors = MetaPhlAn_Fp7.tse@colData$genotype_treatment, 
+                perm = 999,
+                p.adjust.m = "BH"
                 )
 
 kbl(pairwise_adonis_stats, caption = "Pairwise PERMANOVA test comparing groups as seen above") %>% 
   kable_styling()
 
+write_tsv(pairwise_adonis_stats, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, "PERMANOVA_pairwise.tsv", sep = "_")))
+```
+
+## Same PERMANOVA statistics, but on Aitchison distance for robustness check
+
+Input data: `MetaPhlAn counts (rel.ab x number_reads)`
+Transformation: `rclr` (CLR on non-0 counts, 0 remain untouched)
+Distance metric: `euclidean`
+
+```{r}
+MetaPhlAn_bCL.tse <- transformAssay(MetaPhlAn_bCL.tse, assay.type = "metaphlan_Counts", method = "rclr", name = "metaphlan_Counts_rclr")
+
+MetaPhlAn_bCL.tse <- addPERMANOVA(
+  MetaPhlAn_bCL.tse,
+  assay.type = "metaphlan_Counts_rclr",
+  method = "euclidean",
+  formula = x ~ genotype_treatment,
+  name = "permanova_aitchison",
+  permutations = 999,
+  test.homogeneity = TRUE
+)
+```
+
+
+```{r}
+# group-wise PERMANOVA
+permanova_table_aitchison.df <- PERMANOVA_to_table(MetaPhlAn_bCL.tse, name = "permanova_aitchison")
+
+write_tsv(permanova_table_aitchison.df, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste("aitchison", "PERMANOVA.tsv", sep = "_")))
+```
+
+
+```{r}
+# pairwise PERMANOVA
+MetaPhlAn_bCL.tse <- addDissimilarity(MetaPhlAn_bCL.tse, method = "euclidean", name = "aitchison", assay.type= "metaphlan_Counts_rclr")
+
+pairwise_adonis_stats_aitchison <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_bCL.tse)[["aitchison"]]), 
+                factors = MetaPhlAn_bCL.tse@colData$genotype_treatment, 
+                perm = 999, 
+                p.adjust.m = "BH"
+)
+
+write_tsv(pairwise_adonis_stats_aitchison, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste("aitchison", "PERMANOVA_pairwise.tsv", sep = "_")))
 ```
 
 ## What microbes differ between `genotypes` in vehicle controls?
