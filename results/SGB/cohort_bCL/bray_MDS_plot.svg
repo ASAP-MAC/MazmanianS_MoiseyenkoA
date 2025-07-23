@@ -58,12 +58,12 @@
 <text x='150.22' y='198.27' text-anchor='middle' style='font-size: 11.04px;fill: #B2DF8A; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>16</text>
 <text x='311.64' y='180.78' text-anchor='middle' style='font-size: 11.04px;fill: #B2DF8A; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>17</text>
 <text x='375.48' y='191.18' text-anchor='middle' style='font-size: 11.04px;fill: #B2DF8A; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>17</text>
-<text x='109.45' y='64.80' text-anchor='middle' style='font-size: 11.04px;fill: #A4CDE2; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>18</text>
-<text x='345.07' y='269.93' text-anchor='middle' style='font-size: 11.04px;fill: #A4CDE2; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>19</text>
-<text x='71.90' y='134.46' text-anchor='middle' style='font-size: 11.04px;fill: #A4CDE2; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>19</text>
-<text x='134.07' y='141.11' text-anchor='middle' style='font-size: 11.04px;fill: #A4CDE2; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>19</text>
-<text x='238.68' y='143.36' text-anchor='middle' style='font-size: 11.04px;fill: #A4CDE2; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>18</text>
-<text x='408.88' y='226.11' text-anchor='middle' style='font-size: 11.04px;fill: #A4CDE2; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>19</text>
+<text x='109.45' y='64.80' text-anchor='middle' style='font-size: 11.04px;fill: #A6CEE3; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>18</text>
+<text x='345.07' y='269.93' text-anchor='middle' style='font-size: 11.04px;fill: #A6CEE3; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>19</text>
+<text x='71.90' y='134.46' text-anchor='middle' style='font-size: 11.04px;fill: #A6CEE3; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>19</text>
+<text x='134.07' y='141.11' text-anchor='middle' style='font-size: 11.04px;fill: #A6CEE3; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>19</text>
+<text x='238.68' y='143.36' text-anchor='middle' style='font-size: 11.04px;fill: #A6CEE3; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>18</text>
+<text x='408.88' y='226.11' text-anchor='middle' style='font-size: 11.04px;fill: #A6CEE3; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>19</text>
 <text x='149.47' y='112.78' text-anchor='middle' style='font-size: 11.04px;fill: #CD5555; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>20</text>
 <text x='103.43' y='387.97' text-anchor='middle' style='font-size: 11.04px;fill: #CD5555; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>21</text>
 <text x='188.04' y='388.28' text-anchor='middle' style='font-size: 11.04px;fill: #CD5555; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>21</text>
@@ -73,7 +73,7 @@
 <text x='370.64' y='210.94' text-anchor='middle' style='font-size: 11.04px;fill: #CD5555; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>20</text>
 <text x='250.90' y='124.61' text-anchor='middle' style='font-size: 11.04px;fill: #CD5555; font-family: "Arial";' textLength='12.28px' lengthAdjust='spacingAndGlyphs'>20</text>
 <polygon points='185.58,368.84 56.12,335.21 114.42,98.14 375.48,187.23 ' style='stroke-width: 1.07; stroke: #B2DF8A; stroke-linecap: butt; fill: #B2DF8A; fill-opacity: 0.20;' />
-<polygon points='408.88,222.16 368.16,259.31 345.07,265.98 71.90,130.51 109.45,60.85 ' style='stroke-width: 1.07; stroke: #A4CDE2; stroke-linecap: butt; fill: #A4CDE2; fill-opacity: 0.20;' />
+<polygon points='408.88,222.16 368.16,259.31 345.07,265.98 71.90,130.51 109.45,60.85 ' style='stroke-width: 1.07; stroke: #A6CEE3; stroke-linecap: butt; fill: #A6CEE3; fill-opacity: 0.20;' />
 <polygon points='188.04,384.33 103.43,384.02 73.47,341.55 108.86,159.66 149.47,108.83 250.90,120.66 370.64,206.99 ' style='stroke-width: 1.07; stroke: #CD5555; stroke-linecap: butt; fill: #CD5555; fill-opacity: 0.20;' />
 <rect x='38.49' y='44.68' width='388.03' height='355.83' style='stroke-width: 1.07; stroke: #B3B3B3;' />
 </g>
@@ -101,7 +101,7 @@
 <rect x='172.19' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
 <text x='180.83' y='23.55' text-anchor='middle' style='font-size: 11.04px;fill: #B2DF8A; font-family: "Arial";' textLength='6.14px' lengthAdjust='spacingAndGlyphs'>a</text>
 <rect x='244.76' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<text x='253.40' y='23.55' text-anchor='middle' style='font-size: 11.04px;fill: #A4CDE2; font-family: "Arial";' textLength='6.14px' lengthAdjust='spacingAndGlyphs'>a</text>
+<text x='253.40' y='23.55' text-anchor='middle' style='font-size: 11.04px;fill: #A6CEE3; font-family: "Arial";' textLength='6.14px' lengthAdjust='spacingAndGlyphs'>a</text>
 <rect x='322.41' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
 <text x='331.05' y='23.55' text-anchor='middle' style='font-size: 11.04px;fill: #CD5555; font-family: "Arial";' textLength='6.14px' lengthAdjust='spacingAndGlyphs'>a</text>
 <text x='194.95' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='44.33px' lengthAdjust='spacingAndGlyphs'>WT Vehicle</text>

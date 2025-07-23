@@ -56,7 +56,7 @@ set.seed(1234)
 
 library(biobakeryUtils)
 
-joe_palette <- c("WT Vehicle" = "#b2df8a", "ASO Vehicle" = "#a4cde2", "ASO Fp" = "#1e78b4", "ASO benCom" = "indianred3")
+joe_palette <- c("WT Vehicle" = "#b2df8a", "ASO Vehicle" = "#a6cee3", "ASO Fp" = "#1f78b4", "ASO benCom" = "indianred3")
 ```
 
 # Create output directories all in one chunk

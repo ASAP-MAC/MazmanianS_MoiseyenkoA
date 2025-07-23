@@ -53,14 +53,14 @@
 <polyline points='253.57,400.50 253.57,44.68 ' style='stroke-width: 0.53; stroke: #DEDEDE; stroke-linecap: butt;' />
 <polyline points='327.25,400.50 327.25,44.68 ' style='stroke-width: 0.53; stroke: #DEDEDE; stroke-linecap: butt;' />
 <polyline points='400.92,400.50 400.92,44.68 ' style='stroke-width: 0.53; stroke: #DEDEDE; stroke-linecap: butt;' />
-<circle cx='311.77' cy='307.28' r='2.49' style='stroke-width: 0.71; stroke: #A4CDE2; fill: #A4CDE2;' />
-<circle cx='183.56' cy='214.09' r='2.49' style='stroke-width: 0.71; stroke: #A4CDE2; fill: #A4CDE2;' />
-<circle cx='315.08' cy='259.26' r='2.49' style='stroke-width: 0.71; stroke: #A4CDE2; fill: #A4CDE2;' />
-<circle cx='289.94' cy='263.17' r='2.49' style='stroke-width: 0.71; stroke: #A4CDE2; fill: #A4CDE2;' />
-<circle cx='246.61' cy='283.50' r='2.49' style='stroke-width: 0.71; stroke: #A4CDE2; fill: #A4CDE2;' />
-<circle cx='158.52' cy='243.74' r='2.49' style='stroke-width: 0.71; stroke: #A4CDE2; fill: #A4CDE2;' />
-<circle cx='228.45' cy='261.39' r='2.49' style='stroke-width: 0.71; stroke: #A4CDE2; fill: #A4CDE2;' />
-<circle cx='170.19' cy='227.33' r='2.49' style='stroke-width: 0.71; stroke: #A4CDE2; fill: #A4CDE2;' />
+<circle cx='311.77' cy='307.28' r='2.49' style='stroke-width: 0.71; stroke: #A6CEE3; fill: #A6CEE3;' />
+<circle cx='183.56' cy='214.09' r='2.49' style='stroke-width: 0.71; stroke: #A6CEE3; fill: #A6CEE3;' />
+<circle cx='315.08' cy='259.26' r='2.49' style='stroke-width: 0.71; stroke: #A6CEE3; fill: #A6CEE3;' />
+<circle cx='289.94' cy='263.17' r='2.49' style='stroke-width: 0.71; stroke: #A6CEE3; fill: #A6CEE3;' />
+<circle cx='246.61' cy='283.50' r='2.49' style='stroke-width: 0.71; stroke: #A6CEE3; fill: #A6CEE3;' />
+<circle cx='158.52' cy='243.74' r='2.49' style='stroke-width: 0.71; stroke: #A6CEE3; fill: #A6CEE3;' />
+<circle cx='228.45' cy='261.39' r='2.49' style='stroke-width: 0.71; stroke: #A6CEE3; fill: #A6CEE3;' />
+<circle cx='170.19' cy='227.33' r='2.49' style='stroke-width: 0.71; stroke: #A6CEE3; fill: #A6CEE3;' />
 <circle cx='290.72' cy='279.48' r='2.49' style='stroke-width: 0.71; stroke: #CD5555; fill: #CD5555;' />
 <circle cx='295.00' cy='148.97' r='2.49' style='stroke-width: 0.71; stroke: #CD5555; fill: #CD5555;' />
 <circle cx='257.56' cy='157.20' r='2.49' style='stroke-width: 0.71; stroke: #CD5555; fill: #CD5555;' />
@@ -69,7 +69,7 @@
 <circle cx='301.43' cy='248.36' r='2.49' style='stroke-width: 0.71; stroke: #CD5555; fill: #CD5555;' />
 <circle cx='189.66' cy='254.47' r='2.49' style='stroke-width: 0.71; stroke: #CD5555; fill: #CD5555;' />
 <circle cx='245.56' cy='292.12' r='2.49' style='stroke-width: 0.71; stroke: #CD5555; fill: #CD5555;' />
-<polyline points='409.10,317.87 407.78,310.71 403.84,302.73 397.33,294.05 388.36,284.82 377.06,275.16 363.61,265.23 348.20,255.17 331.07,245.14 312.49,235.30 292.72,225.78 272.08,216.74 250.87,208.30 229.42,200.61 208.04,193.77 187.08,187.89 166.84,183.06 147.62,179.34 129.73,176.81 113.43,175.49 98.97,175.41 86.57,176.57 76.42,178.94 68.67,182.50 63.43,187.19 60.79,192.94 60.79,199.66 63.43,207.25 68.67,215.59 76.42,224.56 86.57,234.03 98.97,243.84 113.43,253.85 129.73,263.91 147.62,273.87 166.84,283.57 187.08,292.87 208.04,301.63 229.42,309.70 250.87,316.99 272.08,323.36 292.72,328.72 312.49,333.00 331.07,336.13 348.20,338.06 363.61,338.76 377.06,338.22 388.36,336.45 397.33,333.48 403.84,329.35 407.78,324.12 409.10,317.87 ' style='stroke-width: 1.07; stroke: #A4CDE2; stroke-linecap: butt;' />
+<polyline points='409.10,317.87 407.78,310.71 403.84,302.73 397.33,294.05 388.36,284.82 377.06,275.16 363.61,265.23 348.20,255.17 331.07,245.14 312.49,235.30 292.72,225.78 272.08,216.74 250.87,208.30 229.42,200.61 208.04,193.77 187.08,187.89 166.84,183.06 147.62,179.34 129.73,176.81 113.43,175.49 98.97,175.41 86.57,176.57 76.42,178.94 68.67,182.50 63.43,187.19 60.79,192.94 60.79,199.66 63.43,207.25 68.67,215.59 76.42,224.56 86.57,234.03 98.97,243.84 113.43,253.85 129.73,263.91 147.62,273.87 166.84,283.57 187.08,292.87 208.04,301.63 229.42,309.70 250.87,316.99 272.08,323.36 292.72,328.72 312.49,333.00 331.07,336.13 348.20,338.06 363.61,338.76 377.06,338.22 388.36,336.45 397.33,333.48 403.84,329.35 407.78,324.12 409.10,317.87 ' style='stroke-width: 1.07; stroke: #A6CEE3; stroke-linecap: butt;' />
 <polyline points='372.26,167.43 371.51,149.16 369.28,132.00 365.59,116.21 360.51,102.04 354.11,89.70 346.49,79.37 337.76,71.22 328.06,65.36 317.53,61.89 306.33,60.85 294.64,62.27 282.63,66.12 270.48,72.34 258.37,80.85 246.50,91.50 235.03,104.14 224.15,118.58 214.01,134.60 204.78,151.95 196.59,170.38 189.57,189.60 183.81,209.32 179.42,229.24 176.46,249.07 174.96,268.49 174.96,287.22 176.46,304.97 179.42,321.48 183.81,336.48 189.57,349.77 196.59,361.12 204.78,370.38 214.01,377.40 224.15,382.07 235.03,384.33 246.50,384.14 258.37,381.50 270.48,376.45 282.63,369.07 294.64,359.48 306.33,347.81 317.53,334.24 328.06,318.98 337.76,302.26 346.49,284.34 354.11,265.48 360.51,245.98 365.59,226.12 369.28,206.21 371.51,186.55 372.26,167.43 ' style='stroke-width: 1.07; stroke: #CD5555; stroke-linecap: butt;' />
 <rect x='43.38' y='44.68' width='383.14' height='355.83' style='stroke-width: 1.07; stroke: #B3B3B3;' />
 </g>
@@ -97,7 +97,7 @@
 <rect x='98.81' y='5.48' width='272.28' height='28.24' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
 <text x='104.29' y='23.54' style='font-size: 11.00px; font-family: "Arial";' textLength='101.16px' lengthAdjust='spacingAndGlyphs'>Genotype-Treatment</text>
 <rect x='210.92' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='219.56' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #A4CDE2; fill: #A4CDE2;' />
+<circle cx='219.56' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #A6CEE3; fill: #A6CEE3;' />
 <rect x='288.57' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
 <circle cx='297.21' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #CD5555; fill: #CD5555;' />
 <text x='233.68' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='49.41px' lengthAdjust='spacingAndGlyphs'>ASO Vehicle</text>
