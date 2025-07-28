@@ -42,7 +42,7 @@ library(UpSetR)
 library(ggpubr)
 library(kableExtra)
 library(reactable)
-
+library(ggtext) # enhanced text handling in ggplot
 # MAC's package to download data
 library(parkinsonsMetagenomicData)
 
@@ -56,7 +56,8 @@ set.seed(1234)
 
 library(biobakeryUtils)
 
-joe_palette <- c("WT Control" = "#b2df8a", "Thy1-ASO Control" = "#a6cee3", "Thy1-ASO Fp" = "#1f78b4", "Thy1-ASO benCom" = "turquoise4")
+joe_palette <- c("WT Control" = "#b2df8a", "Thy1-ASO Control" = "#a6cee3", "Thy1-ASO *F. prausnitzii*" = "#1f78b4", "Thy1-ASO F. prausnitzii" = "#1f78b4", "Thy1-ASO benCom" = "turquoise4")
+
 ```
 
 # Create output directories all in one chunk
@@ -97,7 +98,9 @@ metadata.df <- read_tsv("Data/metadata_5.0.tsv") %>%
     cohort = as.factor(cohort),
     subcohort = as.factor(subcohort),
     treatment = as.factor(treatment) %>% relevel(ref = "Control"), 
-    genotype_treatment = paste(genotype, treatment) %>% factor(levels = c("WT Control", "Thy1-ASO Control", "Thy1-ASO Fp", "Thy1-ASO benCom"))
+    treatment_legend = as.factor(gsub("F. prausnitzii", "*F. prausnitzii*", treatment)) %>% relevel(ref = "Control"), 
+    genotype_treatment = paste(genotype, treatment) %>% factor(levels = c("WT Control", "Thy1-ASO Control", "Thy1-ASO F. prausnitzii", "Thy1-ASO benCom")),
+    genotype_treatment_legend = paste(genotype, treatment_legend) %>% factor(levels = c("WT Control", "Thy1-ASO Control", "Thy1-ASO *F. prausnitzii*", "Thy1-ASO benCom"))
     )
 
 googleCloudStorageR::gcs_auth(json_file = "~/Downloads/curatedmetagenomicdata-232f4a306d1d.json")
@@ -422,7 +425,7 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn.tse)), reducedDim(MetaPhlAn.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
-ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
   scale_color_manual(values = joe_palette) +
@@ -627,12 +630,12 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7.tse)), reducedDim(MetaPhlAn_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
-ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment, label = cage)) + 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = genotype_treatment_legend, label = cage)) + 
   geom_text() +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  theme(legend.position = "top") +
+  theme(legend.position = "top", legend.text = element_markdown()) +
   labs(color = "Genotype-Treatment",
        fill = "Genotype-Treatment",
        x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
@@ -666,7 +669,7 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7_noWT.tse)), reducedDim(MetaPhlAn_Fp7_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
-ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
   scale_color_manual(values = joe_palette) +
@@ -717,11 +720,11 @@ mtx[upper.tri(mtx,diag = TRUE)] <- NA
 
 pairwise_dissim_bray <- reshape2::melt(mtx) %>% 
   filter(complete.cases(.)) %>%
-  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_Fp7.tse)) %>% transmute(Var1 = uuid, genotype_treatment = genotype_treatment), by = "Var1") %>% 
-  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_Fp7.tse)) %>% transmute(Var2 = uuid, genotype_treatment = genotype_treatment), by = "Var2") %>% 
+  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_Fp7.tse)) %>% transmute(Var1 = uuid, genotype_treatment_legend = genotype_treatment_legend), by = "Var1") %>% 
+  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_Fp7.tse)) %>% transmute(Var2 = uuid, genotype_treatment_legend = genotype_treatment_legend), by = "Var2") %>% 
   select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
-  mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs ")) %>% 
-  filter(genotype_treatment.x != genotype_treatment.y)
+  mutate(pairs = paste(genotype_treatment_legend.y, genotype_treatment_legend.x, sep = " vs ")) %>% 
+  filter(genotype_treatment_legend.x != genotype_treatment_legend.y)
 
 ```
 
@@ -980,7 +983,7 @@ readRDS(file.path(maaslin3_final_outdir, "summary_plot_gg.RDS"))
 
 ```{r}
 top20_tmp_out <- treatments_vs_Control_in_Thy1ASO.maaslin3_curated$prevalence %>% 
-  filter(value == "Fp") %>% 
+  filter(value == "F. prausnitzii") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
   head(20)
 
@@ -1000,14 +1003,14 @@ tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
 rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
 
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
-  facet_grid(cols = vars(paste(treatment, genotype)), scales = "free_x") 
+  facet_grid(cols = vars(genotype_treatment), scales = "free_x") 
 ```
 
 ### Diff. Abundance - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
 top20_tmp_out <- treatments_vs_Control_in_Thy1ASO.maaslin3_curated$abundance %>% 
-  filter(value == "Fp") %>% 
+  filter(value == "F. prausnitzii") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
   head(20)
 
@@ -1050,7 +1053,7 @@ panelA_stackplot <- plotAbundance(
   x = MetaPhlAn_Fp7.tse,
   assay.type = "metaphlan_RelAbund", 
   group = "phylum") + 
-  facet_grid(cols = vars(genotype_treatment), scales = "free_x") + 
+  facet_grid(cols = vars(genotype_treatment_legend), scales = "free_x") + 
   theme_light() +
   theme(
     panel.spacing.x = unit(0, "lines"),
@@ -1059,7 +1062,8 @@ panelA_stackplot <- plotAbundance(
     panel.border = element_rect(colour = "gray40", linewidth = unit(0.8, units = "mm")),
     strip.text = element_text(color = "black"),
     axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
+    axis.ticks.x = element_blank(),
+    strip.text.x = element_markdown()
     ) + 
   labs(
     fill = "Phylum",
@@ -1093,13 +1097,13 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7.tse)), reducedDim(MetaPhlAn_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 panelB_PCoA <- project1_meta_with_MDS.df %>% 
-ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment)) + 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_point(size = 2.5, stroke = 1, color = "black") +
   geom_point(size = 2.5) +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  theme(legend.position = "top") +
+  theme(legend.position = "top", legend.text = element_markdown()) +
   labs(color = "Genotype-Treatment",
        fill = "Genotype-Treatment",
        x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
@@ -1125,16 +1129,19 @@ colorize_labels <- function(labels, mapping) {
     
     # Apply the coloring rule. This will modify labels that have already been partially colored.
     colored_labels <- gsub(
-      pattern, 
-      paste0("<span style='color:", color, ";'>", display_text, "</span>"), 
-      colored_labels
+      pattern = pattern, 
+      replacement = paste0("<span style='color:", color, ";'>", display_text, "</span>"), 
+      x = colored_labels,
+      fixed = TRUE
     )
   }
   
   return(colored_labels)
 }
 
-# Your full plot code
+pairwise_adonis_stats_asterisks <- pairwise_adonis_stats %>% 
+  mutate(pairs = gsub("Thy1-ASO F. prausnitzii", "Thy1-ASO *F. prausnitzii*", pairs))
+
 panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   ggplot(
     aes(x = pairs, y = value)
@@ -1142,7 +1149,7 @@ panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   geom_point(position = position_jitter(width = 0.2, seed = 1234), stroke = 1.1) +
   geom_point(position = position_jitter(width = 0.2, seed = 1234), color = "gray30") +
   geom_boxplot(outliers = FALSE, alpha = 0.6, width = 0.3) +
-  geom_text(data = pairwise_adonis_stats %>%
+  geom_text(data = pairwise_adonis_stats_asterisks %>%
               dplyr::left_join(
                 group_by(pairwise_dissim_bray, pairs) %>%
                   reframe(value = max(value) + 0.05), by = "pairs") %>% 
@@ -1151,7 +1158,9 @@ panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   # Apply the colorize_labels function to your x-axis labels
   scale_x_discrete(labels = function(x) colorize_labels(x, joe_palette)) +
   # Tell ggplot to render the axis text as Markdown/HTML
-  theme(axis.text.x = ggtext::element_markdown(angle = 90, hjust = 1, vjust = 0.5)) +
+  theme(
+    axis.text.x = ggtext::element_markdown(angle = 90, hjust = 1, vjust = 0.5)
+    ) +
   ylim(0.3, 0.9) +
   labs(
     x = "",
@@ -1167,7 +1176,7 @@ panelC_pairwise_dissim_boxplot_horiz <- pairwise_dissim_bray %>%
   geom_point(position = position_jitter(height = 0.2, seed = 1234), stroke = 1.1) +
   geom_point(position = position_jitter(height = 0.2, seed = 1234), color = "gray30") +
   geom_boxplot(outliers = FALSE, alpha = 0.6, width = 0.3) +
-  geom_text(data = pairwise_adonis_stats %>%
+  geom_text(data = pairwise_adonis_stats_asterisks %>%
               dplyr::left_join(
                 group_by(pairwise_dissim_bray, pairs) %>%
                   reframe(value = max(value) + 0.05), by = "pairs") %>% 
@@ -1193,36 +1202,42 @@ alpha_data.df <- MetaPhlAn_Fp7.tse %>%
     `Shannon Diversity` = shannon_diversity,
     `Observed Richness` = observed_richness
   )
-comparisons <- combn(levels(alpha_data.df$genotype_treatment), 2, simplify = FALSE)
+comparisons <- combn(levels(alpha_data.df$genotype_treatment_legend), 2, simplify = FALSE)
+
+stats_obs <- rstatix::pairwise_wilcox_test(alpha_data.df, formula = `Observed Richness` ~ genotype_treatment,p.adjust.method =  "BH") %>% 
+  mutate(group2 = gsub("F. prausnitzii", "*F. prausnitzii*", group2),
+         p.adj.round3 = round(p.adj, 3)) %>% 
+  rstatix::add_y_position()
 
 # Observed richness diversity vs genotype-treatment
 panelD_Obs_boxplot <- alpha_data.df %>% 
-  ggplot(aes(x = genotype_treatment, y = `Observed Richness`, color = genotype_treatment, fill = genotype_treatment)) + 
+  ggplot(aes(x = genotype_treatment_legend, y = `Observed Richness`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_compare_means(
-    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
-  ) + 
-  theme(axis.text.x = element_blank()) +
+  stat_pvalue_manual(stats_obs, label = "p.adj.round3", tip.length = 0.02) + 
+  theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
   labs(
     x = ""
   )
 
+stats_shannon <- rstatix::pairwise_wilcox_test(alpha_data.df, formula = `Shannon Diversity` ~ genotype_treatment, p.adjust.method =  "BH") %>% 
+  mutate(group2 = gsub("F. prausnitzii", "*F. prausnitzii*", group2),
+         p.adj.round3 = round(p.adj, 3)) %>% 
+  rstatix::add_y_position()
+
 # Shannon diversity vs genotype-treatment
 panelE_Shannon_boxplot <- alpha_data.df %>% 
-  ggplot(aes(x = genotype_treatment, y = `Shannon Diversity`, color = genotype_treatment, fill = genotype_treatment)) + 
+  ggplot(aes(x = genotype_treatment_legend, y = `Shannon Diversity`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_compare_means(
-    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
-  )+ 
-  theme(axis.text.x = element_blank()) +
+  stat_pvalue_manual(stats_shannon, label = "p.adj.round3", tip.length = 0.02) + 
+  theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
   labs(
     x = ""
   )
@@ -1237,39 +1252,43 @@ panelF_FB.Ratio.df <- MetaPhlAn_Fp7.tse %>%
   colData() %>%
   as.data.frame()
 
-comparisons <- combn(levels(panelF_FB.Ratio.df$genotype_treatment), 2, simplify = FALSE)
+stats_fbrartio <- rstatix::pairwise_wilcox_test(panelF_FB.Ratio.df, formula = FB.Ratio ~ genotype_treatment, p.adjust.method =  "BH") %>% 
+  mutate(group2 = gsub("F. prausnitzii", "*F. prausnitzii*", group2),
+         p.adj.round3 = round(p.adj, 3)) %>% 
+  rstatix::add_y_position()
+
 
 panelF_FB.Ratio <- panelF_FB.Ratio.df %>% 
-  ggplot(aes(x = genotype_treatment, y = FB.Ratio, color = genotype_treatment, fill = genotype_treatment)) + 
+  ggplot(aes(x = genotype_treatment_legend, y = FB.Ratio, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_compare_means(
-    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE), label = "p.format") + 
-      theme(axis.text.x = element_blank()) +
+  stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.02) + 
+  theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
   labs(
     x = "",
     y = "Firmicutes/Bacteroidetes Ratio"
   )
 
+max_fb_ratio <- max(panelF_FB.Ratio.df$FB.Ratio, na.rm = TRUE)
+
 panelF_FB.Ratio_horiz <- panelF_FB.Ratio.df %>% 
-  mutate(genotype_treatment = factor(genotype_treatment, levels = rev(levels(genotype_treatment)))) %>% 
-  ggplot(aes(y = genotype_treatment, x = FB.Ratio, color = genotype_treatment, fill = genotype_treatment)) + 
+  mutate(genotype_treatment_legend = factor(genotype_treatment_legend, levels = rev(levels(genotype_treatment_legend)))) %>% 
+  ggplot(aes(x = genotype_treatment_legend, y = FB.Ratio, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
-  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.height = 0.4, seed = 1234)) + 
-  geom_point(position= position_jitterdodge(jitter.height = 0.4, seed = 1234)) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_compare_means(
-    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)) + 
-      theme(axis.text.y = element_blank()) +
+  coord_flip() + 
+  stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.02, coord.flip = TRUE) + 
+  theme(axis.text.y = element_blank(), legend.text = element_markdown()) +
   labs(
-    y = "",
-    x = "Firmicutes/Bacteroidetes Ratio"
+    x = "",
+    y = "Firmicutes/Bacteroidetes Ratio"
   )
-
 ```
 
 ```{r}
@@ -1373,7 +1392,7 @@ colData(MetaPhlAn_Fp7.tse) <- new_df
 ```{r}
 motor_variables <- grepv("beam|pole", colnames(colData(MetaPhlAn_Fp7.tse)))
 
-comparisons <- combn(levels(colData(MetaPhlAn_Fp7.tse)$genotype_treatment), 2, simplify = FALSE)
+comparisons <- combn(levels(colData(MetaPhlAn_Fp7.tse)$genotype_treatment_legend), 2, simplify = FALSE)
 
 input.df <- as.data.frame(colData(MetaPhlAn_Fp7.tse))
 
@@ -1485,12 +1504,12 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL.tse)), reducedDim(MetaPhlAn_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
-ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment, label = cage)) + 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = genotype_treatment_legend, label = cage)) + 
   geom_text() +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  theme(legend.position = "top") +
+  theme(legend.position = "top", legend.text = element_markdown()) +
   labs(color = "Genotype-Treatment",
        fill = "Genotype-Treatment",
        x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
@@ -1524,7 +1543,7 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL_noWT.tse)), reducedDim(MetaPhlAn_bCL_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 beta_plot_basic <- project1_meta_with_MDS.df %>% 
-ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment)) + 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
   scale_color_manual(values = joe_palette) +
@@ -1575,11 +1594,11 @@ mtx[upper.tri(mtx,diag = TRUE)] <- NA
 
 pairwise_dissim_bray <- reshape2::melt(mtx) %>% 
   filter(complete.cases(.)) %>%
-  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_bCL.tse)) %>% transmute(Var1 = uuid, genotype_treatment = genotype_treatment), by = "Var1") %>% 
-  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_bCL.tse)) %>% transmute(Var2 = uuid, genotype_treatment = genotype_treatment), by = "Var2") %>% 
+  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_bCL.tse)) %>% transmute(Var1 = uuid, genotype_treatment_legend = genotype_treatment_legend), by = "Var1") %>% 
+  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_bCL.tse)) %>% transmute(Var2 = uuid, genotype_treatment_legend = genotype_treatment_legend), by = "Var2") %>% 
   select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
-  mutate(pairs = paste(genotype_treatment.y, genotype_treatment.x, sep = " vs ")) %>% 
-  filter(genotype_treatment.x != genotype_treatment.y)
+  mutate(pairs = paste(genotype_treatment_legend.y, genotype_treatment_legend.x, sep = " vs ")) %>% 
+  filter(genotype_treatment_legend.x != genotype_treatment_legend.y)
 
 ```
 
@@ -1858,7 +1877,7 @@ tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
 rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
 
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
-  facet_grid(cols = vars(paste(treatment, genotype)), scales = "free_x") 
+  facet_grid(cols = vars(genotype_treatment), scales = "free_x") 
 ```
 
 ### Diff. Abundance - Top 20 with lowest crude p-value and highest absolute $\beta$
@@ -1890,10 +1909,10 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 
 ### Conclusions
 
-  * No differentially **prevalent** features with Q-value < 0.1 comparing `benCom`
+  * No differentially **prevalent** features with Q-value < 0.1 comparing `Fp`
   against `Control` Thy1-ASO controls
   
-  * No differentially **abundant** features with Q-value < 0.1 comparing `benCom`
+  * No differentially **abundant** features with Q-value < 0.1 comparing `Fp`
   against `Control` Thy1-ASO controls
 
   * Looking at raw data, I tend to conclude the same thing: a signal is there 
@@ -1908,7 +1927,7 @@ panelA_stackplot <- plotAbundance(
   x = MetaPhlAn_bCL.tse,
   assay.type = "metaphlan_RelAbund", 
   group = "phylum") + 
-  facet_grid(cols = vars(genotype_treatment), scales = "free_x") + 
+  facet_grid(cols = vars(genotype_treatment_legend), scales = "free_x") + 
   theme_light() +
   theme(
     panel.spacing.x = unit(0, "lines"),
@@ -1917,7 +1936,8 @@ panelA_stackplot <- plotAbundance(
     panel.border = element_rect(colour = "gray40", linewidth = unit(0.8, units = "mm")),
     strip.text = element_text(color = "black"),
     axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
+    axis.ticks.x = element_blank(),
+    strip.text.x = element_markdown()
     ) + 
   labs(
     fill = "Phylum",
@@ -1951,13 +1971,13 @@ prop_variances_explained <- variances_explained/sum(variances_explained)
 project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL.tse)), reducedDim(MetaPhlAn_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
 panelB_PCoA <- project1_meta_with_MDS.df %>% 
-ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment, fill = genotype_treatment)) + 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_point(size = 2.5, stroke = 1, color = "black") +
   geom_point(size = 2.5) +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  theme(legend.position = "top") +
+  theme(legend.position = "top", legend.text = element_markdown()) +
   labs(color = "Genotype-Treatment",
        fill = "Genotype-Treatment",
        x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
@@ -1983,16 +2003,19 @@ colorize_labels <- function(labels, mapping) {
     
     # Apply the coloring rule. This will modify labels that have already been partially colored.
     colored_labels <- gsub(
-      pattern, 
-      paste0("<span style='color:", color, ";'>", display_text, "</span>"), 
-      colored_labels
+      pattern = pattern, 
+      replacement = paste0("<span style='color:", color, ";'>", display_text, "</span>"), 
+      x = colored_labels,
+      fixed = TRUE
     )
   }
   
   return(colored_labels)
 }
 
-# Your full plot code
+pairwise_adonis_stats_asterisks <- pairwise_adonis_stats %>% 
+  mutate(pairs = gsub("Thy1-ASO benCom", "Thy1-ASO benCom", pairs))
+
 panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   ggplot(
     aes(x = pairs, y = value)
@@ -2000,7 +2023,7 @@ panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   geom_point(position = position_jitter(width = 0.2, seed = 1234), stroke = 1.1) +
   geom_point(position = position_jitter(width = 0.2, seed = 1234), color = "gray30") +
   geom_boxplot(outliers = FALSE, alpha = 0.6, width = 0.3) +
-  geom_text(data = pairwise_adonis_stats %>%
+  geom_text(data = pairwise_adonis_stats_asterisks %>%
               dplyr::left_join(
                 group_by(pairwise_dissim_bray, pairs) %>%
                   reframe(value = max(value) + 0.05), by = "pairs") %>% 
@@ -2009,7 +2032,9 @@ panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   # Apply the colorize_labels function to your x-axis labels
   scale_x_discrete(labels = function(x) colorize_labels(x, joe_palette)) +
   # Tell ggplot to render the axis text as Markdown/HTML
-  theme(axis.text.x = ggtext::element_markdown(angle = 90, hjust = 1, vjust = 0.5)) +
+  theme(
+    axis.text.x = ggtext::element_markdown(angle = 90, hjust = 1, vjust = 0.5)
+    ) +
   ylim(0.3, 0.9) +
   labs(
     x = "",
@@ -2025,7 +2050,7 @@ panelC_pairwise_dissim_boxplot_horiz <- pairwise_dissim_bray %>%
   geom_point(position = position_jitter(height = 0.2, seed = 1234), stroke = 1.1) +
   geom_point(position = position_jitter(height = 0.2, seed = 1234), color = "gray30") +
   geom_boxplot(outliers = FALSE, alpha = 0.6, width = 0.3) +
-  geom_text(data = pairwise_adonis_stats %>%
+  geom_text(data = pairwise_adonis_stats_asterisks %>%
               dplyr::left_join(
                 group_by(pairwise_dissim_bray, pairs) %>%
                   reframe(value = max(value) + 0.05), by = "pairs") %>% 
@@ -2051,36 +2076,42 @@ alpha_data.df <- MetaPhlAn_bCL.tse %>%
     `Shannon Diversity` = shannon_diversity,
     `Observed Richness` = observed_richness
   )
-comparisons <- combn(levels(alpha_data.df$genotype_treatment), 2, simplify = FALSE)
+comparisons <- combn(levels(alpha_data.df$genotype_treatment_legend), 2, simplify = FALSE)
+
+stats_obs <- rstatix::pairwise_wilcox_test(alpha_data.df, formula = `Observed Richness` ~ genotype_treatment,p.adjust.method =  "BH") %>% 
+  mutate(group2 = gsub("benCom", "*benCom*", group2),
+         p.adj.round3 = round(p.adj, 3)) %>% 
+  rstatix::add_y_position()
 
 # Observed richness diversity vs genotype-treatment
 panelD_Obs_boxplot <- alpha_data.df %>% 
-  ggplot(aes(x = genotype_treatment, y = `Observed Richness`, color = genotype_treatment, fill = genotype_treatment)) + 
+  ggplot(aes(x = genotype_treatment_legend, y = `Observed Richness`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_compare_means(
-    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
-  ) + 
-  theme(axis.text.x = element_blank()) +
+  stat_pvalue_manual(stats_obs, label = "p.adj.round3", tip.length = 0.02) + 
+  theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
   labs(
     x = ""
   )
 
+stats_shannon <- rstatix::pairwise_wilcox_test(alpha_data.df, formula = `Shannon Diversity` ~ genotype_treatment, p.adjust.method =  "BH") %>% 
+  mutate(group2 = gsub("benCom", "*benCom*", group2),
+         p.adj.round3 = round(p.adj, 3)) %>% 
+  rstatix::add_y_position()
+
 # Shannon diversity vs genotype-treatment
 panelE_Shannon_boxplot <- alpha_data.df %>% 
-  ggplot(aes(x = genotype_treatment, y = `Shannon Diversity`, color = genotype_treatment, fill = genotype_treatment)) + 
+  ggplot(aes(x = genotype_treatment_legend, y = `Shannon Diversity`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_compare_means(
-    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)
-  )+ 
-  theme(axis.text.x = element_blank()) +
+  stat_pvalue_manual(stats_shannon, label = "p.adj.round3", tip.length = 0.02) + 
+  theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
   labs(
     x = ""
   )
@@ -2095,39 +2126,43 @@ panelF_FB.Ratio.df <- MetaPhlAn_bCL.tse %>%
   colData() %>%
   as.data.frame()
 
-comparisons <- combn(levels(panelF_FB.Ratio.df$genotype_treatment), 2, simplify = FALSE)
+stats_fbrartio <- rstatix::pairwise_wilcox_test(panelF_FB.Ratio.df, formula = FB.Ratio ~ genotype_treatment, p.adjust.method =  "BH") %>% 
+  mutate(group2 = gsub("benCom", "*benCom*", group2),
+         p.adj.round3 = round(p.adj, 3)) %>% 
+  rstatix::add_y_position()
+
 
 panelF_FB.Ratio <- panelF_FB.Ratio.df %>% 
-  ggplot(aes(x = genotype_treatment, y = FB.Ratio, color = genotype_treatment, fill = genotype_treatment)) + 
+  ggplot(aes(x = genotype_treatment_legend, y = FB.Ratio, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
   geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_compare_means(
-    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE), label = "p.format") + 
-      theme(axis.text.x = element_blank()) +
+  stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.02) + 
+  theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
   labs(
     x = "",
     y = "Firmicutes/Bacteroidetes Ratio"
   )
 
+max_fb_ratio <- max(panelF_FB.Ratio.df$FB.Ratio, na.rm = TRUE)
+
 panelF_FB.Ratio_horiz <- panelF_FB.Ratio.df %>% 
-  mutate(genotype_treatment = factor(genotype_treatment, levels = rev(levels(genotype_treatment)))) %>% 
-  ggplot(aes(y = genotype_treatment, x = FB.Ratio, color = genotype_treatment, fill = genotype_treatment)) + 
+  mutate(genotype_treatment_legend = factor(genotype_treatment_legend, levels = rev(levels(genotype_treatment_legend)))) %>% 
+  ggplot(aes(x = genotype_treatment_legend, y = FB.Ratio, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
-  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.height = 0.4, seed = 1234)) + 
-  geom_point(position= position_jitterdodge(jitter.height = 0.4, seed = 1234)) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_compare_means(
-    comparisons = comparisons, method = "wilcox.test", method.args = list(exact = FALSE)) + 
-      theme(axis.text.y = element_blank()) +
+  coord_flip() + 
+  stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.02, coord.flip = TRUE) + 
+  theme(axis.text.y = element_blank(), legend.text = element_markdown()) +
   labs(
-    y = "",
-    x = "Firmicutes/Bacteroidetes Ratio"
+    x = "",
+    y = "Firmicutes/Bacteroidetes Ratio"
   )
-
 ```
 
 ```{r}
@@ -2231,7 +2266,7 @@ colData(MetaPhlAn_bCL.tse) <- new_df
 ```{r}
 motor_variables <- grepv("beam|pole", colnames(colData(MetaPhlAn_bCL.tse)))
 
-comparisons <- combn(levels(colData(MetaPhlAn_bCL.tse)$genotype_treatment), 2, simplify = FALSE)
+comparisons <- combn(levels(colData(MetaPhlAn_bCL.tse)$genotype_treatment_legend), 2, simplify = FALSE)
 
 input.df <- as.data.frame(colData(MetaPhlAn_bCL.tse))
 

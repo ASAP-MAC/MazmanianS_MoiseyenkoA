@@ -108,17 +108,21 @@
 <text x='384.51' y='411.74' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='12.22px' lengthAdjust='spacingAndGlyphs'>0.2</text>
 <text x='232.50' y='424.20' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='91.78px' lengthAdjust='spacingAndGlyphs'>PCoA Axis 1 [22%]</text>
 <text transform='translate(13.36,222.59) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='107.09px' lengthAdjust='spacingAndGlyphs'>PCoA Axis 2 [15.44%]</text>
-<rect x='49.12' y='5.48' width='366.77' height='28.24' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<text x='54.60' y='23.54' style='font-size: 11.00px; font-family: "Arial";' textLength='101.16px' lengthAdjust='spacingAndGlyphs'>Genotype-Treatment</text>
-<rect x='161.23' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<text x='169.87' y='23.55' text-anchor='middle' style='font-size: 11.04px;fill: #B2DF8A; font-family: "Arial";' textLength='6.14px' lengthAdjust='spacingAndGlyphs'>a</text>
-<rect x='233.77' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<text x='242.41' y='23.55' text-anchor='middle' style='font-size: 11.04px;fill: #A6CEE3; font-family: "Arial";' textLength='6.14px' lengthAdjust='spacingAndGlyphs'>a</text>
-<rect x='333.87' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<text x='342.51' y='23.55' text-anchor='middle' style='font-size: 11.04px;fill: #1F78B4; font-family: "Arial";' textLength='6.14px' lengthAdjust='spacingAndGlyphs'>a</text>
-<text x='183.99' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='44.30px' lengthAdjust='spacingAndGlyphs'>WT Control</text>
-<text x='256.53' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='71.86px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO Control</text>
-<text x='356.63' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='53.78px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO Fp</text>
+<rect x='29.82' y='5.48' width='405.36' height='28.24' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<text x='35.30' y='23.54' style='font-size: 11.00px; font-family: "Arial";' textLength='101.16px' lengthAdjust='spacingAndGlyphs'>Genotype-Treatment</text>
+<rect x='141.94' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<text x='150.58' y='23.55' text-anchor='middle' style='font-size: 11.04px;fill: #B2DF8A; font-family: "Arial";' textLength='6.14px' lengthAdjust='spacingAndGlyphs'>a</text>
+<rect x='214.63' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<text x='223.27' y='23.55' text-anchor='middle' style='font-size: 11.04px;fill: #A6CEE3; font-family: "Arial";' textLength='6.14px' lengthAdjust='spacingAndGlyphs'>a</text>
+<rect x='314.73' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<text x='323.37' y='23.55' text-anchor='middle' style='font-size: 11.04px;fill: #1F78B4; font-family: "Arial";' textLength='6.14px' lengthAdjust='spacingAndGlyphs'>a</text>
+<text x='164.70' y='21.82' style='font-size: 8.80px; font-family: "Arial";' textLength='13.67px' lengthAdjust='spacingAndGlyphs'>WT</text>
+<text x='180.81' y='21.82' style='font-size: 8.80px; font-family: "Arial";' textLength='28.34px' lengthAdjust='spacingAndGlyphs'>Control</text>
+<text x='237.39' y='21.82' style='font-size: 8.80px; font-family: "Arial";' textLength='41.08px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO</text>
+<text x='280.90' y='21.82' style='font-size: 8.80px; font-family: "Arial";' textLength='28.34px' lengthAdjust='spacingAndGlyphs'>Control</text>
+<text x='337.49' y='21.82' style='font-size: 8.80px; font-family: "Arial";' textLength='41.08px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO</text>
+<text x='381.00' y='21.82' style='font-size: 8.80px; font-style: italic; font-family: "Arial";' textLength='6.67px' lengthAdjust='spacingAndGlyphs'>F.</text>
+<text x='390.11' y='21.82' style='font-size: 8.80px; font-style: italic; font-family: "Arial";' textLength='39.59px' lengthAdjust='spacingAndGlyphs'>prausnitzii</text>
 </g>
 </g>
 </svg>
