@@ -94,14 +94,14 @@
 <text x='400.92' y='411.74' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='17.11px' lengthAdjust='spacingAndGlyphs'>0.50</text>
 <text x='234.95' y='424.20' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='74.03px' lengthAdjust='spacingAndGlyphs'>MDS 1 [28.4%]</text>
 <text transform='translate(13.36,222.59) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='80.16px' lengthAdjust='spacingAndGlyphs'>MDS 2 [17.01%]</text>
-<rect x='98.81' y='5.48' width='272.28' height='28.24' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<text x='104.29' y='23.54' style='font-size: 11.00px; font-family: "Arial";' textLength='101.16px' lengthAdjust='spacingAndGlyphs'>Genotype-Treatment</text>
-<rect x='210.92' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='219.56' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #A6CEE3; fill: #A6CEE3;' />
-<rect x='288.57' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='297.21' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #00868B; fill: #00868B;' />
-<text x='233.68' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='49.41px' lengthAdjust='spacingAndGlyphs'>ASO Vehicle</text>
-<text x='311.33' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='54.28px' lengthAdjust='spacingAndGlyphs'>ASO benCom</text>
+<rect x='76.34' y='5.48' width='317.22' height='28.24' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<text x='81.82' y='23.54' style='font-size: 11.00px; font-family: "Arial";' textLength='101.16px' lengthAdjust='spacingAndGlyphs'>Genotype-Treatment</text>
+<rect x='188.46' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<circle cx='197.10' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #A6CEE3; fill: #A6CEE3;' />
+<rect x='288.55' y='10.96' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<circle cx='297.19' cy='19.60' r='2.49' style='stroke-width: 0.71; stroke: #00868B; fill: #00868B;' />
+<text x='211.21' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='71.86px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO Control</text>
+<text x='311.31' y='22.75' style='font-size: 8.80px; font-family: "Arial";' textLength='76.77px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO benCom</text>
 </g>
 </g>
 </svg>

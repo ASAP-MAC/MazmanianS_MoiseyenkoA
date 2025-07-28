@@ -33,7 +33,7 @@ library(tidyverse)
 library(data.table)
 
 # microbiome specific packages
-library(maaslin3)
+library(maaslin3) # this version needs a custom fix in a fork I made pending approval as of Jul 28 2025. install with remotes::install_github("g-antonello/maaslin3", force = TRUE)
 library(mia)
 # some packages for data visualization (plots and tables)
 library(miaViz)
@@ -56,7 +56,7 @@ set.seed(1234)
 
 library(biobakeryUtils)
 
-joe_palette <- c("WT Vehicle" = "#b2df8a", "ASO Vehicle" = "#a6cee3", "ASO Fp" = "#1f78b4", "ASO benCom" = "turquoise4")
+joe_palette <- c("WT Control" = "#b2df8a", "Thy1-ASO Control" = "#a6cee3", "Thy1-ASO Fp" = "#1f78b4", "Thy1-ASO benCom" = "turquoise4")
 ```
 
 # Create output directories all in one chunk
@@ -89,15 +89,15 @@ This is run only if interactive to avoid careless overwriting
 ```{r, eval=interactive()}
 
 # Load metadata
-metadata.df <- read_tsv("Data/metadata_4.0.tsv") %>% 
+metadata.df <- read_tsv("Data/metadata_5.0.tsv") %>% 
   # format a few values in the metadata
   mutate(
     genotype = as.factor(genotype) %>% relevel(ref = "WT"),
     cage = as.factor(cage),
     cohort = as.factor(cohort),
     subcohort = as.factor(subcohort),
-    treatment = as.factor(treatment) %>% relevel(ref = "Vehicle"), 
-    genotype_treatment = paste(genotype, treatment) %>% factor(levels = c("WT Vehicle", "ASO Vehicle", "ASO Fp", "ASO benCom"))
+    treatment = as.factor(treatment) %>% relevel(ref = "Control"), 
+    genotype_treatment = paste(genotype, treatment) %>% factor(levels = c("WT Control", "Thy1-ASO Control", "Thy1-ASO Fp", "Thy1-ASO benCom"))
     )
 
 googleCloudStorageR::gcs_auth(json_file = "~/Downloads/curatedmetagenomicdata-232f4a306d1d.json")
@@ -287,15 +287,15 @@ table_results.df %>%
 alpha_div_plotList <- lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
   colData(MetaPhlAn.tse) %>% 
     as.data.frame() %>% 
-     mutate(Treatment = factor(ifelse(treatment == "Vehicle", paste(genotype, "Control"), paste(genotype, "Treated")), levels = c("WT Control", "ASO Control", "ASO Treated"))) %>% 
-  ggplot(aes(x = "", y = eval(parse(text = div)), color = Treatment)) + 
+  ggplot(aes(x = "", y = eval(parse(text = div)), color = genotype_treatment)) + 
   geom_point(position = position_jitterdodge(dodge.width = 0.8, seed = 1234)) + 
   geom_boxplot(alpha = 0.5, show.legend = FALSE, outliers = FALSE) + 
     facet_grid(cols = vars(cohort), scales = "free_y") +
     labs(
       title = div,
       x = NULL,
-      y = "Alpha Estimate"
+      y = "Alpha Estimate",
+      color = "Genotype-Treatment"
     )})
 ```
 
@@ -395,8 +395,8 @@ table_results.df %>%
 
 Variables:
 
-  * treatment: the probiotic community given, or the empty liquid vehicle gavaged
-  * genotype: mice genotype, either WT or ASO
+  * treatment: the probiotic community given, or the empty liquid Control gavaged
+  * genotype: mice genotype, either WT or Thy1-ASO
 
 Possible confounders:
   
@@ -468,12 +468,12 @@ permanova_table.df %>%
 # Microbiome differences between genotypes in treatment control mice
 
 ```
-Are ASO mice having different microbiomes than WT, regardless of the experimental
+Are Thy1-ASO mice having different microbiomes than WT, regardless of the experimental
 cohort?
 ```
 
 For this, I will include both cohorts together and adjust for cohort in the model.
-Also, I will compare vehicle controls using WT as baseline.
+Also, I will compare Control controls using WT as baseline.
 
 $$
 \log_2(Microbiome) ~ genotype + cohort
@@ -482,14 +482,14 @@ $$
 ```{r}
 # prepare input data
 
-tmp.tse <- MetaPhlAn.tse[,MetaPhlAn.tse@colData$treatment == "Vehicle"] 
+tmp.tse <- MetaPhlAn.tse[,MetaPhlAn.tse@colData$treatment == "Control"] 
 tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT") # not needed, but better safe than sorry
 tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
 
 tmp.tse
 
 # define experiment name and output directories
-maaslin3_expmt <- "genotype_vs_WT_vehicleCtrl_bothCohorts"
+maaslin3_expmt <- "genotype_vs_WT_ControlCtrl_bothCohorts"
 maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, maaslin3_expmt)
 maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, maaslin3_expmt)
 # crate temporary output directory
@@ -528,7 +528,7 @@ system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RD
 
 ```{r}
 top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
-  filter(value == "ASO") %>% 
+  filter(value == "Thy1-ASO") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
   head(20)
 
@@ -555,7 +555,7 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 
 ```{r}
 top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
-  filter(value == "ASO") %>% 
+  filter(value == "Thy1-ASO") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
   head(20)
 
@@ -566,7 +566,6 @@ DT::datatable(
                    buttons = c('copy', 'csv', 'excel', 'pdf'))
   )
 ```
-
 
 ## Barplot top 20 most diff. abundant
 
@@ -581,7 +580,7 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 
 ## Conclusions
 
-There are no significantly affected microbes in ASO mice compared to WT.
+There are no significantly affected microbes in Thy1-ASO mice compared to WT.
 
 What puzzles me is that there are many taxa that are uniquely identified by each
 project leader (Matheus and Ana). Also, Matheus' sample size is 10 vs 10, Ana's 
@@ -786,7 +785,7 @@ pairwise_adonis_stats_aitchison <- pairwise.adonis(x = as.dist(metadata(MetaPhlA
 write_tsv(pairwise_adonis_stats_aitchison, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste("aitchison", "PERMANOVA_pairwise.tsv", sep = "_")))
 ```
 
-## What microbes differ between `genotypes` in vehicle controls?
+## What microbes differ between `genotypes` in Control controls?
 
 These bacteria should not be considered in the main exposure of interest later, 
 as they vary because of genotype as well. Analyses should be performed
@@ -801,14 +800,14 @@ $$
 ```{r}
 # prepare input data
 
-tmp.tse <- MetaPhlAn_Fp7.tse[,MetaPhlAn_Fp7.tse@colData$treatment == "Vehicle"] 
+tmp.tse <- MetaPhlAn_Fp7.tse[,MetaPhlAn_Fp7.tse@colData$treatment == "Control"] 
 tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT")
 tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
 
 tmp.tse
 
 # define experiment name and output directories
-maaslin3_expmt <- "genotype_vs_WT_in_treatment_vehicle"
+maaslin3_expmt <- "genotype_vs_WT_in_treatment_Control"
 maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir,  cohort_subdir, maaslin3_expmt)
 maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, cohort_subdir, maaslin3_expmt)
 # crate temporary output directory
@@ -847,7 +846,7 @@ system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RD
 
 ```{r}
 top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
-  filter(value == "ASO") %>% 
+  filter(value == "Thy1-ASO") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
   head(20)
 
@@ -874,7 +873,7 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 
 ```{r}
 top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
-  filter(value == "ASO") %>% 
+  filter(value == "Thy1-ASO") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
   head(20)
 
@@ -899,10 +898,10 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 
 ### Conclusions
 
-  * There are no differentially prevalent bacteria comparing ASO vs WT 
-  vehicle mice
+  * There are no differentially prevalent bacteria comparing Thy1-ASO vs WT 
+  Control mice
   
-  * 1 bacterium are decreased and 10 are increased in ASO mice.
+  * 1 bacterium are decreased and 10 are increased in Thy1-ASO mice.
   
   * The large effect sizes, however, point to a lack of statistical power to 
   confidently say that there are differences. This does not mean that there are 
@@ -911,7 +910,7 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
   * Compared to Matheus' project 1 experiment, we find much fewer associations.
   Matheus' comparison was 10 vs 10, this comparison has 8 vs 8
 
-## Effects of `treatment` in ASO male mice
+## Effects of `Treatment` in Thy1-ASO male mice
 
 Model formula is:
 
@@ -919,7 +918,7 @@ $$
 \log_2(Microbiome) \sim treament  
 $$
 
-The analysis is restricted to ASO mice, and the baseline is ASO-vehicle mice.
+The analysis is restricted to Thy1-ASO mice, and the baseline is Thy1-ASO-Control mice.
 This is allowed because we are interested in the impact of the communities on 
 mice microbiome and their motor performance, and WT mice was not gavaged either
 probiotic formulation, so they are incomparable.
@@ -927,14 +926,14 @@ probiotic formulation, so they are incomparable.
 ```{r}
 # prepare input data
 tmp.tse <- MetaPhlAn_Fp7.tse[,MetaPhlAn_Fp7.tse@colData$genotype != "WT"]
-tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Vehicle")
+tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Control")
 tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
 tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, "metaphlan_RelAbund")) > 0,]
 
 tmp.tse
 
 # define experiment name and output directories
-maaslin3_expmt <- "treatments_vs_vehicle_in_ASO"
+maaslin3_expmt <- "treatments_vs_Control_in_Thy1-ASO"
 maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, cohort_subdir, maaslin3_expmt)
 maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, cohort_subdir, maaslin3_expmt)
 
@@ -949,7 +948,7 @@ Results are stored in ``r maaslin3_final_outdir``
 
 ```{r}
 set.seed(1234)
-treatments_vs_vehicle_in_ASO.maaslin3 <- maaslin3(
+treatments_vs_Control_in_Thy1ASO.maaslin3 <- maaslin3(
     input_data = tmp.tse,
     formula = ~ treatment, 
     transform = "LOG",
@@ -962,25 +961,25 @@ treatments_vs_vehicle_in_ASO.maaslin3 <- maaslin3(
   )
 
 # add taxonomy
-treatments_vs_vehicle_in_ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = treatments_vs_vehicle_in_ASO.maaslin3, tmp.tse)
+treatments_vs_Control_in_Thy1ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = treatments_vs_Control_in_Thy1ASO.maaslin3, tmp.tse)
 # write tables
-write_maaslin3_curated_tables(treatments_vs_vehicle_in_ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
+write_maaslin3_curated_tables(treatments_vs_Control_in_Thy1ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
-saveRDS(treatments_vs_vehicle_in_ASO.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
+saveRDS(treatments_vs_Control_in_Thy1ASO.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
 # copy their .RDS ggplot object 
 system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
 ```
 
 ####  Maaslin3 default plot
 
-```{r, fig.height=7, fig.width=7}
+```{r}
 readRDS(file.path(maaslin3_final_outdir, "summary_plot_gg.RDS"))
 ```
 
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-top20_tmp_out <- treatments_vs_vehicle_in_ASO.maaslin3_curated$prevalence %>% 
+top20_tmp_out <- treatments_vs_Control_in_Thy1ASO.maaslin3_curated$prevalence %>% 
   filter(value == "Fp") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
   head(20)
@@ -1007,7 +1006,7 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 ### Diff. Abundance - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-top20_tmp_out <- treatments_vs_vehicle_in_ASO.maaslin3_curated$abundance %>% 
+top20_tmp_out <- treatments_vs_Control_in_Thy1ASO.maaslin3_curated$abundance %>% 
   filter(value == "Fp") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
   head(20)
@@ -1034,10 +1033,10 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 ### Conclusions
 
   * No differentially **prevalent** features with Q-value < 0.1 comparing `Fp`
-  against `vehicle` ASO controls
+  against `Control` Thy1-ASO controls
   
   * No differentially **abundant** features with Q-value < 0.1 comparing `Fp`
-  against `vehicle` ASO controls
+  against `Control` Thy1-ASO controls
 
   * Looking at raw data, I tend to conclude the same thing: a signal is there 
   but we are underpowered to label it "statistically significant".
@@ -1276,7 +1275,7 @@ panelF_FB.Ratio_horiz <- panelF_FB.Ratio.df %>%
 ```{r}
 # panel C, differentially abundant features, or top 20 more strongly associated
 
-panelG_diffAbund <- readRDS("results/SGB/cohort_Fp7/treatments_vs_vehicle_in_ASO/summary_plot_gg.RDS") + 
+panelG_diffAbund <- readRDS("results/SGB/cohort_Fp7/treatments_vs_Control_in_Thy1-ASO/summary_plot_gg.RDS") + 
   theme_light() + 
   theme(strip.text = element_blank(), axis.text.y = element_text(size = 12), axis.title.x = element_text(size = 12), axis.title.y = element_blank()) 
   
@@ -1662,7 +1661,7 @@ pairwise_adonis_stats_aitchison <- pairwise.adonis(x = as.dist(metadata(MetaPhlA
 write_tsv(pairwise_adonis_stats_aitchison, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste("aitchison", "PERMANOVA_pairwise.tsv", sep = "_")))
 ```
 
-## What microbes differ between `genotypes` in vehicle controls?
+## What microbes differ between `genotypes` in Control controls?
 
 These bacteria should not be considered in the main exposure of interest later, 
 as they vary because of genotype as well. Analyses should be performed
@@ -1677,14 +1676,14 @@ $$
 ```{r}
 # prepare input data
 
-tmp.tse <- MetaPhlAn_bCL.tse[,MetaPhlAn_bCL.tse@colData$treatment == "Vehicle"] 
+tmp.tse <- MetaPhlAn_bCL.tse[,MetaPhlAn_bCL.tse@colData$treatment == "Control"] 
 tmp.tse@colData$genotype <- relevel(tmp.tse@colData$genotype, "WT")
 tmp.tse@colData$genotype <- droplevels(tmp.tse@colData$genotype)
 
 tmp.tse
 
 # define experiment name and output directories
-maaslin3_expmt <- "genotype_vs_WT_in_treatment_vehicle"
+maaslin3_expmt <- "genotype_vs_WT_in_treatment_Control"
 maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir,  cohort_subdir, maaslin3_expmt)
 maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, cohort_subdir, maaslin3_expmt)
 # crate temporary output directory
@@ -1723,7 +1722,7 @@ system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RD
 
 ```{r}
 top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
-  filter(value == "ASO") %>% 
+  filter(value == "Thy1-ASO") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
   head(20)
 
@@ -1750,7 +1749,7 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 
 ```{r}
 top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
-  filter(value == "ASO") %>% 
+  filter(value == "Thy1-ASO") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
   head(20)
 
@@ -1775,10 +1774,10 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 
 ### Conclusions
 
-  * There are no differentially prevalent bacteria comparing ASO vs WT 
-  vehicle mice
+  * There are no differentially prevalent bacteria comparing Thy1-ASO vs WT 
+  Control mice
   
-  * 1 bacterium are decreased and 10 are increased in ASO mice.
+  * 1 bacterium are decreased and 10 are increased in Thy1-ASO mice.
   
   * The large effect sizes, however, point to a lack of statistical power to 
   confidently say that there are differences. This does not mean that there are 
@@ -1787,7 +1786,7 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
   * Compared to Matheus' project 1 experiment, we find much fewer associations.
   Matheus' comparison was 10 vs 10, this comparison has 8 vs 8
 
-## Effects of `treatment` in ASO male mice
+## Effects of `treatment` in Thy1-ASO male mice
 
 Model formula is:
 
@@ -1795,7 +1794,7 @@ $$
 \log_2(Microbiome) \sim treament  
 $$
 
-The analysis is restricted to ASO mice, and the baseline is ASO-vehicle mice.
+The analysis is restricted to Thy1-ASO mice, and the baseline is Thy1-ASO-Control mice.
 This is allowed because we are interested in the impact of the communities on 
 mice microbiome and their motor performance, and WT mice was not gavaged either
 probiotic formulation, so they are incomparable.
@@ -1803,14 +1802,14 @@ probiotic formulation, so they are incomparable.
 ```{r}
 # prepare input data
 tmp.tse <- MetaPhlAn_bCL.tse[,MetaPhlAn_bCL.tse@colData$genotype != "WT"]
-tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Vehicle")
+tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Control")
 tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
 tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, "metaphlan_RelAbund")) > 0,]
 
 tmp.tse
 
 # define experiment name and output directories
-maaslin3_expmt <- "treatments_vs_vehicle_in_ASO"
+maaslin3_expmt <- "treatments_vs_Control_in_Thy1-ASO"
 maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, cohort_subdir, maaslin3_expmt)
 maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, cohort_subdir, maaslin3_expmt)
 
@@ -1825,7 +1824,7 @@ Results are stored in ``r maaslin3_final_outdir``
 
 ```{r}
 set.seed(1234)
-treatments_vs_vehicle_in_ASO.maaslin3 <- maaslin3(
+treatments_vs_Control_in_Thy1ASO.maaslin3 <- maaslin3(
     input_data = tmp.tse,
     formula = ~ treatment, 
     transform = "LOG",
@@ -1838,11 +1837,11 @@ treatments_vs_vehicle_in_ASO.maaslin3 <- maaslin3(
   )
 
 # add taxonomy
-treatments_vs_vehicle_in_ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = treatments_vs_vehicle_in_ASO.maaslin3, tmp.tse)
+treatments_vs_Control_in_Thy1ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = treatments_vs_Control_in_Thy1ASO.maaslin3, tmp.tse)
 # write tables
-write_maaslin3_curated_tables(treatments_vs_vehicle_in_ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
+write_maaslin3_curated_tables(treatments_vs_Control_in_Thy1ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
-saveRDS(treatments_vs_vehicle_in_ASO.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
+saveRDS(treatments_vs_Control_in_Thy1ASO.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
 # copy their .RDS ggplot object 
 system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
 ```
@@ -1856,7 +1855,7 @@ readRDS(file.path(maaslin3_final_outdir, "summary_plot_gg.RDS"))
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-top20_tmp_out <- treatments_vs_vehicle_in_ASO.maaslin3_curated$prevalence %>% 
+top20_tmp_out <- treatments_vs_Control_in_Thy1ASO.maaslin3_curated$prevalence %>% 
   filter(value == "benCom") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
   head(20)
@@ -1883,7 +1882,7 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 ### Diff. Abundance - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
-top20_tmp_out <- treatments_vs_vehicle_in_ASO.maaslin3_curated$abundance %>% 
+top20_tmp_out <- treatments_vs_Control_in_Thy1ASO.maaslin3_curated$abundance %>% 
   filter(value == "benCom") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
   head(20)
@@ -1910,10 +1909,10 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 ### Conclusions
 
   * No differentially **prevalent** features with Q-value < 0.1 comparing `benCom`
-  against `vehicle` ASO controls
+  against `Control` Thy1-ASO controls
   
   * No differentially **abundant** features with Q-value < 0.1 comparing `benCom`
-  against `vehicle` ASO controls
+  against `Control` Thy1-ASO controls
 
   * Looking at raw data, I tend to conclude the same thing: a signal is there 
   but we are underpowered to label it "statistically significant".
@@ -2152,7 +2151,7 @@ panelF_FB.Ratio_horiz <- panelF_FB.Ratio.df %>%
 ```{r}
 # panel C, differentially abundant features, or top 20 more strongly associated
 
-panelG_diffAbund <- readRDS("results/SGB/cohort_bCL/treatments_vs_vehicle_in_ASO/summary_plot_gg.RDS") + 
+panelG_diffAbund <- readRDS("results/SGB/cohort_bCL/treatments_vs_Control_in_Thy1-ASO/summary_plot_gg.RDS") + 
   theme_light() + 
   theme(strip.text = element_blank(), axis.text.y = element_text(size = 12), axis.title.x = element_text(size = 12), axis.title.y = element_blank()) 
   
@@ -2528,7 +2527,7 @@ enteros_SGBs_top4
 ```{r}
 tmpDF <- meltSE(MetaPhlAn.tse, assay.type = "metaphlan_RelAbund", add.col = c("cohort", "genotype", "treatment")) %>% 
   filter(FeatureID == "t__SGB10068") %>% 
-    mutate(Treatment = factor(ifelse(treatment == "Vehicle", paste(genotype, "Control", sep = "\n"), paste(genotype, "Treated", sep = "\n")), levels = c("WT\nControl", "ASO\nControl", "ASO\nTreated")))
+    mutate(Treatment = factor(ifelse(treatment == "Control", paste(genotype, "Control", sep = "\n"), paste(genotype, "Treated", sep = "\n")), levels = c("WT\nControl", "Thy1-ASO\nControl", "Thy1-ASO\nTreated")))
 
 
 e.coli_relAbund_plot <- tmpDF %>% 
