@@ -155,7 +155,7 @@
 <polyline points='124.49,269.48 124.49,266.74 ' style='stroke-width: 0.53; stroke: #B3B3B3; stroke-linecap: butt;' />
 <polyline points='178.26,269.48 178.26,266.74 ' style='stroke-width: 0.53; stroke: #B3B3B3; stroke-linecap: butt;' />
 <text transform='translate(13.36,136.11) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='96.03px' lengthAdjust='spacingAndGlyphs'>Observed Richness</text>
-<text x='3.89' y='15.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='7.78px' lengthAdjust='spacingAndGlyphs'>a</text>
+<text x='5.05' y='15.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='10.11px' lengthAdjust='spacingAndGlyphs'>A</text>
 </g>
 <defs>
   <clipPath id='cpMC4wMHwyMTYuMDB8Mjg4LjAwfDU3Ni4wMA=='>
@@ -273,7 +273,7 @@
 <polyline points='177.79,535.96 177.79,533.22 ' style='stroke-width: 0.53; stroke: #B3B3B3; stroke-linecap: butt;' />
 <text x='123.24' y='563.04' text-anchor='middle' style='font-size: 34.00px; font-family: "Arial";' textLength='9.45px' lengthAdjust='spacingAndGlyphs'> </text>
 <text transform='translate(13.36,413.35) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='89.31px' lengthAdjust='spacingAndGlyphs'>Shannon Diversity</text>
-<text x='4.27' y='303.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='8.55px' lengthAdjust='spacingAndGlyphs'>b</text>
+<text x='5.05' y='303.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='10.11px' lengthAdjust='spacingAndGlyphs'>B</text>
 </g>
 <defs>
   <clipPath id='cpMjE2LjAwfDY0OC4wMHwwLjAwfDU3Ni4wMA=='>
@@ -593,7 +593,7 @@
 <text x='577.84' y='463.43' style='font-size: 8.80px; font-family: "Arial";' textLength='17.59px' lengthAdjust='spacingAndGlyphs'>1e-2</text>
 <text x='577.84' y='420.47' style='font-size: 8.80px; font-family: "Arial";' textLength='12.22px' lengthAdjust='spacingAndGlyphs'>0.1</text>
 <text x='577.84' y='377.32' style='font-size: 8.80px; font-family: "Arial";' textLength='4.89px' lengthAdjust='spacingAndGlyphs'>1</text>
-<text x='219.89' y='15.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='7.78px' lengthAdjust='spacingAndGlyphs'>c</text>
+<text x='221.05' y='15.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='10.11px' lengthAdjust='spacingAndGlyphs'>C</text>
 </g>
 </g>
 </svg>

@@ -370,7 +370,7 @@
 <text x='221.27' y='68.27' style='font-size: 8.80px; font-family: "Arial";' textLength='71.86px' lengthAdjust='spacingAndGlyphs'>p__Proteobacteria</text>
 <text x='221.27' y='91.03' style='font-size: 8.80px; font-family: "Arial";' textLength='78.75px' lengthAdjust='spacingAndGlyphs'>p__UNCLASSIFIED</text>
 <text x='221.27' y='113.79' style='font-size: 8.80px; font-family: "Arial";' textLength='78.22px' lengthAdjust='spacingAndGlyphs'>p__Verrucomicrobia</text>
-<text x='3.89' y='15.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='7.78px' lengthAdjust='spacingAndGlyphs'>a</text>
+<text x='5.05' y='15.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='10.11px' lengthAdjust='spacingAndGlyphs'>A</text>
 </g>
 <defs>
   <clipPath id='cpMzAzLjc1fDgxMC4wMHwwLjAwfDcyMC4wMA=='>
@@ -527,7 +527,7 @@
 <text x='604.28' y='339.34' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='12.22px' lengthAdjust='spacingAndGlyphs'>0.2</text>
 <text x='490.37' y='352.10' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='91.78px' lengthAdjust='spacingAndGlyphs'>PCoA Axis 1 [22%]</text>
 <text transform='translate(317.11,180.91) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='107.09px' lengthAdjust='spacingAndGlyphs'>PCoA Axis 2 [15.44%]</text>
-<text x='308.02' y='43.27' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='8.55px' lengthAdjust='spacingAndGlyphs'>b</text>
+<text x='308.80' y='43.27' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='10.11px' lengthAdjust='spacingAndGlyphs'>B</text>
 </g>
 <defs>
   <clipPath id='cpNjQxLjI1fDgxMC4wMHwyOC4yNHwzNjAuMDA='>
@@ -967,23 +967,23 @@
 <polyline points='701.08,229.70 701.08,226.96 ' style='stroke-width: 0.53; stroke: #B3B3B3; stroke-linecap: butt;' />
 <polyline points='740.86,229.70 740.86,226.96 ' style='stroke-width: 0.53; stroke: #B3B3B3; stroke-linecap: butt;' />
 <polyline points='780.65,229.70 780.65,226.96 ' style='stroke-width: 0.53; stroke: #B3B3B3; stroke-linecap: butt;' />
-<text transform='translate(707.54,341.48) rotate(-90)' style='font-size: 8.80px;fill: #B2DF8A; font-family: "Arial";' textLength='13.67px' lengthAdjust='spacingAndGlyphs'>WT</text>
-<text transform='translate(707.54,324.99) rotate(-90)' style='font-size: 8.80px;fill: #B2DF8A; font-family: "Arial";' textLength='28.38px' lengthAdjust='spacingAndGlyphs'>Vehicle</text>
-<text transform='translate(707.54,293.69) rotate(-90)' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='8.81px' lengthAdjust='spacingAndGlyphs'>vs</text>
-<text transform='translate(707.54,282.19) rotate(-90)' style='font-size: 8.80px;fill: #A6CEE3; font-family: "Arial";' textLength='18.59px' lengthAdjust='spacingAndGlyphs'>ASO</text>
-<text transform='translate(707.54,260.68) rotate(-90)' style='font-size: 8.80px;fill: #A6CEE3; font-family: "Arial";' textLength='28.38px' lengthAdjust='spacingAndGlyphs'>Vehicle</text>
-<text transform='translate(747.33,323.20) rotate(-90)' style='font-size: 8.80px;fill: #B2DF8A; font-family: "Arial";' textLength='13.67px' lengthAdjust='spacingAndGlyphs'>WT</text>
-<text transform='translate(747.33,306.70) rotate(-90)' style='font-size: 8.80px;fill: #B2DF8A; font-family: "Arial";' textLength='28.38px' lengthAdjust='spacingAndGlyphs'>Vehicle</text>
-<text transform='translate(747.33,275.41) rotate(-90)' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='8.81px' lengthAdjust='spacingAndGlyphs'>vs</text>
-<text transform='translate(747.33,263.90) rotate(-90)' style='font-size: 8.80px;fill: #1F78B4; font-family: "Arial";' textLength='18.59px' lengthAdjust='spacingAndGlyphs'>ASO</text>
-<text transform='translate(747.33,242.39) rotate(-90)' style='font-size: 8.80px;fill: #1F78B4; font-family: "Arial";' textLength='10.27px' lengthAdjust='spacingAndGlyphs'>Fp</text>
-<text transform='translate(787.11,328.21) rotate(-90)' style='font-size: 8.80px;fill: #A6CEE3; font-family: "Arial";' textLength='18.59px' lengthAdjust='spacingAndGlyphs'>ASO</text>
-<text transform='translate(787.11,306.70) rotate(-90)' style='font-size: 8.80px;fill: #A6CEE3; font-family: "Arial";' textLength='28.38px' lengthAdjust='spacingAndGlyphs'>Vehicle</text>
-<text transform='translate(787.11,275.41) rotate(-90)' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='8.81px' lengthAdjust='spacingAndGlyphs'>vs</text>
-<text transform='translate(787.11,263.90) rotate(-90)' style='font-size: 8.80px;fill: #1F78B4; font-family: "Arial";' textLength='18.59px' lengthAdjust='spacingAndGlyphs'>ASO</text>
-<text transform='translate(787.11,242.39) rotate(-90)' style='font-size: 8.80px;fill: #1F78B4; font-family: "Arial";' textLength='10.27px' lengthAdjust='spacingAndGlyphs'>Fp</text>
+<text transform='translate(703.32,341.48) rotate(-90)' style='font-size: 8.80px;fill: #B2DF8A; font-family: "Arial";' textLength='13.67px' lengthAdjust='spacingAndGlyphs'>WT</text>
+<text transform='translate(703.32,324.99) rotate(-90)' style='font-size: 8.80px;fill: #B2DF8A; font-family: "Arial";' textLength='28.38px' lengthAdjust='spacingAndGlyphs'>Vehicle</text>
+<text transform='translate(703.32,293.69) rotate(-90)' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='8.81px' lengthAdjust='spacingAndGlyphs'>vs</text>
+<text transform='translate(703.32,282.19) rotate(-90)' style='font-size: 8.80px;fill: #A6CEE3; font-family: "Arial";' textLength='18.59px' lengthAdjust='spacingAndGlyphs'>ASO</text>
+<text transform='translate(703.32,260.68) rotate(-90)' style='font-size: 8.80px;fill: #A6CEE3; font-family: "Arial";' textLength='28.38px' lengthAdjust='spacingAndGlyphs'>Vehicle</text>
+<text transform='translate(743.11,323.20) rotate(-90)' style='font-size: 8.80px;fill: #B2DF8A; font-family: "Arial";' textLength='13.67px' lengthAdjust='spacingAndGlyphs'>WT</text>
+<text transform='translate(743.11,306.70) rotate(-90)' style='font-size: 8.80px;fill: #B2DF8A; font-family: "Arial";' textLength='28.38px' lengthAdjust='spacingAndGlyphs'>Vehicle</text>
+<text transform='translate(743.11,275.41) rotate(-90)' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='8.81px' lengthAdjust='spacingAndGlyphs'>vs</text>
+<text transform='translate(743.11,263.90) rotate(-90)' style='font-size: 8.80px;fill: #1F78B4; font-family: "Arial";' textLength='18.59px' lengthAdjust='spacingAndGlyphs'>ASO</text>
+<text transform='translate(743.11,242.39) rotate(-90)' style='font-size: 8.80px;fill: #1F78B4; font-family: "Arial";' textLength='10.27px' lengthAdjust='spacingAndGlyphs'>Fp</text>
+<text transform='translate(782.89,328.21) rotate(-90)' style='font-size: 8.80px;fill: #A6CEE3; font-family: "Arial";' textLength='18.59px' lengthAdjust='spacingAndGlyphs'>ASO</text>
+<text transform='translate(782.89,306.70) rotate(-90)' style='font-size: 8.80px;fill: #A6CEE3; font-family: "Arial";' textLength='28.38px' lengthAdjust='spacingAndGlyphs'>Vehicle</text>
+<text transform='translate(782.89,275.41) rotate(-90)' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='8.81px' lengthAdjust='spacingAndGlyphs'>vs</text>
+<text transform='translate(782.89,263.90) rotate(-90)' style='font-size: 8.80px;fill: #1F78B4; font-family: "Arial";' textLength='18.59px' lengthAdjust='spacingAndGlyphs'>ASO</text>
+<text transform='translate(782.89,242.39) rotate(-90)' style='font-size: 8.80px;fill: #1F78B4; font-family: "Arial";' textLength='10.27px' lengthAdjust='spacingAndGlyphs'>Fp</text>
 <text transform='translate(654.61,130.34) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='158.28px' lengthAdjust='spacingAndGlyphs'>Bray-Curtis pairwise dissimilarity</text>
-<text x='645.14' y='43.27' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='7.78px' lengthAdjust='spacingAndGlyphs'>c</text>
+<text x='646.30' y='43.27' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='10.11px' lengthAdjust='spacingAndGlyphs'>C</text>
 </g>
 <defs>
   <clipPath id='cpMzAzLjc1fDgxMC4wMHwzNjAuMDB8NzIwLjAw'>
@@ -1113,7 +1113,7 @@
 <polyline points='404.62,701.48 404.62,698.74 ' style='stroke-width: 0.53; stroke: #B3B3B3; stroke-linecap: butt;' />
 <polyline points='443.62,701.48 443.62,698.74 ' style='stroke-width: 0.53; stroke: #B3B3B3; stroke-linecap: butt;' />
 <text transform='translate(317.11,532.11) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='96.03px' lengthAdjust='spacingAndGlyphs'>Observed Richness</text>
-<text x='308.02' y='375.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='8.55px' lengthAdjust='spacingAndGlyphs'>d</text>
+<text x='308.80' y='375.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='10.11px' lengthAdjust='spacingAndGlyphs'>D</text>
 </g>
 <defs>
   <clipPath id='cpNDcyLjUwfDY0MS4yNXwzNjAuMDB8NzIwLjAw'>
@@ -1230,7 +1230,7 @@
 <polyline points='572.11,701.48 572.11,698.74 ' style='stroke-width: 0.53; stroke: #B3B3B3; stroke-linecap: butt;' />
 <polyline points='611.90,701.48 611.90,698.74 ' style='stroke-width: 0.53; stroke: #B3B3B3; stroke-linecap: butt;' />
 <text transform='translate(485.86,532.11) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='89.31px' lengthAdjust='spacingAndGlyphs'>Shannon Diversity</text>
-<text x='476.39' y='375.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='7.78px' lengthAdjust='spacingAndGlyphs'>e</text>
+<text x='477.17' y='375.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='9.34px' lengthAdjust='spacingAndGlyphs'>E</text>
 </g>
 <defs>
   <clipPath id='cpNjQxLjI1fDgxMC4wMHwzNjAuMDB8NzIwLjAw'>
@@ -1347,7 +1347,7 @@
 <polyline points='739.61,701.48 739.61,698.74 ' style='stroke-width: 0.53; stroke: #B3B3B3; stroke-linecap: butt;' />
 <polyline points='780.18,701.48 780.18,698.74 ' style='stroke-width: 0.53; stroke: #B3B3B3; stroke-linecap: butt;' />
 <text transform='translate(654.61,532.11) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='149.84px' lengthAdjust='spacingAndGlyphs'>Firmicutes/Bacteroidetes Ratio</text>
-<text x='643.58' y='375.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='4.66px' lengthAdjust='spacingAndGlyphs'>f</text>
+<text x='645.52' y='375.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='8.55px' lengthAdjust='spacingAndGlyphs'>F</text>
 </g>
 <defs>
   <clipPath id='cpODEwLjAwfDEyOTYuMDB8MC4wMHw3MjAuMDA='>
@@ -1667,7 +1667,7 @@
 <text x='1225.84' y='535.43' style='font-size: 8.80px; font-family: "Arial";' textLength='17.59px' lengthAdjust='spacingAndGlyphs'>1e-2</text>
 <text x='1225.84' y='492.47' style='font-size: 8.80px; font-family: "Arial";' textLength='12.22px' lengthAdjust='spacingAndGlyphs'>0.1</text>
 <text x='1225.84' y='449.32' style='font-size: 8.80px; font-family: "Arial";' textLength='4.89px' lengthAdjust='spacingAndGlyphs'>1</text>
-<text x='814.27' y='15.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='8.55px' lengthAdjust='spacingAndGlyphs'>g</text>
+<text x='815.45' y='15.03' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='10.89px' lengthAdjust='spacingAndGlyphs'>G</text>
 </g>
 </g>
 </svg>
