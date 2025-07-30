@@ -158,6 +158,13 @@ saveRDS(MetaPhlAn.tse, "Data/MetaPhlAn.tse.Rds")
 
 ```{r}
 MetaPhlAn.tse <- readRDS("Data/MetaPhlAn.tse.Rds")
+# rename SGBs into `species SGB` only if sgb is not already there
+SGB_names <- gsub("t__", "", rownames(MetaPhlAn.tse))
+vgrepl <- Vectorize(grepl)
+
+rowData(MetaPhlAn.tse)$SGB <- ifelse(vgrepl(SGB_names, rowData(MetaPhlAn.tse)$species), rowData(MetaPhlAn.tse)$species, paste(rowData(MetaPhlAn.tse)$species, SGB_names))
+
+rownames(MetaPhlAn.tse) <- rowData(MetaPhlAn.tse)$SGB
 ```
 
 # Dataset-wide microbiome composition statistics
@@ -518,7 +525,7 @@ genotype_differences_in_ctrls.maaslin3 <- maaslin3(
   )
 
 # add taxonomy
-genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = genotype_differences_in_ctrls.maaslin3, tmp.tse)
+genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = genotype_differences_in_ctrls.maaslin3, tmp.tse, taxLevel = params$tax_level)
 # write tables
 write_maaslin3_curated_tables(genotype_differences_in_ctrls.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
@@ -836,7 +843,7 @@ genotype_differences_in_ctrls.maaslin3 <- maaslin3(
   )
 
 # add taxonomy
-genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = genotype_differences_in_ctrls.maaslin3, tmp.tse)
+genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = genotype_differences_in_ctrls.maaslin3, tmp.tse, taxLevel = params$tax_level)
 # write tables
 write_maaslin3_curated_tables(genotype_differences_in_ctrls.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
@@ -964,7 +971,7 @@ treatments_vs_Control_in_Thy1ASO.maaslin3 <- maaslin3(
   )
 
 # add taxonomy
-treatments_vs_Control_in_Thy1ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = treatments_vs_Control_in_Thy1ASO.maaslin3, tmp.tse)
+treatments_vs_Control_in_Thy1ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = treatments_vs_Control_in_Thy1ASO.maaslin3, tmp.tse, taxLevel = params$tax_level)
 # write tables
 write_maaslin3_curated_tables(treatments_vs_Control_in_Thy1ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
@@ -1436,8 +1443,7 @@ beam_steps_assoc_microbiome <- maaslin3(
 		verbosity = "ERROR"
   )
 
-beam_steps_assoc_microbiome_clean <- biobakeryUtils::add_taxonomy_to_maaslin3(beam_steps_assoc_microbiome, MetaPhlAn_Fp7.tse, "SGB")
-
+beam_steps_assoc_microbiome_clean <- biobakeryUtils::add_taxonomy_to_maaslin3(beam_steps_assoc_microbiome, MetaPhlAn_Fp7.tse, taxLevel = params$tax_level)
 readRDS(file.path(tempdir(), "figures", "summary_plot_gg.RDS"))
 ```
 
@@ -1710,7 +1716,7 @@ genotype_differences_in_ctrls.maaslin3 <- maaslin3(
   )
 
 # add taxonomy
-genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = genotype_differences_in_ctrls.maaslin3, tmp.tse)
+genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = genotype_differences_in_ctrls.maaslin3, tmp.tse, taxLevel = params$tax_level)
 # write tables
 write_maaslin3_curated_tables(genotype_differences_in_ctrls.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
@@ -1838,7 +1844,7 @@ treatments_vs_Control_in_Thy1ASO.maaslin3 <- maaslin3(
   )
 
 # add taxonomy
-treatments_vs_Control_in_Thy1ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = treatments_vs_Control_in_Thy1ASO.maaslin3, tmp.tse)
+treatments_vs_Control_in_Thy1ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = treatments_vs_Control_in_Thy1ASO.maaslin3, tmp.tse, taxLevel = params$tax_level)
 # write tables
 write_maaslin3_curated_tables(treatments_vs_Control_in_Thy1ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
@@ -2310,7 +2316,7 @@ beam_steps_assoc_microbiome <- maaslin3(
 		verbosity = "ERROR"
   )
 
-beam_steps_assoc_microbiome_clean <- biobakeryUtils::add_taxonomy_to_maaslin3(beam_steps_assoc_microbiome, MetaPhlAn_bCL.tse, "SGB")
+beam_steps_assoc_microbiome_clean <- biobakeryUtils::add_taxonomy_to_maaslin3(beam_steps_assoc_microbiome, MetaPhlAn_bCL.tse, taxLevel = params$tax_level)
 
 readRDS(file.path(tempdir(), "figures", "summary_plot_gg.RDS"))
 ```
@@ -2459,7 +2465,7 @@ cohort_differences.maaslin3 <- maaslin3(
   )
 
 # add taxonomy
-cohort_differences.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = cohort_differences.maaslin3, tmp.tse)
+cohort_differences.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = cohort_differences.maaslin3, tmp.tse, taxLevel = params$tax_level)
 # write tables
 write_maaslin3_curated_tables(cohort_differences.maaslin3_curated, out.dir = maaslin3_final_outdir)
 # save raw output
