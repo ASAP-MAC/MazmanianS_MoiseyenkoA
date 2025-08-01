@@ -252,7 +252,7 @@ plots_as_facets <- moltenAssay_Abs %>%
     color = "Genotype-Treatment"
   )
 
-ggsave(plot = plots_as_facets, filename = file.path(params$basic_outdir, params$humann_data_type, cohort_subdir, "fermentative_pathways_panel.svg"), height=8, width = 8)
+ggsave(plot = plots_as_facets, filename = file.path(output_directories.list$cohort_Fp7_Dir, "fermentative_pathways_panel.svg"), height=8, width = 8)
 
 plots_as_facets
 
