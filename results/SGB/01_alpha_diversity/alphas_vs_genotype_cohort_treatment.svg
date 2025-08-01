@@ -26,20 +26,20 @@
   </clipPath>
 </defs>
 <g clip-path='url(#cpMC4wMHw0MzIuMDB8MC4wMHwzNjAuMDA=)'>
-<rect x='-46.22' y='0.0000000000000036' width='524.44' height='28.24' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<text x='-40.74' y='18.06' style='font-size: 11.00px; font-family: "Arial";' textLength='101.16px' lengthAdjust='spacingAndGlyphs'>Genotype-Treatment</text>
-<rect x='67.66' y='5.48' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='76.30' cy='14.12' r='1.95' style='stroke-width: 0.71; stroke: #F8766D; fill: #F8766D;' />
-<rect x='141.41' y='5.48' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='150.05' cy='14.12' r='1.95' style='stroke-width: 0.71; stroke: #7CAE00; fill: #7CAE00;' />
-<rect x='245.16' y='5.48' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='253.80' cy='14.12' r='1.95' style='stroke-width: 0.71; stroke: #00BFC4; fill: #00BFC4;' />
-<rect x='369.47' y='5.48' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
-<circle cx='378.11' cy='14.12' r='1.95' style='stroke-width: 0.71; stroke: #C77CFF; fill: #C77CFF;' />
-<text x='90.42' y='17.27' style='font-size: 8.80px; font-family: "Arial";' textLength='44.30px' lengthAdjust='spacingAndGlyphs'>WT Control</text>
-<text x='164.17' y='17.27' style='font-size: 8.80px; font-family: "Arial";' textLength='71.86px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO Control</text>
-<text x='267.91' y='17.27' style='font-size: 8.80px; font-family: "Arial";' textLength='92.39px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO F. prausnitzii</text>
-<text x='392.23' y='17.27' style='font-size: 8.80px; font-family: "Arial";' textLength='76.77px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO benCom</text>
+<rect x='-55.24' y='0.0000000000000036' width='542.48' height='28.24' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<text x='-49.76' y='18.06' style='font-size: 11.00px; font-family: "Arial";' textLength='121.80px' lengthAdjust='spacingAndGlyphs'>Genotype and Treatment</text>
+<rect x='76.68' y='5.48' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<circle cx='85.32' cy='14.12' r='1.95' style='stroke-width: 0.71; stroke: #F8766D; fill: #F8766D;' />
+<rect x='150.43' y='5.48' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<circle cx='159.07' cy='14.12' r='1.95' style='stroke-width: 0.71; stroke: #7CAE00; fill: #7CAE00;' />
+<rect x='254.18' y='5.48' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<circle cx='262.82' cy='14.12' r='1.95' style='stroke-width: 0.71; stroke: #00BFC4; fill: #00BFC4;' />
+<rect x='378.49' y='5.48' width='17.28' height='17.28' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+<circle cx='387.13' cy='14.12' r='1.95' style='stroke-width: 0.71; stroke: #C77CFF; fill: #C77CFF;' />
+<text x='99.44' y='17.27' style='font-size: 8.80px; font-family: "Arial";' textLength='44.30px' lengthAdjust='spacingAndGlyphs'>WT Control</text>
+<text x='173.19' y='17.27' style='font-size: 8.80px; font-family: "Arial";' textLength='71.86px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO Control</text>
+<text x='276.93' y='17.27' style='font-size: 8.80px; font-family: "Arial";' textLength='92.39px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO F. prausnitzii</text>
+<text x='401.25' y='17.27' style='font-size: 8.80px; font-family: "Arial";' textLength='76.77px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO benCom</text>
 </g>
 <defs>
   <clipPath id='cpMC4wMHw0MzIuMDB8MjguMjR8MzYwLjAw'>

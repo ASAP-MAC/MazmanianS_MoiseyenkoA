@@ -158,13 +158,25 @@ saveRDS(MetaPhlAn.tse, "Data/MetaPhlAn.tse.Rds")
 
 ```{r}
 MetaPhlAn.tse <- readRDS("Data/MetaPhlAn.tse.Rds")
-# rename SGBs into `species SGB` only if sgb is not already there
-SGB_names <- gsub("t__", "", rownames(MetaPhlAn.tse))
-vgrepl <- Vectorize(grepl)
+```
 
-rowData(MetaPhlAn.tse)$SGB <- ifelse(vgrepl(SGB_names, rowData(MetaPhlAn.tse)$species), rowData(MetaPhlAn.tse)$species, paste(rowData(MetaPhlAn.tse)$species, SGB_names))
+```{r, eval=interactive()}
+# load translation from SGB to GTDB taxonomy for further naming of bacteria
+# this is taken from a Zenodo entry for metaphlan 4.2.2
 
-rownames(MetaPhlAn.tse) <- rowData(MetaPhlAn.tse)$SGB
+download.file("https://zenodo.org/api/records/15594111/files-archive", destfile = "~/Downloads/Metaphlan-4.2.2.zip", quiet = TRUE)
+unzip("~/Downloads/Metaphlan-4.2.2.zip", exdir = "~/Downloads/Metaphlan-4.2.2")
+unzip("~/Downloads/Metaphlan-4.2.2/biobakery/MetaPhlAn-4.2.2.zip", exdir = "~/Downloads/Metaphlan-4.2.2/")
+GTDB.df <- read.delim("~/Downloads/Metaphlan-4.2.2/biobakery-MetaPhlAn-500ce07/metaphlan/utils/mpa_vJun23_CHOCOPhlAnSGB_202403_SGB2GTDB.tsv", header = FALSE, se = "\t", col.names = c("SGB", "full_name")) %>% 
+  relocate(full_name) %>% 
+  separate_wider_delim(delim = ";", cols = "full_name", names = c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"), too_few = "align_start") %>% 
+  mutate_all(function(x) gsub("d__|p__|c__|o__|f__|g__|s__", "", x)) 
+
+write_tsv(GTDB.df, "Data/GTDB_202403.tsv")
+```
+
+```{r}
+GTDB.df <- read.delim("Data/GTDB_202403.tsv", colClasses = "character", sep = "\t" )
 ```
 
 # Dataset-wide microbiome composition statistics
@@ -305,7 +317,7 @@ alpha_div_plotList <- lapply(c("dbp_dominance", "observed_richness", "shannon_di
       title = div,
       x = NULL,
       y = "Alpha Estimate",
-      color = "Genotype-Treatment"
+      color = "Genotype and Treatment"
     )})
 ```
 
@@ -437,7 +449,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend)) +
   stat_ellipse(show.legend = FALSE) + 
   scale_color_manual(values = joe_palette) +
   theme(legend.position = "top") +
-  labs(color = "Genotype-Treatment",
+  labs(color = "Genotype and Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -643,8 +655,8 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = g
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
   theme(legend.position = "top", legend.text = element_markdown()) +
-  labs(color = "Genotype-Treatment",
-       fill = "Genotype-Treatment",
+  labs(color = "Genotype and Treatment",
+       fill = "Genotype and Treatment",
        x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("PCoA Axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -681,7 +693,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend)) +
   stat_ellipse(show.legend = FALSE) + 
   scale_color_manual(values = joe_palette) +
   theme(legend.position = "top") +
-  labs(color = "Genotype-Treatment",
+  labs(color = "Genotype and Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -983,7 +995,7 @@ system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RD
 ####  Maaslin3 default plot
 
 ```{r}
-readRDS(file.path(maaslin3_final_outdir, "summary_plot_gg.RDS"))
+readRDS(file.path(maaslin3_final_outdir, "summary_plot_gg.RDS")) 
 ```
 
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
@@ -1054,29 +1066,30 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 ## Microbiome-typical plots panel
 
 ```{r}
-# panel B, phylum level stack plot
-
 panelA_stackplot <- plotAbundance(
   x = MetaPhlAn_Fp7.tse,
   assay.type = "metaphlan_RelAbund", 
   group = "phylum") + 
   facet_grid(cols = vars(genotype_treatment_legend), scales = "free_x") + 
   theme_light() +
+  scale_x_discrete(labels = "x") +
   theme(
     panel.spacing.x = unit(0, "lines"),
     strip.background.x = element_rect(fill = "white", colour = "gray40", linewidth = unit(0.8, "mm")), 
     panel.grid = element_blank(),
     panel.border = element_rect(colour = "gray40", linewidth = unit(0.8, units = "mm")),
     strip.text = element_text(color = "black"),
-    axis.text.x = element_blank(),
+    axis.text.x = element_text(color = "white"),
     axis.ticks.x = element_blank(),
     strip.text.x = element_markdown()
     ) + 
   labs(
     fill = "Phylum",
-    x = ""
+    x = " "
   )
-panelA_stackplot
+
+panelA_stackplot$data$colour_by <- gsub("p__", "", panelA_stackplot$data$colour_by)
+panelA_stackplot$data$colour_by <- gsub("_", " ", panelA_stackplot$data$colour_by)
 ```
 
 ```{r}
@@ -1111,8 +1124,8 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = g
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
   theme(legend.position = "top", legend.text = element_markdown()) +
-  labs(color = "Genotype-Treatment",
-       fill = "Genotype-Treatment",
+  labs(color = "Genotype and Treatment",
+       fill = "Genotype and Treatment",
        x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("PCoA Axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -1166,7 +1179,7 @@ panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   scale_x_discrete(labels = function(x) colorize_labels(x, joe_palette)) +
   # Tell ggplot to render the axis text as Markdown/HTML
   theme(
-    axis.text.x = ggtext::element_markdown(angle = 90, hjust = 1, vjust = 0.5)
+    axis.text.x = ggtext::element_markdown(angle = 90, hjust = 1, vjust = 0.5, face = "bold")
     ) +
   ylim(0.3, 0.9) +
   labs(
@@ -1196,7 +1209,7 @@ panelC_pairwise_dissim_boxplot_horiz <- pairwise_dissim_bray %>%
   xlim(0.3, 0.9) +
   labs(
     y = "",
-    y = "Bray-Curtis pairwise dissimilarity"
+    x = "Bray-Curtis pairwise dissimilarity"
   )
 
 ```
@@ -1214,7 +1227,7 @@ comparisons <- combn(levels(alpha_data.df$genotype_treatment_legend), 2, simplif
 stats_obs <- rstatix::pairwise_wilcox_test(alpha_data.df, formula = `Observed Richness` ~ genotype_treatment,p.adjust.method =  "BH") %>% 
   mutate(group2 = gsub("F. prausnitzii", "*F. prausnitzii*", group2),
          p.adj.round3 = round(p.adj, 3)) %>% 
-  rstatix::add_y_position()
+  rstatix::add_y_position(step.increase = 0.5)
 
 # Observed richness diversity vs genotype-treatment
 panelD_Obs_boxplot <- alpha_data.df %>% 
@@ -1224,16 +1237,18 @@ panelD_Obs_boxplot <- alpha_data.df %>%
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_pvalue_manual(stats_obs, label = "p.adj.round3", tip.length = 0.02) + 
+  stat_pvalue_manual(stats_obs, label = "p.adj.round3", tip.length = 0.01) + 
   theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
   labs(
-    x = ""
+    x = NULL,
+    color = "Genotype and Treatment",
+    fill = "Genotype and Treatment"
   )
 
 stats_shannon <- rstatix::pairwise_wilcox_test(alpha_data.df, formula = `Shannon Diversity` ~ genotype_treatment, p.adjust.method =  "BH") %>% 
   mutate(group2 = gsub("F. prausnitzii", "*F. prausnitzii*", group2),
          p.adj.round3 = round(p.adj, 3)) %>% 
-  rstatix::add_y_position()
+  rstatix::add_y_position(step.increase = 0.5)
 
 # Shannon diversity vs genotype-treatment
 panelE_Shannon_boxplot <- alpha_data.df %>% 
@@ -1243,10 +1258,12 @@ panelE_Shannon_boxplot <- alpha_data.df %>%
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_pvalue_manual(stats_shannon, label = "p.adj.round3", tip.length = 0.02) + 
+  stat_pvalue_manual(stats_shannon, label = "p.adj.round3", tip.length = 0.01) + 
   theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
   labs(
-    x = ""
+    x = NULL,
+    color = "Genotype and Treatment",
+    fill = "Genotype and Treatment"
   )
 
 # alpha_plots_panel <- ggarrange(panelE_Obs.gg, panelE_Shannon_boxplot)
@@ -1262,7 +1279,7 @@ panelF_FB.Ratio.df <- MetaPhlAn_Fp7.tse %>%
 stats_fbrartio <- rstatix::pairwise_wilcox_test(panelF_FB.Ratio.df, formula = FB.Ratio ~ genotype_treatment, p.adjust.method =  "BH") %>% 
   mutate(group2 = gsub("F. prausnitzii", "*F. prausnitzii*", group2),
          p.adj.round3 = round(p.adj, 3)) %>% 
-  rstatix::add_y_position()
+  rstatix::add_y_position(step.increase = 0.5)
 
 
 panelF_FB.Ratio <- panelF_FB.Ratio.df %>% 
@@ -1272,11 +1289,13 @@ panelF_FB.Ratio <- panelF_FB.Ratio.df %>%
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.02) + 
+  stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.01) + 
   theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
   labs(
-    x = "",
-    y = "Firmicutes/Bacteroidetes Ratio"
+    x = NULL,
+    y = "Firmicutes/Bacteroidetes Ratio",
+    color = "Genotype and Treatment",
+    fill = "Genotype and Treatment"
   )
 
 max_fb_ratio <- max(panelF_FB.Ratio.df$FB.Ratio, na.rm = TRUE)
@@ -1290,23 +1309,44 @@ panelF_FB.Ratio_horiz <- panelF_FB.Ratio.df %>%
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
   coord_flip() + 
-  stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.02, coord.flip = TRUE) + 
+  stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.01, coord.flip = TRUE) + 
   theme(axis.text.y = element_blank(), legend.text = element_markdown()) +
   labs(
-    x = "",
-    y = "Firmicutes/Bacteroidetes Ratio"
+    x = NULL,
+    y = "Firmicutes/Bacteroidetes Ratio",
+    color = "Genotype and Treatment",
+    fill = "Genotype and Treatment"
   )
 ```
 
 ```{r}
 # panel C, differentially abundant features, or top 20 more strongly associated
 
+GTDB.df <- GTDB.df %>%
+  mutate(
+    altNames = sapply(
+      strsplit(paste(trimws(Genus), trimws(Species), sprintf("[%s]", SGB)), " ", fixed = TRUE),
+      function(x) paste(unique(x), collapse = " ")
+    )
+  )
+
+altNames.chr <- GTDB.df$altNames
+names(altNames.chr) <- GTDB.df$SGB
+
 panelG_diffAbund <- readRDS("results/SGB/cohort_Fp7/treatments_vs_Control_in_Thy1-ASO/summary_plot_gg.RDS") + 
   theme_light() + 
-  theme(strip.text = element_blank(), axis.text.y = element_text(size = 12), axis.title.x = element_text(size = 12), axis.title.y = element_blank()) 
-  
-panelG_diffAbund
-# panelG_diffAbund
+  theme(strip.text = element_blank()) + 
+  # expand plot to show full errorbars
+  scale_x_continuous(expand = expansion(mult = c(.1))) + 
+  # remove the null HP that would mess with the panel rendering
+  guides(linetype = "none")
+
+
+panelG_diffAbund2 <- panelG_diffAbund +
+  scale_y_discrete(
+    labels = function(y) altNames.chr[gsub("t__", "", y)]
+  )
+
 ```
 
 ```{r, fig.height=12, fig.width=16}
@@ -1341,24 +1381,33 @@ piece_1_2_3_4
 ```
 
 ```{r,fig.height=8, fig.width=12}
-microbiome_panel_MainText <- 
-    ggarrange(
-      ggarrange(
-        panelB_PCoA + theme(legend.position = "none"), 
-        panelF_FB.Ratio_horiz + theme(legend.position = "none"),  
-        ncol = 1, heights = c(1, 0.5), align = "v", labels = c("B", "D")
-        ),
-      panelC_pairwise_dissim_boxplot,
-      ncol= 2,
-      widths = c(1, 0.3), 
-      labels = c("", "C")
-      ) %>% ggarrange(get_legend(panelB_PCoA), ., heights = c(0.1,1), ncol = 1) %>% 
-    ggarrange(panelA_stackplot + theme(legend.position = "top") + guides(fill = guide_legend(ncol = 2, title = NULL)), .,
-    widths = c(0.6, 1),
-  labels = c("A", "")
-)
+panel_A_legend <- get_legend(panelA_stackplot + guides(fill = guide_legend(nrow = 2, title = "Phylum", position = "top")))
 
-ggsave(plot = microbiome_panel_MainText, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_MainText.svg"), width = 12, height = 8)
+microbiome_panel_MainText <- ggarrange(
+
+  ggarrange(
+    panelA_stackplot + guides(fill = guide_legend(title = "Phylum")) + labs(y = "Relative Abundance", x = "Sample") + theme(axis.title = element_text(size = 12)), 
+    panelB_PCoA + theme(axis.title = element_text(size = 12)), 
+    common.legend = TRUE, widths = c(1, 1), legend = "top", labels = c("A", "B")),
+    
+    ggarrange(
+      panelC_pairwise_dissim_boxplot_horiz  + theme(axis.title = element_text(size = 12), axis.text = element_text(size = 9)),
+      get_legend(panelB_PCoA + guides(color = guide_legend(ncol = 1, position = "right"))), 
+      
+      nrow = 1, widths = c(1,0.2), labels = c("C", "")
+      ),
+  
+  panelG_diffAbund2 + 
+    coord_flip() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), 
+          legend.position = "bottom") + 
+    labs(x = expression(log[2]~Fold~Change), y = NULL) + 
+    theme(axis.title = element_text(size = 12)),
+  
+  nrow = 3, 
+  heights = c(1, 0.25, 1), labels = c("", "", "D"))
+
+ggsave(plot = microbiome_panel_MainText, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_MainText.svg"), width = 11, height = 13)
 
 microbiome_panel_MainText
 
@@ -1367,16 +1416,13 @@ microbiome_panel_MainText
 
 ```{r}
 microbiome_panel_Supplementary <- ggarrange(
-  ggarrange(
-    panelD_Obs_boxplot + theme(legend.position = "none"),
-    panelE_Shannon_boxplot + xlab(" ") + theme(axis.title.x = element_text(size = 34), legend.position = "none"),
-    nrow = 2, labels = c("A", "B")),
-  panelG_diffAbund, 
-  widths = c(0.5,1), 
-  labels = c("", "C")
-  ) %>% ggarrange(get_legend(panelB_PCoA), ., heights = c(0.1,1), ncol = 1)
+    panelD_Obs_boxplot + theme(axis.ticks.x = element_blank()) + scale_y_continuous(expand = expansion(mult = 0.08)),
+    panelE_Shannon_boxplot + theme(axis.ticks.x = element_blank()) + scale_y_continuous(expand = expansion(mult = 0.08)),
+    panelF_FB.Ratio + theme(axis.ticks.x = element_blank()) + scale_y_continuous(expand = expansion(mult = 0.08)),
+    nrow = 1, labels = c("A", "B", "C"), 
+common.legend = TRUE)
 
-ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_Supplementary.svg"), width = 9, height = 8)
+ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_Supplementary.svg"), width = 10, height = 4)
 
 microbiome_panel_Supplementary
 ```
@@ -1516,8 +1562,8 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = g
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
   theme(legend.position = "top", legend.text = element_markdown()) +
-  labs(color = "Genotype-Treatment",
-       fill = "Genotype-Treatment",
+  labs(color = "Genotype and Treatment",
+       fill = "Genotype and Treatment",
        x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("PCoA Axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -1554,7 +1600,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend)) +
   stat_ellipse(show.legend = FALSE) + 
   scale_color_manual(values = joe_palette) +
   theme(legend.position = "top") +
-  labs(color = "Genotype-Treatment",
+  labs(color = "Genotype and Treatment",
        x = paste0("MDS 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("MDS 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -1856,7 +1902,7 @@ system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RD
 ####  Maaslin3 default plot
 
 ```{r}
-readRDS(file.path(maaslin3_final_outdir, "summary_plot_gg.RDS"))
+readRDS(file.path(maaslin3_final_outdir, "summary_plot_gg.RDS")) 
 ```
 
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
@@ -1927,29 +1973,30 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 ## Microbiome-typical plots panel
 
 ```{r}
-# panel B, phylum level stack plot
-
 panelA_stackplot <- plotAbundance(
   x = MetaPhlAn_bCL.tse,
   assay.type = "metaphlan_RelAbund", 
   group = "phylum") + 
   facet_grid(cols = vars(genotype_treatment_legend), scales = "free_x") + 
   theme_light() +
+  scale_x_discrete(labels = "x") +
   theme(
     panel.spacing.x = unit(0, "lines"),
     strip.background.x = element_rect(fill = "white", colour = "gray40", linewidth = unit(0.8, "mm")), 
     panel.grid = element_blank(),
     panel.border = element_rect(colour = "gray40", linewidth = unit(0.8, units = "mm")),
     strip.text = element_text(color = "black"),
-    axis.text.x = element_blank(),
+    axis.text.x = element_text(color = "white"),
     axis.ticks.x = element_blank(),
     strip.text.x = element_markdown()
     ) + 
   labs(
     fill = "Phylum",
-    x = ""
+    x = " "
   )
-panelA_stackplot
+
+panelA_stackplot$data$colour_by <- gsub("p__", "", panelA_stackplot$data$colour_by)
+panelA_stackplot$data$colour_by <- gsub("_", " ", panelA_stackplot$data$colour_by)
 ```
 
 ```{r}
@@ -1984,8 +2031,8 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = g
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
   theme(legend.position = "top", legend.text = element_markdown()) +
-  labs(color = "Genotype-Treatment",
-       fill = "Genotype-Treatment",
+  labs(color = "Genotype and Treatment",
+       fill = "Genotype and Treatment",
        x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
        y = paste0("PCoA Axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
   )
@@ -2039,7 +2086,7 @@ panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   scale_x_discrete(labels = function(x) colorize_labels(x, joe_palette)) +
   # Tell ggplot to render the axis text as Markdown/HTML
   theme(
-    axis.text.x = ggtext::element_markdown(angle = 90, hjust = 1, vjust = 0.5)
+    axis.text.x = ggtext::element_markdown(angle = 90, hjust = 1, vjust = 0.5, face = "bold")
     ) +
   ylim(0.3, 0.9) +
   labs(
@@ -2069,7 +2116,7 @@ panelC_pairwise_dissim_boxplot_horiz <- pairwise_dissim_bray %>%
   xlim(0.3, 0.9) +
   labs(
     y = "",
-    y = "Bray-Curtis pairwise dissimilarity"
+    x = "Bray-Curtis pairwise dissimilarity"
   )
 
 ```
@@ -2085,9 +2132,9 @@ alpha_data.df <- MetaPhlAn_bCL.tse %>%
 comparisons <- combn(levels(alpha_data.df$genotype_treatment_legend), 2, simplify = FALSE)
 
 stats_obs <- rstatix::pairwise_wilcox_test(alpha_data.df, formula = `Observed Richness` ~ genotype_treatment,p.adjust.method =  "BH") %>% 
-  mutate(group2 = gsub("benCom", "*benCom*", group2),
+  mutate(group2 = gsub("benCom", "benCom", group2),
          p.adj.round3 = round(p.adj, 3)) %>% 
-  rstatix::add_y_position()
+  rstatix::add_y_position(step.increase = 0.5)
 
 # Observed richness diversity vs genotype-treatment
 panelD_Obs_boxplot <- alpha_data.df %>% 
@@ -2097,16 +2144,18 @@ panelD_Obs_boxplot <- alpha_data.df %>%
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_pvalue_manual(stats_obs, label = "p.adj.round3", tip.length = 0.02) + 
+  stat_pvalue_manual(stats_obs, label = "p.adj.round3", tip.length = 0.01) + 
   theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
   labs(
-    x = ""
+    x = NULL,
+    color = "Genotype and Treatment",
+    fill = "Genotype and Treatment"
   )
 
 stats_shannon <- rstatix::pairwise_wilcox_test(alpha_data.df, formula = `Shannon Diversity` ~ genotype_treatment, p.adjust.method =  "BH") %>% 
-  mutate(group2 = gsub("benCom", "*benCom*", group2),
+  mutate(group2 = gsub("benCom", "benCom", group2),
          p.adj.round3 = round(p.adj, 3)) %>% 
-  rstatix::add_y_position()
+  rstatix::add_y_position(step.increase = 0.5)
 
 # Shannon diversity vs genotype-treatment
 panelE_Shannon_boxplot <- alpha_data.df %>% 
@@ -2116,10 +2165,12 @@ panelE_Shannon_boxplot <- alpha_data.df %>%
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_pvalue_manual(stats_shannon, label = "p.adj.round3", tip.length = 0.02) + 
+  stat_pvalue_manual(stats_shannon, label = "p.adj.round3", tip.length = 0.01) + 
   theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
   labs(
-    x = ""
+    x = NULL,
+    color = "Genotype and Treatment",
+    fill = "Genotype and Treatment"
   )
 
 # alpha_plots_panel <- ggarrange(panelE_Obs.gg, panelE_Shannon_boxplot)
@@ -2133,9 +2184,9 @@ panelF_FB.Ratio.df <- MetaPhlAn_bCL.tse %>%
   as.data.frame()
 
 stats_fbrartio <- rstatix::pairwise_wilcox_test(panelF_FB.Ratio.df, formula = FB.Ratio ~ genotype_treatment, p.adjust.method =  "BH") %>% 
-  mutate(group2 = gsub("benCom", "*benCom*", group2),
+  mutate(group2 = gsub("benCom", "benCom", group2),
          p.adj.round3 = round(p.adj, 3)) %>% 
-  rstatix::add_y_position()
+  rstatix::add_y_position(step.increase = 0.5)
 
 
 panelF_FB.Ratio <- panelF_FB.Ratio.df %>% 
@@ -2145,11 +2196,13 @@ panelF_FB.Ratio <- panelF_FB.Ratio.df %>%
   geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
-  stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.02) + 
+  stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.01) + 
   theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
   labs(
-    x = "",
-    y = "Firmicutes/Bacteroidetes Ratio"
+    x = NULL,
+    y = "Firmicutes/Bacteroidetes Ratio",
+    color = "Genotype and Treatment",
+    fill = "Genotype and Treatment"
   )
 
 max_fb_ratio <- max(panelF_FB.Ratio.df$FB.Ratio, na.rm = TRUE)
@@ -2163,23 +2216,44 @@ panelF_FB.Ratio_horiz <- panelF_FB.Ratio.df %>%
   scale_color_manual(values = joe_palette) +
   scale_fill_manual(values = joe_palette) +
   coord_flip() + 
-  stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.02, coord.flip = TRUE) + 
+  stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.01, coord.flip = TRUE) + 
   theme(axis.text.y = element_blank(), legend.text = element_markdown()) +
   labs(
-    x = "",
-    y = "Firmicutes/Bacteroidetes Ratio"
+    x = NULL,
+    y = "Firmicutes/Bacteroidetes Ratio",
+    color = "Genotype and Treatment",
+    fill = "Genotype and Treatment"
   )
 ```
 
 ```{r}
 # panel C, differentially abundant features, or top 20 more strongly associated
 
+GTDB.df <- GTDB.df %>%
+  mutate(
+    altNames = sapply(
+      strsplit(paste(trimws(Genus), trimws(Species), sprintf("[%s]", SGB)), " ", fixed = TRUE),
+      function(x) paste(unique(x), collapse = " ")
+    )
+  )
+
+altNames.chr <- GTDB.df$altNames
+names(altNames.chr) <- GTDB.df$SGB
+
 panelG_diffAbund <- readRDS("results/SGB/cohort_bCL/treatments_vs_Control_in_Thy1-ASO/summary_plot_gg.RDS") + 
   theme_light() + 
-  theme(strip.text = element_blank(), axis.text.y = element_text(size = 12), axis.title.x = element_text(size = 12), axis.title.y = element_blank()) 
-  
-panelG_diffAbund
-# panelG_diffAbund
+  theme(strip.text = element_blank()) + 
+  # expand plot to show full errorbars
+  scale_x_continuous(expand = expansion(mult = c(.1))) + 
+  # remove the null HP that would mess with the panel rendering
+  guides(linetype = "none")
+
+
+panelG_diffAbund2 <- panelG_diffAbund +
+  scale_y_discrete(
+    labels = function(y) altNames.chr[gsub("t__", "", y)]
+  )
+
 ```
 
 ```{r, fig.height=12, fig.width=16}
@@ -2214,24 +2288,33 @@ piece_1_2_3_4
 ```
 
 ```{r,fig.height=8, fig.width=12}
-microbiome_panel_MainText <- 
-    ggarrange(
-      ggarrange(
-        panelB_PCoA + theme(legend.position = "none"), 
-        panelF_FB.Ratio_horiz + theme(legend.position = "none"),  
-        ncol = 1, heights = c(1, 0.5), align = "v", labels = c("B", "D")
-        ),
-      panelC_pairwise_dissim_boxplot,
-      ncol= 2,
-      widths = c(1, 0.3), 
-      labels = c("", "C")
-      ) %>% ggarrange(get_legend(panelB_PCoA), ., heights = c(0.1,1), ncol = 1) %>% 
-    ggarrange(panelA_stackplot + theme(legend.position = "top") + guides(fill = guide_legend(ncol = 2, title = NULL)), .,
-    widths = c(0.6, 1),
-  labels = c("A", "")
-)
+panel_A_legend <- get_legend(panelA_stackplot + guides(fill = guide_legend(nrow = 2, title = "Phylum", position = "top")))
 
-ggsave(plot = microbiome_panel_MainText, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_MainText.svg"), width = 12, height = 8)
+microbiome_panel_MainText <- ggarrange(
+
+  ggarrange(
+    panelA_stackplot + guides(fill = guide_legend(title = "Phylum")) + labs(y = "Relative Abundance", x = "Sample") + theme(axis.title = element_text(size = 12)), 
+    panelB_PCoA + theme(axis.title = element_text(size = 12)), 
+    common.legend = TRUE, widths = c(1, 1), legend = "top", labels = c("A", "B")),
+    
+    ggarrange(
+      panelC_pairwise_dissim_boxplot_horiz  + theme(axis.title = element_text(size = 12), axis.text = element_text(size = 9)),
+      get_legend(panelB_PCoA + guides(color = guide_legend(ncol = 1, position = "right"))), 
+      
+      nrow = 1, widths = c(1,0.2), labels = c("C", "")
+      ),
+  
+  panelG_diffAbund2 + 
+    coord_flip() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), 
+          legend.position = "bottom") + 
+    labs(x = expression(log[2]~Fold~Change), y = NULL) + 
+    theme(axis.title = element_text(size = 12)),
+  
+  nrow = 3, 
+  heights = c(1, 0.25, 1), labels = c("", "", "D"))
+
+ggsave(plot = microbiome_panel_MainText, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_MainText.svg"), width = 11, height = 13)
 
 microbiome_panel_MainText
 
@@ -2240,16 +2323,13 @@ microbiome_panel_MainText
 
 ```{r}
 microbiome_panel_Supplementary <- ggarrange(
-  ggarrange(
-    panelD_Obs_boxplot + theme(legend.position = "none"),
-    panelE_Shannon_boxplot + xlab(" ") + theme(axis.title.x = element_text(size = 34), legend.position = "none"),
-    nrow = 2, labels = c("A", "B")),
-  panelG_diffAbund, 
-  widths = c(0.5,1), 
-  labels = c("", "C")
-  ) %>% ggarrange(get_legend(panelB_PCoA), ., heights = c(0.1,1), ncol = 1)
+    panelD_Obs_boxplot + theme(axis.ticks.x = element_blank()) + scale_y_continuous(expand = expansion(mult = 0.08)),
+    panelE_Shannon_boxplot + theme(axis.ticks.x = element_blank()) + scale_y_continuous(expand = expansion(mult = 0.08)),
+    panelF_FB.Ratio + theme(axis.ticks.x = element_blank()) + scale_y_continuous(expand = expansion(mult = 0.08)),
+    nrow = 1, labels = c("A", "B", "C"), 
+common.legend = TRUE)
 
-ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_Supplementary.svg"), width = 9, height = 8)
+ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_Supplementary.svg"), width = 10, height = 4)
 
 microbiome_panel_Supplementary
 ```
@@ -2317,7 +2397,6 @@ beam_steps_assoc_microbiome <- maaslin3(
   )
 
 beam_steps_assoc_microbiome_clean <- biobakeryUtils::add_taxonomy_to_maaslin3(beam_steps_assoc_microbiome, MetaPhlAn_bCL.tse, taxLevel = params$tax_level)
-
 readRDS(file.path(tempdir(), "figures", "summary_plot_gg.RDS"))
 ```
 
