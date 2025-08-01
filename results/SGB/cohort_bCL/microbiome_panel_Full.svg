@@ -997,7 +997,7 @@
 <text transform='translate(782.90,259.08) rotate(-90)' style='font-size: 8.80px; font-weight: bold;fill: #4D4D4D; font-family: "Arial";' textLength='9.78px' lengthAdjust='spacingAndGlyphs'>vs</text>
 <text transform='translate(782.90,246.57) rotate(-90)' style='font-size: 8.80px; font-weight: bold;fill: #00868B; font-family: "Arial";' textLength='42.53px' lengthAdjust='spacingAndGlyphs'>Thy1-ASO</text>
 <text transform='translate(782.90,198.48) rotate(-90)' style='font-size: 8.80px; font-weight: bold;fill: #00868B; font-family: "Arial";' textLength='35.20px' lengthAdjust='spacingAndGlyphs'>benCom</text>
-<text transform='translate(654.61,95.63) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='158.28px' lengthAdjust='spacingAndGlyphs'>Bray-Curtis pairwise dissimilarity</text>
+<text transform='translate(654.61,95.63) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='161.31px' lengthAdjust='spacingAndGlyphs'>Bray-Curtis Pairwise Dissimilarity</text>
 <text x='646.30' y='43.27' style='font-size: 14.00px; font-weight: bold; font-family: "Arial";' textLength='10.11px' lengthAdjust='spacingAndGlyphs'>C</text>
 </g>
 <defs>

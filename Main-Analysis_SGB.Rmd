@@ -1184,7 +1184,7 @@ panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   ylim(0.3, 0.9) +
   labs(
     x = "",
-    y = "Bray-Curtis pairwise dissimilarity"
+    y = "Bray-Curtis Pairwise Dissimilarity"
   )
 
 # make a horizontal version just in case
@@ -1209,7 +1209,7 @@ panelC_pairwise_dissim_boxplot_horiz <- pairwise_dissim_bray %>%
   xlim(0.3, 0.9) +
   labs(
     y = "",
-    x = "Bray-Curtis pairwise dissimilarity"
+    x = "Bray-Curtis Pairwise Dissimilarity"
   )
 
 ```
@@ -2091,7 +2091,7 @@ panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
   ylim(0.3, 0.9) +
   labs(
     x = "",
-    y = "Bray-Curtis pairwise dissimilarity"
+    y = "Bray-Curtis Pairwise Dissimilarity"
   )
 
 # make a horizontal version just in case
@@ -2116,7 +2116,7 @@ panelC_pairwise_dissim_boxplot_horiz <- pairwise_dissim_bray %>%
   xlim(0.3, 0.9) +
   labs(
     y = "",
-    x = "Bray-Curtis pairwise dissimilarity"
+    x = "Bray-Curtis Pairwise Dissimilarity"
   )
 
 ```
