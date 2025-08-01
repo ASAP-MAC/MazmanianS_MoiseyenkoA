@@ -2646,10 +2646,18 @@ e.coli_relAbund_plot
 
 # Overall Conclusions (to be done)
 
-# Save taxonomy table as supplementary
+# Save Supplementary tables
+
+## Default taxonomy table
 
 ```{r}
 write_tsv(as_tibble(rowData(MetaPhlAn.tse)), file = file.path(params$basic_outdir, params$tax_level, "Supplementary table 1 - taxonomy.tsv"))
+```
+
+# GTDB taxonomy table (only relevant bacteria)
+
+```{r}
+write_tsv(filter(GTDB.df, SGB %in% gsub("t__", "", rowData(MetaPhlAn.tse)$SGB)), file = file.path(params$basic_outdir, params$tax_level, "Supplementary table 2 - taxonomy GTDB.tsv"))
 ```
 
 
