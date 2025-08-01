@@ -335,7 +335,7 @@ tmp.tse
 # define experiment name and output directories
 maaslin3_expmt <- "treatments_vs_Control_in_Thy1-ASO"
 maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, cohort_subdir, maaslin3_expmt)
-maaslin3_final_outdir <- file.path(params$basic_outdir, params$humann_data_type, cohort_subdir, maaslin3_expmt)
+maaslin3_final_outdir <- file.path(output_directories.list$cohort_Fp7_Dir, maaslin3_expmt)
 
 # crate temporary output directory
 dir.create(maaslin3_tmp_outdir, showWarnings = FALSE, recursive = TRUE)
