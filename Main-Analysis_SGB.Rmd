@@ -118,7 +118,7 @@ MetaPhlAn.tse <- suppressMessages(biobakeryUtils::loadMetagenomicData(cache_tabl
 important_pieces_from_parkinsonsMetagenomicData <- MetaPhlAn.tse %>% 
   colData() %>% 
   as.data.frame() %>% 
-  select(uuid, number_reads)
+  dplyr::select(uuid, number_reads)
 
 ## generate a new colData data.frame with rows already ordered
 new_colData <- as.data.frame(dplyr::left_join(metadata.df, important_pieces_from_parkinsonsMetagenomicData, by = "uuid"))
@@ -248,7 +248,7 @@ We need to rely on other methods.
 
 ```{r, fig.cap="Heatmap of full microbiome composition of the dataset. Relative abundances have been Z-scaled by taxon, to account for intrinsic differences in relative abundances in the microbiome"}
 
-pheatmap::pheatmap(assay(MetaPhlAn.tse) %>% magrittr::set_colnames(colData(MetaPhlAn.tse)$sample_name), scale = "row", annotation_col = colData(MetaPhlAn.tse) %>% as.data.frame() %>%  magrittr::set_rownames(.$sample_name) %>% select(treatment, cohort), angle_col = 315, show_rownames = FALSE)
+pheatmap::pheatmap(assay(MetaPhlAn.tse) %>% magrittr::set_colnames(colData(MetaPhlAn.tse)$sample_name), scale = "row", annotation_col = colData(MetaPhlAn.tse) %>% as.data.frame() %>%  magrittr::set_rownames(.$sample_name) %>% dplyr::select(treatment, cohort), angle_col = 315, show_rownames = FALSE)
 
 ```
 
@@ -646,9 +646,9 @@ MetaPhlAn_Fp7.tse <- mia::addMDS(
 variances_explained <- attr(reducedDim(MetaPhlAn_Fp7.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7.tse)), reducedDim(MetaPhlAn_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+Fp7_colData_for_PCoA.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7.tse)), reducedDim(MetaPhlAn_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
-beta_plot_basic <- project1_meta_with_MDS.df %>% 
+beta_plot_basic <- Fp7_colData_for_PCoA.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = genotype_treatment_legend, label = cage)) + 
   geom_text() +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
@@ -685,9 +685,9 @@ MetaPhlAn_Fp7_noWT.tse <- mia::addMDS(
 variances_explained <- attr(reducedDim(MetaPhlAn_Fp7_noWT.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7_noWT.tse)), reducedDim(MetaPhlAn_Fp7_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+Fp7_colData_for_PCoA.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7_noWT.tse)), reducedDim(MetaPhlAn_Fp7_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
-beta_plot_basic <- project1_meta_with_MDS.df %>% 
+beta_plot_basic <- Fp7_colData_for_PCoA.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
@@ -741,7 +741,7 @@ pairwise_dissim_bray <- reshape2::melt(mtx) %>%
   filter(complete.cases(.)) %>%
   dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_Fp7.tse)) %>% transmute(Var1 = uuid, genotype_treatment_legend = genotype_treatment_legend), by = "Var1") %>% 
   dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_Fp7.tse)) %>% transmute(Var2 = uuid, genotype_treatment_legend = genotype_treatment_legend), by = "Var2") %>% 
-  select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
+  dplyr::select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
   mutate(pairs = paste(genotype_treatment_legend.y, genotype_treatment_legend.x, sep = " vs ")) %>% 
   filter(genotype_treatment_legend.x != genotype_treatment_legend.y)
 
@@ -1114,9 +1114,9 @@ MetaPhlAn_Fp7.tse <- addPERMANOVA(MetaPhlAn_Fp7.tse,
 variances_explained <- attr(reducedDim(MetaPhlAn_Fp7.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7.tse)), reducedDim(MetaPhlAn_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+Fp7_colData_for_PCoA.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_Fp7.tse)), reducedDim(MetaPhlAn_Fp7.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
-panelB_PCoA <- project1_meta_with_MDS.df %>% 
+panelB_PCoA <- Fp7_colData_for_PCoA.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_point(size = 2.5, stroke = 1, color = "black") +
   geom_point(size = 2.5) +
@@ -1442,7 +1442,7 @@ colData(MetaPhlAn_Fp7.tse) <- new_df
 
 ```
 
-```{r}
+```{r, fig.height=7, fig.width=6}
 motor_variables <- grepv("beam|pole", colnames(colData(MetaPhlAn_Fp7.tse)))
 
 comparisons <- combn(levels(colData(MetaPhlAn_Fp7.tse)$genotype_treatment_legend), 2, simplify = FALSE)
@@ -1497,7 +1497,97 @@ readRDS(file.path(tempdir(), "figures", "summary_plot_gg.RDS"))
 DT::datatable(beam_steps_assoc_microbiome$fit_data_abundance$results)
 ```
 
-## Fecal output association with the microbiome
+### Mediation analysis on `beam_slips_n` {.tabset}
+
+```{r}
+library(mediation)
+
+# simple function to tidy a mediation analysis object
+tidy_mediation <- function(mediation.model){
+  med_summary <- summary(mediation.model)
+  results_df <- data.frame(
+    Effect = c("ACME", "ADE", "Total Effect", "Prop. Mediated"),
+    Estimate = c(med_summary$z.avg, med_summary$d.avg, med_summary$tau.coef, med_summary$n.avg),
+    CI_Lower_95 = c(med_summary$z.avg.ci[1], med_summary$d.avg.ci[1], med_summary$tau.ci[1], med_summary$n.avg.ci[1]),
+    CI_Upper_95 = c(med_summary$z.avg.ci[2], med_summary$d.avg.ci[2], med_summary$tau.ci[2], med_summary$n.avg.ci[2]),
+    P_Value = c(med_summary$z.avg.p, med_summary$d.avg.p, med_summary$tau.p, med_summary$n.avg.p)
+  )
+  
+  return(results_df)
+}
+
+
+mediationData.df <- cbind.data.frame(
+  as.data.frame(colData(MetaPhlAn_Fp7.tse)), 
+as.data.frame(reducedDim(MetaPhlAn_Fp7.tse, dimRedName))) %>% 
+  dplyr::rename(
+    PCo.1 = V1, 
+    PCo.2 = V2,
+    PCo.3 = V3
+    ) %>% 
+  filter(
+    # remove NAs from covariates of interest
+    complete.cases(dplyr::select(., contains("PCo"), genotype_treatment, beam_slips_n)), 
+    # remove WT Control and use ASO control as baseline
+    genotype_treatment != "WT Control"
+    ) %>% 
+  mutate(
+    treatment = droplevels(treatment)
+  )
+
+table(mediationData.df$genotype_treatment)
+
+mediations_micrombiome <- sapply(grepv("PCo", colnames(mediationData.df)), function(x) {
+  mediation.lm <- lm(as.formula(paste(x, "treatment", sep = "~")), data = mediationData.df)
+  outcome.lm <- lm(as.formula(paste("beam_slips_n ~ treatment",  x, sep = "+")), data = mediationData.df)
+  return(
+    list(
+      mediator.lm = mediation.lm,
+      outcome.lm = outcome.lm,
+      mediation.analysis = mediate(
+        model.m = mediation.lm,
+        model.y = outcome.lm,
+        sims = 1000,
+        treat = "treatment",
+        mediator = x,
+        boot = FALSE,
+        robustSE = TRUE
+      )
+    )
+  )
+}, simplify = FALSE, USE.NAMES=TRUE)
+
+set.seed(1234)
+
+
+mediations_micrombiome %>% 
+  lapply("[[", "mediation.analysis") %>% 
+  lapply(tidy_mediation) %>% 
+  bind_rows(.id = "PCo") %>% 
+write_tsv(file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "PCo1-3_mediation_beam_slips_n_ASO_treat_vs_ASO_ctrl.tsv"))
+```
+
+#### PCo 1
+
+```{r}
+summary(mediations_micrombiome$PCo.1$mediation.analysis)
+```
+
+#### PCo 2
+
+```{r}
+summary(mediations_micrombiome$PCo.2$mediation.analysis)
+```
+
+#### PCo 3
+
+```{r}
+summary(mediations_micrombiome$PCo.3$mediation.analysis)
+```
+
+### {-}
+
+## Constipation association with the microbiome
 
 ```{r}
 fecal_output_variab <- grepv("fecal|carmine|bead", colnames(colData(MetaPhlAn_Fp7.tse)))
@@ -1527,6 +1617,96 @@ fecal_output_per_group.gg.list <- sapply(fecal_output_variab, function(fec) {
 ggarrange(plotlist = fecal_output_per_group.gg.list, common.legend = TRUE)
 ```
 
+### Mediation analysis on `bead_expulsion_min` {.tabset}
+
+```{r}
+library(mediation)
+
+# simple function to tidy a mediation analysis object
+tidy_mediation <- function(mediation.model){
+  med_summary <- summary(mediation.model)
+  results_df <- data.frame(
+    Effect = c("ACME", "ADE", "Total Effect", "Prop. Mediated"),
+    Estimate = c(med_summary$z.avg, med_summary$d.avg, med_summary$tau.coef, med_summary$n.avg),
+    CI_Lower_95 = c(med_summary$z.avg.ci[1], med_summary$d.avg.ci[1], med_summary$tau.ci[1], med_summary$n.avg.ci[1]),
+    CI_Upper_95 = c(med_summary$z.avg.ci[2], med_summary$d.avg.ci[2], med_summary$tau.ci[2], med_summary$n.avg.ci[2]),
+    P_Value = c(med_summary$z.avg.p, med_summary$d.avg.p, med_summary$tau.p, med_summary$n.avg.p)
+  )
+  
+  return(results_df)
+}
+
+
+mediationData.df <- cbind.data.frame(
+  as.data.frame(colData(MetaPhlAn_Fp7.tse)), 
+as.data.frame(reducedDim(MetaPhlAn_Fp7.tse, dimRedName))) %>% 
+  dplyr::rename(
+    PCo.1 = V1, 
+    PCo.2 = V2,
+    PCo.3 = V3
+    ) %>% 
+  filter(
+    # remove NAs from covariates of interest
+    complete.cases(dplyr::select(., contains("PCo"), genotype_treatment, bead_expulsion_min)), 
+    # remove WT Control and use ASO control as baseline
+    genotype_treatment != "WT Control"
+    ) %>% 
+  mutate(
+    treatment = droplevels(treatment)
+  )
+
+table(mediationData.df$genotype_treatment)
+
+mediations_micrombiome <- sapply(grepv("PCo", colnames(mediationData.df)), function(x) {
+  mediation.lm <- lm(as.formula(paste(x, "treatment", sep = "~")), data = mediationData.df)
+  outcome.lm <- lm(as.formula(paste("bead_expulsion_min ~ treatment",  x, sep = "+")), data = mediationData.df)
+  return(
+    list(
+      mediator.lm = mediation.lm,
+      outcome.lm = outcome.lm,
+      mediation.analysis = mediate(
+        model.m = mediation.lm,
+        model.y = outcome.lm,
+        sims = 1000,
+        treat = "treatment",
+        mediator = x,
+        boot = FALSE,
+        robustSE = TRUE
+      )
+    )
+  )
+}, simplify = FALSE, USE.NAMES=TRUE)
+
+set.seed(1234)
+
+
+mediations_micrombiome %>% 
+  lapply("[[", "mediation.analysis") %>% 
+  lapply(tidy_mediation) %>% 
+  bind_rows(.id = "PCo") %>% 
+write_tsv(file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "PCo1-3_mediation_bead_expulsion_min_ASO_treat_vs_ASO_ctrl.tsv"))
+```
+
+#### PCo 1
+
+```{r}
+summary(mediations_micrombiome$PCo.1$mediation.analysis)
+```
+
+#### PCo 2
+
+```{r}
+summary(mediations_micrombiome$PCo.2$mediation.analysis)
+```
+
+#### PCo 3
+
+```{r}
+summary(mediations_micrombiome$PCo.3$mediation.analysis)
+```
+
+### {-}
+
 # Cohort bCL
 
 ```{r}
@@ -1553,9 +1733,9 @@ MetaPhlAn_bCL.tse <- mia::addMDS(
 variances_explained <- attr(reducedDim(MetaPhlAn_bCL.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL.tse)), reducedDim(MetaPhlAn_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+bCL_colData_for_PCoA.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL.tse)), reducedDim(MetaPhlAn_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
-beta_plot_basic <- project1_meta_with_MDS.df %>% 
+beta_plot_basic <- bCL_colData_for_PCoA.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = genotype_treatment_legend, label = cage)) + 
   geom_text() +
   ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
@@ -1592,9 +1772,9 @@ MetaPhlAn_bCL_noWT.tse <- mia::addMDS(
 variances_explained <- attr(reducedDim(MetaPhlAn_bCL_noWT.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL_noWT.tse)), reducedDim(MetaPhlAn_bCL_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+bCL_colData_for_PCoA.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL_noWT.tse)), reducedDim(MetaPhlAn_bCL_noWT.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
-beta_plot_basic <- project1_meta_with_MDS.df %>% 
+beta_plot_basic <- bCL_colData_for_PCoA.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend)) + 
   geom_point(size = 2) + 
   stat_ellipse(show.legend = FALSE) + 
@@ -1648,7 +1828,7 @@ pairwise_dissim_bray <- reshape2::melt(mtx) %>%
   filter(complete.cases(.)) %>%
   dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_bCL.tse)) %>% transmute(Var1 = uuid, genotype_treatment_legend = genotype_treatment_legend), by = "Var1") %>% 
   dplyr::inner_join(., as.data.frame(colData(MetaPhlAn_bCL.tse)) %>% transmute(Var2 = uuid, genotype_treatment_legend = genotype_treatment_legend), by = "Var2") %>% 
-  select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
+  dplyr::select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
   mutate(pairs = paste(genotype_treatment_legend.y, genotype_treatment_legend.x, sep = " vs ")) %>% 
   filter(genotype_treatment_legend.x != genotype_treatment_legend.y)
 
@@ -2021,9 +2201,9 @@ MetaPhlAn_bCL.tse <- addPERMANOVA(MetaPhlAn_bCL.tse,
 variances_explained <- attr(reducedDim(MetaPhlAn_bCL.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
 
-project1_meta_with_MDS.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL.tse)), reducedDim(MetaPhlAn_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+bCL_colData_for_PCoA.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn_bCL.tse)), reducedDim(MetaPhlAn_bCL.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
 
-panelB_PCoA <- project1_meta_with_MDS.df %>% 
+panelB_PCoA <- bCL_colData_for_PCoA.df %>% 
 ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_point(size = 2.5, stroke = 1, color = "black") +
   geom_point(size = 2.5) +
@@ -2349,7 +2529,7 @@ colData(MetaPhlAn_bCL.tse) <- new_df
 
 ```
 
-```{r}
+```{r, fig.height=7, fig.width=6}
 motor_variables <- grepv("beam|pole", colnames(colData(MetaPhlAn_bCL.tse)))
 
 comparisons <- combn(levels(colData(MetaPhlAn_bCL.tse)$genotype_treatment_legend), 2, simplify = FALSE)
@@ -2404,7 +2584,97 @@ readRDS(file.path(tempdir(), "figures", "summary_plot_gg.RDS"))
 DT::datatable(beam_steps_assoc_microbiome$fit_data_abundance$results)
 ```
 
-## Fecal output association with the microbiome
+### Mediation analysis on `beam_slips_n` {.tabset}
+
+```{r}
+library(mediation)
+
+# simple function to tidy a mediation analysis object
+tidy_mediation <- function(mediation.model){
+  med_summary <- summary(mediation.model)
+  results_df <- data.frame(
+    Effect = c("ACME", "ADE", "Total Effect", "Prop. Mediated"),
+    Estimate = c(med_summary$z.avg, med_summary$d.avg, med_summary$tau.coef, med_summary$n.avg),
+    CI_Lower_95 = c(med_summary$z.avg.ci[1], med_summary$d.avg.ci[1], med_summary$tau.ci[1], med_summary$n.avg.ci[1]),
+    CI_Upper_95 = c(med_summary$z.avg.ci[2], med_summary$d.avg.ci[2], med_summary$tau.ci[2], med_summary$n.avg.ci[2]),
+    P_Value = c(med_summary$z.avg.p, med_summary$d.avg.p, med_summary$tau.p, med_summary$n.avg.p)
+  )
+  
+  return(results_df)
+}
+
+
+mediationData.df <- cbind.data.frame(
+  as.data.frame(colData(MetaPhlAn_bCL.tse)), 
+as.data.frame(reducedDim(MetaPhlAn_bCL.tse, dimRedName))) %>% 
+  dplyr::rename(
+    PCo.1 = V1, 
+    PCo.2 = V2,
+    PCo.3 = V3
+    ) %>% 
+  filter(
+    # remove NAs from covariates of interest
+    complete.cases(dplyr::select(., contains("PCo"), genotype_treatment, beam_slips_n)), 
+    # remove WT Control and use ASO control as baseline
+    genotype_treatment != "WT Control"
+    ) %>% 
+  mutate(
+    treatment = droplevels(treatment)
+  )
+
+table(mediationData.df$genotype_treatment)
+
+mediations_micrombiome <- sapply(grepv("PCo", colnames(mediationData.df)), function(x) {
+  mediation.lm <- lm(as.formula(paste(x, "treatment", sep = "~")), data = mediationData.df)
+  outcome.lm <- lm(as.formula(paste("beam_slips_n ~ treatment",  x, sep = "+")), data = mediationData.df)
+  return(
+    list(
+      mediator.lm = mediation.lm,
+      outcome.lm = outcome.lm,
+      mediation.analysis = mediate(
+        model.m = mediation.lm,
+        model.y = outcome.lm,
+        sims = 1000,
+        treat = "treatment",
+        mediator = x,
+        boot = FALSE,
+        robustSE = TRUE
+      )
+    )
+  )
+}, simplify = FALSE, USE.NAMES=TRUE)
+
+set.seed(1234)
+
+
+mediations_micrombiome %>% 
+  lapply("[[", "mediation.analysis") %>% 
+  lapply(tidy_mediation) %>% 
+  bind_rows(.id = "PCo") %>% 
+write_tsv(file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "PCo1-3_mediation_beam_slips_n_ASO_treat_vs_ASO_ctrl.tsv"))
+```
+
+#### PCo 1
+
+```{r}
+summary(mediations_micrombiome$PCo.1$mediation.analysis)
+```
+
+#### PCo 2
+
+```{r}
+summary(mediations_micrombiome$PCo.2$mediation.analysis)
+```
+
+#### PCo 3
+
+```{r}
+summary(mediations_micrombiome$PCo.3$mediation.analysis)
+```
+
+### {-}
+
+## Constipation association with the microbiome
 
 ```{r}
 fecal_output_variab <- grepv("fecal|carmine|bead", colnames(colData(MetaPhlAn_bCL.tse)))
@@ -2433,6 +2703,96 @@ fecal_output_per_group.gg.list <- sapply(fecal_output_variab, function(fec) {
 
 ggarrange(plotlist = fecal_output_per_group.gg.list, common.legend = TRUE)
 ```
+
+### Mediation analysis on `bead_expulsion_min` {.tabset}
+
+```{r}
+library(mediation)
+
+# simple function to tidy a mediation analysis object
+tidy_mediation <- function(mediation.model){
+  med_summary <- summary(mediation.model)
+  results_df <- data.frame(
+    Effect = c("ACME", "ADE", "Total Effect", "Prop. Mediated"),
+    Estimate = c(med_summary$z.avg, med_summary$d.avg, med_summary$tau.coef, med_summary$n.avg),
+    CI_Lower_95 = c(med_summary$z.avg.ci[1], med_summary$d.avg.ci[1], med_summary$tau.ci[1], med_summary$n.avg.ci[1]),
+    CI_Upper_95 = c(med_summary$z.avg.ci[2], med_summary$d.avg.ci[2], med_summary$tau.ci[2], med_summary$n.avg.ci[2]),
+    P_Value = c(med_summary$z.avg.p, med_summary$d.avg.p, med_summary$tau.p, med_summary$n.avg.p)
+  )
+  
+  return(results_df)
+}
+
+
+mediationData.df <- cbind.data.frame(
+  as.data.frame(colData(MetaPhlAn_bCL.tse)), 
+as.data.frame(reducedDim(MetaPhlAn_bCL.tse, dimRedName))) %>% 
+  dplyr::rename(
+    PCo.1 = V1, 
+    PCo.2 = V2,
+    PCo.3 = V3
+    ) %>% 
+  filter(
+    # remove NAs from covariates of interest
+    complete.cases(dplyr::select(., contains("PCo"), genotype_treatment, bead_expulsion_min)), 
+    # remove WT Control and use ASO control as baseline
+    genotype_treatment != "WT Control"
+    ) %>% 
+  mutate(
+    treatment = droplevels(treatment)
+  )
+
+table(mediationData.df$genotype_treatment)
+
+mediations_micrombiome <- sapply(grepv("PCo", colnames(mediationData.df)), function(x) {
+  mediation.lm <- lm(as.formula(paste(x, "treatment", sep = "~")), data = mediationData.df)
+  outcome.lm <- lm(as.formula(paste("bead_expulsion_min ~ treatment",  x, sep = "+")), data = mediationData.df)
+  return(
+    list(
+      mediator.lm = mediation.lm,
+      outcome.lm = outcome.lm,
+      mediation.analysis = mediate(
+        model.m = mediation.lm,
+        model.y = outcome.lm,
+        sims = 1000,
+        treat = "treatment",
+        mediator = x,
+        boot = FALSE,
+        robustSE = TRUE
+      )
+    )
+  )
+}, simplify = FALSE, USE.NAMES=TRUE)
+
+set.seed(1234)
+
+
+mediations_micrombiome %>% 
+  lapply("[[", "mediation.analysis") %>% 
+  lapply(tidy_mediation) %>% 
+  bind_rows(.id = "PCo") %>% 
+write_tsv(file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "PCo1-3_mediation_bead_expulsion_min_ASO_treat_vs_ASO_ctrl.tsv"))
+```
+
+#### PCo 1
+
+```{r}
+summary(mediations_micrombiome$PCo.1$mediation.analysis)
+```
+
+#### PCo 2
+
+```{r}
+summary(mediations_micrombiome$PCo.2$mediation.analysis)
+```
+
+#### PCo 3
+
+```{r}
+summary(mediations_micrombiome$PCo.3$mediation.analysis)
+```
+
+### {-}
 
 # Track probiotic species across all samples
 
