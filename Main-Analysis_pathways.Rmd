@@ -1,0 +1,377 @@
+---
+title: "Probiotics to the rescue: F. prausnitzii and beneficial communities to re-establish motor performance in Parkinson mouse models"
+subtitle: "Data: HUMAnN 3.9 unstratified pathways"
+author: "Anastasia Moiseyenko, Giacomo Antonello, Nicola Segata, Levi Waldron, Sarkis Mazmanian"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    self_contained: true
+    toc_depth: 3
+    code_folding: hide
+    toc_float: true
+    number_sections: true
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    use_bookdown: true
+    highlight: haddock
+params:
+  basic_outdir: "results"
+  microbiome_basic_transform: "RelAbund"
+  humann_data_type: "pathway"
+  beta_dist: "bray"
+  beta_MDS: "MDS"
+---
+
+```{r}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+```{r, include=FALSE}
+# packages for tabular data manipulation
+library(tidyverse)
+library(data.table)
+
+# microbiome specific packages
+library(maaslin3)
+library(mia)
+# some packages for data visualization (plots and tables)
+library(miaViz)
+library(pheatmap)
+library(UpSetR)
+library(ggpubr)
+library(kableExtra)
+library(reactable)
+library(ggtext)
+# MAC's package to download data
+library(parkinsonsMetagenomicData)
+
+library(ggh4x) # for complex ggplot2 faceting
+# remotes::install_github("cmarti n/ggConvexHull")
+library(ggConvexHull) # for convex hulls geometries
+# set ggplot2 plot themes 
+theme_set(theme_light())
+# set seed for reproducibility
+set.seed(1234)
+
+library(biobakeryUtils)
+
+joe_palette <- c("WT Control" = "#b2df8a", "Thy1-ASO Control" = "#a6cee3", "Thy1-ASO *F. prausnitzii*" = "#1f78b4", "Thy1-ASO F. prausnitzii" = "#1f78b4", "Thy1-ASO benCom" = "turquoise4")
+```
+
+# Create output directories all in one chunk
+
+```{r}
+
+output_directories.list <- list(
+  # basic output directory for SGB
+  baseDir = file.path(params$basic_outdir, params$humann_data_type),
+  # alpha diversity directory
+  alpha_div_outdir = file.path(params$basic_outdir, params$humann_data_type, "01_alpha_diversity"),
+  # beta diversity output directory
+  beta_div_outdir = file.path(params$basic_outdir, params$humann_data_type, "02_beta_diversity"),
+  # differential abundance temporary directory
+  maaslin_tmpdir = "~/Documents/maaslin3_tmp_results/mazmanian_Ana",
+  # cohort Fp7 directory
+  cohort_Fp7_Dir = file.path(params$basic_outdir, params$humann_data_type, "cohort_Fp7"),
+  # cohort Fp7 directory
+  cohort_bCL_Dir = file.path(params$basic_outdir, params$humann_data_type, "cohort_bCL")
+)
+
+tmp_out <- capture.output(sapply(output_directories.list, dir.create, showWarnings = FALSE, recursive = TRUE))
+rm(tmp_out)
+```
+
+# Prepare data for analysis
+
+THis is run only if interactive to avoid careless overwriting
+
+```{r, eval=interactive(), message=FALSE}
+
+# Load metadata
+# Load metadata
+metadata.df <- read_tsv("Data/metadata_5.0.tsv") %>% 
+  # format a few values in the metadata
+  mutate(
+    genotype = as.factor(genotype) %>% relevel(ref = "WT"),
+    cage = as.factor(cage),
+    cohort = as.factor(cohort),
+    subcohort = as.factor(subcohort),
+    treatment = as.factor(treatment) %>% relevel(ref = "Control"), 
+    treatment_legend = as.factor(gsub("F. prausnitzii", "*F. prausnitzii*", treatment)) %>% relevel(ref = "Control"), 
+    genotype_treatment = paste(genotype, treatment) %>% factor(levels = c("WT Control", "Thy1-ASO Control", "Thy1-ASO F. prausnitzii", "Thy1-ASO benCom")),
+    genotype_treatment_legend = paste(genotype, treatment_legend) %>% factor(levels = c("WT Control", "Thy1-ASO Control", "Thy1-ASO *F. prausnitzii*", "Thy1-ASO benCom"))
+    )
+
+rownames(metadata.df) <- metadata.df$uuid
+
+
+googleCloudStorageR::gcs_auth(json_file = "~/Downloads/curatedmetagenomicdata-232f4a306d1d.json")
+
+# HUMAnN_3.9 pathway abundance unstratified
+humann_unstrat_cache <- cacheMetagenomicData(metadata.df$uuid, data_type = "pathabundance_unstratified", redownload = "no")
+
+humann_unstrat.se <- parkinsonsMetagenomicData::loadMetagenomicData(humann_unstrat_cache)
+
+# identical(metadata.df$uuid, colnames(humann_basic_obj.se)) # TRUE
+
+colData(humann_unstrat.se) <- DataFrame(metadata.df)
+assayNames(humann_unstrat.se) <- "AbsAbund"
+# round assay values to closest integer
+assay(humann_unstrat.se, "AbsAbund_rounded") <- round(assay(humann_unstrat.se), 0)
+# create a relabund assay as well
+assay(humann_unstrat.se, "RelAbund") <- apply(assay(humann_unstrat.se), 2, function(x) x/sum(x))
+
+InputHumannData.tse <- TreeSummarizedExperiment(assays = assays(humann_unstrat.se), colData = DataFrame(metadata.df))
+
+saveRDS(InputHumannData.tse, "Data/InputHumannData.tse.Rds")
+```
+
+```{r}
+InputHumannData.tse <- readRDS("Data/InputHumannData.tse.Rds")
+InputHumannData.tse
+```
+
+# Abundance of fermentative pathways in Fp7 {.tabset}
+
+```{r}
+cohort_subdir <- "Fp7"
+InputHumannData_Fp7.tse <- InputHumannData.tse[,colData(InputHumannData.tse)$cohort == cohort_subdir]
+
+fermentative_pathways <- grep("acetate|propionate|butanoate|butyrate|caproate|formate|valerate|lactate", rownames(InputHumannData_Fp7.tse), value = TRUE)
+names(fermentative_pathways) <- fermentative_pathways
+fermentative_pathways <- sapply(strsplit(fermentative_pathways, ": ", fixed = TRUE), "[", 2)
+fermentative_pathways
+```
+
+```{r, results="asis", warning=FALSE}
+moltenAssay_Abs <- meltSE(
+  InputHumannData_Fp7.tse,
+  add.col = c("genotype_treatment", "genotype_treatment_legend"),
+  assay.type = "AbsAbund"
+)
+moltenAssay_Rel <- meltSE(
+  InputHumannData_Fp7.tse,
+  add.col = c("genotype_treatment", "genotype_treatment_legend"),
+  assay.type = "RelAbund"
+)
+
+for (pathway in names(fermentative_pathways)) {
+  cat("\n##", pathway, sep = " ")
+  cat("\n")
+  
+  print(
+    ggarrange(
+      moltenAssay_Abs %>%
+        filter(pathway == FeatureID) %>%
+        
+        ggplot(
+          aes(x = genotype_treatment_legend, y = AbsAbund, color = genotype_treatment_legend)
+        ) +
+        geom_point(position = position_jitterdodge(
+          jitter.width = 0.3, seed = 1234
+        )) +
+        scale_color_manual(values = joe_palette) +
+        scale_fill_manual(values = joe_palette) + 
+        geom_boxplot(alpha = 0.4, outliers = FALSE) +
+        theme(legend.text = element_markdown(), axis.text.x = element_blank()) +
+        labs(
+          title = "Absolute Counts",
+          color = "Genotype-Treatment"
+          ),
+      
+        moltenAssay_Rel %>%
+        filter(pathway == FeatureID) %>%
+        
+        ggplot(
+          aes(x = genotype_treatment_legend, y = RelAbund, color = genotype_treatment_legend)
+        ) +
+        geom_point(position = position_jitterdodge(
+          jitter.width = 0.3, seed = 1234
+        )) +
+        scale_color_manual(values = joe_palette) +
+        scale_fill_manual(values = joe_palette) + 
+        geom_boxplot(alpha = 0.4, outliers = FALSE) +
+        theme(legend.text = element_markdown(), axis.text.x = element_blank()) +
+        labs(
+          title = "RelAbund Counts",
+          color = "Genotype-Treatment"
+          ),
+      common.legend = TRUE)
+  )
+  cat("\n")
+}
+
+```
+
+```{r, fig.height=9, fig.width=12, warning=FALSE}
+pairwise_wilcox_fermentativePathways <- moltenAssay_Abs %>%
+  filter(FeatureID %in% names(fermentative_pathways)[1:(length(fermentative_pathways) -
+                                                          2)]) %>%
+  mutate(FeatureID = sapply(strsplit(as.character(FeatureID), ": ", fixed = TRUE), "[", 2)) %>%
+  rstatix::group_by(FeatureID) %>%
+  rstatix::pairwise_wilcox_test(formula = AbsAbund ~ genotype_treatment_legend, p.adjust.method = "BH") %>%
+  rstatix::add_xy_position(x = "genotype_treatment_legend")
+
+pairwise_t.test_fermentativePathways <- moltenAssay_Abs %>%
+  filter(FeatureID %in% names(fermentative_pathways)[1:(length(fermentative_pathways) -
+                                                          2)]) %>%
+  mutate(FeatureID = sapply(strsplit(as.character(FeatureID), ": ", fixed = TRUE), "[", 2)) %>%
+  rstatix::group_by(FeatureID) %>%
+  rstatix::pairwise_t_test(formula = AbsAbund ~ genotype_treatment_legend, p.adjust.method = "BH") %>%
+  rstatix::add_xy_position(x = "genotype_treatment_legend")
+
+```
+
+## Single plot
+
+```{r, fig.height=8, fig.width=8, warning=FALSE}
+plots_as_facets <- moltenAssay_Abs %>%
+  filter(FeatureID %in% names(fermentative_pathways)[1:(length(fermentative_pathways) -
+                                                          2)]) %>%
+  mutate(FeatureID = sapply(strsplit(as.character(FeatureID), ": ", fixed = TRUE), "[", 2)) %>%
+  ggplot(aes(x = genotype_treatment_legend, y = AbsAbund, color = genotype_treatment_legend)) +
+  geom_point(position = position_jitterdodge(jitter.width = 0.3, seed = 1234)) +
+  scale_color_manual(values = joe_palette) +
+  scale_fill_manual(values = joe_palette) +
+  geom_boxplot(alpha = 0.4,
+               outliers = FALSE,
+               show.legend = FALSE) +
+  facet_wrap( ~ FeatureID, scales = "free_y") +
+  # stat_pvalue_manual(tmp, label= "p.adj") +
+  theme(
+    legend.text = element_markdown(),
+    axis.text.x = element_blank(),
+    legend.position = "top",
+    strip.text = element_text(color = "black"),
+    strip.background = element_rect(fill = "white", color = "gray")
+  ) +
+  labs(
+    x = "",
+    y = "Pathway Counts",
+    color = "Genotype-Treatment"
+  )
+
+ggsave(plot = plots_as_facets, filename = file.path(output_directories.list$cohort_Fp7_Dir, "fermentative_pathways_panel.svg"), height=8, width = 8)
+
+plots_as_facets
+
+```
+
+## Significance tables {.tabset}
+
+### wilcoxon
+
+```{r}
+pairwise_wilcox_fermentativePathways %>% 
+  arrange(p.adj) %>% 
+  select(FeatureID, group1, group2, n1, n2, p, p.adj) %>% 
+  kbl(caption = "table of pairwise wilcoxon tests grouped by Pathway. Rows are sorted by increasing p.adj (Benjamini-Hochberg FDR") %>% 
+  kable_styling()
+```
+
+### t-test
+
+```{r}
+pairwise_t.test_fermentativePathways %>% 
+  arrange(p.adj) %>% 
+  select(FeatureID, group1, group2, n1, n2, p, p.adj) %>% 
+  kbl(caption = "table of pairwise t-test tests grouped by Pathway. Rows are sorted by increasing p.adj (Benjamini-Hochberg FDR") %>% 
+  kable_styling()
+```
+
+# Bacteria contributing to each of these pathways?
+
+```{r}
+cache_humann_pathways_strat <- cacheMetagenomicData(InputHumannData_Fp7.tse@colData$uuid, data_type = "pathabundance_stratified")
+
+humann_pathways_strat <- parkinsonsMetagenomicData::loadMetagenomicData(cache_humann_pathways_strat)
+
+assay(humann_pathways_strat)[1:10, 1:8]
+```
+
+
+```{r}
+assay.df <- assay(humann_pathways_strat) %>% 
+  as.data.frame() %>% 
+  rownames_to_column("pathway")
+
+per_pathway_contributions.list.of.df <- lapply(fermentative_pathways, function(pwy) filter(assay.df, grepl(make.names(pwy), make.names(assay.df$pathway)))) %>% 
+  lapply(function(x){
+    return(data.frame(Feature = x$pathway, Abundance = rowSums(x[,-1])))
+  })
+
+per_pathway_contributions.df <- bind_rows(per_pathway_contributions.list.of.df) %>% 
+  separate_wider_delim(cols = Feature, delim = "|", names = c("Pathway", "contributor")) %>% 
+  group_by(Pathway) %>% 
+  mutate(
+    Percent = Abundance/sum(Abundance) * 100,
+    cumulativePercent = cumsum(Percent)
+    )
+
+per_pathway_contributions.df %>% 
+  mutate(across(where(is.double), ~ round(.x, 3))) %>% # Modern approach
+  reactable(
+    groupBy = "Pathway", 
+    striped = TRUE, 
+    columns = list(
+      "Pathway" = colDef(width = 500),
+      "contributor" = colDef(width = 500)
+    )
+  )
+```
+
+# Pathway-wide differential abundance
+
+```{r}
+# prepare input data
+tmp.tse <- InputHumannData_Fp7.tse[,InputHumannData_Fp7.tse@colData$genotype != "WT"]
+tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Control")
+tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
+tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, "AbsAbund")) > 0,]
+
+tmp.tse
+
+# define experiment name and output directories
+maaslin3_expmt <- "treatments_vs_Control_in_Thy1-ASO"
+maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, cohort_subdir, maaslin3_expmt)
+maaslin3_final_outdir <- file.path(output_directories.list$cohort_Fp7_Dir, maaslin3_expmt)
+
+# crate temporary output directory
+dir.create(maaslin3_tmp_outdir, showWarnings = FALSE, recursive = TRUE)
+
+# create definitive output directory
+dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
+```
+
+Results are stored in ``r maaslin3_final_outdir``
+
+```{r}
+set.seed(1234)
+treatments_vs_Control_in_Thy1ASO.maaslin3 <- maaslin3(
+    input_data = tmp.tse,
+    formula = ~ treatment, 
+    transform = "LOG",
+    output = maaslin3_tmp_outdir,
+    # do not standardize continuous metadata variables in the model
+    standardize = FALSE, 
+    plot_associations = TRUE,
+    save_plots_rds = TRUE,
+		verbosity = "ERROR"
+  )
+
+# add taxonomy
+treatments_vs_Control_in_Thy1ASO.maaslin3_curated <- list(abundance = treatments_vs_Control_in_Thy1ASO.maaslin3$fit_data_abundance$results,
+                                                          prevalence = treatments_vs_Control_in_Thy1ASO.maaslin3$fit_data_abundance$results)
+# write tables
+write_maaslin3_curated_tables(treatments_vs_Control_in_Thy1ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
+# save raw output
+saveRDS(treatments_vs_Control_in_Thy1ASO.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
+# copy their .RDS ggplot object 
+system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
+```
+
+```{r, fig.height=10, fig.width=16}
+readRDS(file = file.path(maaslin3_final_outdir, "summary_plot_gg.RDS"))
+```
+
