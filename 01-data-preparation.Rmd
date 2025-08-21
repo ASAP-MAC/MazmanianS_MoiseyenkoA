@@ -40,17 +40,18 @@ library(parkinsonsMetagenomicData) # remotes::install_github("ASAP-MAC/parkinson
 
 ```{r}
 
-metadata.df <- read_tsv("Data/metadata_4.0.tsv") %>% 
+metadata.df <- read_tsv("Data/metadata_5.0.tsv") %>% 
   # format a few values in the metadata
   mutate(
     genotype = as.factor(genotype) %>% relevel(ref = "WT"),
     cage = as.factor(cage),
     cohort = as.factor(cohort),
     subcohort = as.factor(subcohort),
-    treatment = as.factor(treatment) %>% relevel(ref = "Vehicle"), 
-    genotype_treatment = paste(genotype, treatment, sep = "|") %>% factor(levels = c("WT|Vehicle", "ASO|Vehicle", "ASO|Fp", "ASO|benCom"))
-    ) %>% 
-  as.data.frame()
+    treatment = as.factor(treatment) %>% relevel(ref = "Control"), 
+    treatment_legend = as.factor(gsub("F. prausnitzii", "*F. prausnitzii*", treatment)) %>% relevel(ref = "Control"), 
+    genotype_treatment = paste(genotype, treatment) %>% factor(levels = c("WT Control", "Thy1-ASO Control", "Thy1-ASO F. prausnitzii", "Thy1-ASO benCom")),
+    genotype_treatment_legend = paste(genotype, treatment_legend) %>% factor(levels = c("WT Control", "Thy1-ASO Control", "Thy1-ASO *F. prausnitzii*", "Thy1-ASO benCom"))
+  )
 
 rownames(metadata.df) <- metadata.df$uuid
 ```
@@ -59,12 +60,14 @@ rownames(metadata.df) <- metadata.df$uuid
 
 ```{r}
 
-cache_table <- cacheMetagenomicData(metadata.df$uuid, data_type = "relative_abundance", redownload = "no") 
+cache_table <- suppressMessages(cacheMetagenomicData(metadata.df$uuid, data_type = "relative_abundance", redownload = "no"))
 
-MetaPhlAn.tse <- suppressMessages(biobakeryUtils::loadMetagenomicData(cache_table))
+MetaPhlAn.tse <- suppressMessages(loadMetagenomicData(cache_table))
 
-# bypass the metadata including only what is important for us:
+# remove altExps, we don't need them
+altExps(MetaPhlAn.tse) <- NULL
 
+# replace the default metadata with the one that is important to us
 ## get uuid and number_reads
 important_pieces_from_parkinsonsMetagenomicData <- MetaPhlAn.tse %>% 
   colData() %>% 
@@ -75,13 +78,16 @@ important_pieces_from_parkinsonsMetagenomicData <- MetaPhlAn.tse %>%
 new_colData <- as.data.frame(dplyr::left_join(metadata.df, important_pieces_from_parkinsonsMetagenomicData, by = "uuid"))
 rownames(new_colData) <- new_colData$uuid
 new_colData <- new_colData[colnames(MetaPhlAn.tse),]
+
 ## replace the old colData with the new one
 colData(MetaPhlAn.tse) <- DataFrame(new_colData)
 
 # create assay of Relative abundance as opposed to metaphlan's default percent
 assay(MetaPhlAn.tse, "metaphlan_RelAbund") <- assay(MetaPhlAn.tse)/100
+
 # order relative abundance [0,1]assay first 
 assays(MetaPhlAn.tse) <- rev(assays(MetaPhlAn.tse))
+
 # create a new assay with approximated counts as relAbund * reads_processed
 assay(MetaPhlAn.tse, "metaphlan_Counts") <- t(round(apply(assay(MetaPhlAn.tse, "metaphlan_RelAbund"), 1, function(x) x * MetaPhlAn.tse@colData$number_reads), 0))
 
@@ -96,11 +102,13 @@ colnames(rowData(MetaPhlAn.tse))[which(colnames(rowData(MetaPhlAn.tse)) == "stra
 ## Save R object, taxonomy and profiles tables in a separate folder
 
 ```{r}
-write_TSE_to_dir(MetaPhlAn.tse, "Data")
+write_TSE_to_dir(tse = MetaPhlAn.tse, out.dir = "Data/MetaPhlAn.tse")
 # the following is not considered good practice, since the class is subject to 
 # changes that may break the serialization, which is why I build the function 
 # above
 saveRDS(MetaPhlAn.tse, "Data/MetaPhlAn.tse/MetaPhlAn.tse.Rds")
+
+tmp <- read_TSE_from_dir(tse.dir = "Data/MetaPhlAn.tse")
 ```
 
 # Prepare HUMAnN gene families profiles as a `TreeSummarizedExperiment` object

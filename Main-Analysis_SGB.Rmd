@@ -17,8 +17,8 @@ output:
     highlight: haddock
 params:
   basic_outdir: "results"
-  microbiome_basic_transform: "RelAbund"
-  tax_level: "SGB"
+  assayTested: "metaphlan_RelAbund"
+  microbiome_data_type: "SGB"
   beta_dist: "bray"
   beta_MDS: "MDS"
 ---
@@ -66,17 +66,13 @@ joe_palette <- c("WT Control" = "#b2df8a", "Thy1-ASO Control" = "#a6cee3", "Thy1
 
 output_directories.list <- list(
   # basic output directory for SGB
-  baseDir = file.path(params$basic_outdir, params$tax_level),
+  baseDir = file.path(params$basic_outdir, params$microbiome_data_type),
   # alpha diversity directory
-  alpha_div_outdir = file.path(params$basic_outdir, params$tax_level, "01_alpha_diversity"),
+  alpha_div_outdir = file.path(params$basic_outdir, params$microbiome_data_type, "01_alpha_diversity"),
   # beta diversity output directory
-  beta_div_outdir = file.path(params$basic_outdir, params$tax_level, "02_beta_diversity"),
-  # differential abundance temporary directory
-  maaslin_tmpdir = "~/Documents/maaslin3_tmp_results/mazmanian_Ana",
+  beta_div_outdir = file.path(params$basic_outdir, params$microbiome_data_type, "02_beta_diversity"),
   # cohort Fp7 directory
-  cohort_Fp7_Dir = file.path(params$basic_outdir, params$tax_level, "cohort_Fp7"),
-  # cohort Fp7 directory
-  cohort_bCL_Dir = file.path(params$basic_outdir, params$tax_level, "cohort_bCL")
+  cohort_Fp7_Dir = file.path(params$basic_outdir, params$microbiome_data_type, "cohort_Fp7")
 )
 
 tmp_out <- capture.output(sapply(output_directories.list, dir.create, showWarnings = FALSE, recursive = TRUE))
@@ -252,13 +248,13 @@ pheatmap::pheatmap(assay(MetaPhlAn.tse) %>% magrittr::set_colnames(colData(MetaP
 
 ```
 
-# Analyses are performed at the `r params$tax_level` level
+# Analyses are performed at the `r params$microbiome_data_type` level
 
 Below the `TreeSummarizedExperiment` object summary that is going to be used
 in all following analyses
 
 ```{r}
-MetaPhlAn.tse <- InputData_splitByRanks.tse[[params$tax_level]]
+MetaPhlAn.tse <- InputData_splitByRanks.tse[[params$microbiome_data_type]]
 
 MetaPhlAn.tse
 ```
@@ -376,7 +372,7 @@ table_results.df <- tmp %>% lapply(broom::tidy) %>%
   arrange(term) %>% 
   relocate(term)
 
-write_tsv(table_results.df, file = file.path(params$basic_outdir, params$tax_level, paste("cohort",cohort_subdir, sep = "_"),  "alphas_vs_genotype_treatment.tsv"))
+write_tsv(table_results.df, file = file.path(params$basic_outdir, params$microbiome_data_type, paste("cohort",cohort_subdir, sep = "_"),  "alphas_vs_genotype_treatment.tsv"))
 
 table_results.df %>%
   kbl() %>% 
@@ -404,7 +400,7 @@ table_results.df <- tmp %>% lapply(broom::tidy) %>%
   arrange(term) %>% 
   relocate(term)
 
-write_tsv(table_results.df, file = file.path(params$basic_outdir, params$tax_level, paste("cohort",cohort_subdir, sep = "_"),  "alphas_vs_genotype_treatment.tsv"))
+write_tsv(table_results.df, file = file.path(params$basic_outdir, params$microbiome_data_type, paste("cohort",cohort_subdir, sep = "_"),  "alphas_vs_genotype_treatment.tsv"))
 
 table_results.df %>%
   kbl() %>% 
@@ -512,10 +508,7 @@ tmp.tse
 
 # define experiment name and output directories
 maaslin3_expmt <- "genotype_vs_WT_ControlCtrl_bothCohorts"
-maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, maaslin3_expmt)
-maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, maaslin3_expmt)
-# crate temporary output directory
-dir.create(maaslin3_tmp_outdir, showWarnings = FALSE, recursive = TRUE)
+maaslin3_final_outdir <- file.path(params$basic_outdir, params$microbiome_data_type, maaslin3_expmt)
 # create definitive output directory
 dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
 ```
@@ -528,27 +521,34 @@ genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     input_data = tmp.tse,
     formula = ~ genotype + cohort, 
     transform = "LOG",
-    output = maaslin3_tmp_outdir,
+    output = maaslin3_final_outdir,
     # do not standardize continuous metadata variables in the model
     standardize = FALSE,
-    plot_associations = TRUE,
+    plot_associations = FALSE,
     save_plots_rds = TRUE,
 		verbosity = "ERROR"
   )
 
-# add taxonomy
-genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = genotype_differences_in_ctrls.maaslin3, tmp.tse, taxLevel = params$tax_level)
-# write tables
-write_maaslin3_curated_tables(genotype_differences_in_ctrls.maaslin3_curated, out.dir = maaslin3_final_outdir)
+## add taxonomy to output tables: all_results.tsv
+dplyr::full_join(as.data.frame(rowData(tmp.tse)), read_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
+  #arrange again based on increasing qval_individual
+  arrange(qval_individual) %>% 
+  write_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) 
+
+## add taxonomy to output tables: significant_results.tsv
+dplyr::full_join(as.data.frame(rowData(tmp.tse)), read_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
+  write_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv")) 
+
 # save raw output
-saveRDS(genotype_differences_in_ctrls.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
-# copy their .RDS ggplot object 
-system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
+saveRDS(genotype_differences_in_ctrls.maaslin3, file = file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
 ```
 
 ## Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
+genotype_differences_in_ctrls.maaslin3_curated <- read_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) %>% 
+  split.data.frame(.$model)
+
 top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
   filter(value == "Thy1-ASO") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
@@ -566,7 +566,7 @@ DT::datatable(
 
 ```{r, fig.height=6, fig.width=20}
 
-tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+tmpTop20.tse <- tmp.tse[top20_tmp_out$SGB,]
 rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
 
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
@@ -576,6 +576,7 @@ miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "
 ## Diff. Abundance - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
+
 top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$abundance %>% 
   filter(value == "Thy1-ASO") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
@@ -593,7 +594,7 @@ DT::datatable(
 
 ```{r, fig.height=6, fig.width=20}
 
-tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+tmpTop20.tse <- tmp.tse[top20_tmp_out$SGB,]
 rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
 
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
@@ -625,7 +626,7 @@ What could be the factor here?
 ```{r}
 cohort_subdir <- "cohort_Fp7"
 
-dir.create(file.path(params$basic_outdir, params$tax_level, cohort_subdir), showWarnings = FALSE, recursive = TRUE)
+dir.create(file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir), showWarnings = FALSE, recursive = TRUE)
 
 MetaPhlAn_Fp7.tse <- MetaPhlAn.tse[, MetaPhlAn.tse@colData$cohort == "Fp7"] 
 MetaPhlAn_Fp7.tse@colData$genotype_treatment <- droplevels(MetaPhlAn_Fp7.tse@colData$genotype_treatment)
@@ -663,7 +664,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = g
 ```
 
 ```{r, fig.height=6, fig.width=6}
-ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.svg", sep = "_")), dpi = 600, height = 6, width = 6)
+ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "plot.svg", sep = "_")), dpi = 600, height = 6, width = 6)
 
 beta_plot_basic
 ```
@@ -701,7 +702,7 @@ ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend)) +
 ```
 
 ```{r}
-ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "noWT", "plot.svg", sep = "_")), dpi = 600, height = 6, width = 6)
+ggsave(plot = beta_plot_basic, filename = file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, paste(params$beta_dist, params$beta_MDS, "noWT", "plot.svg", sep = "_")), dpi = 600, height = 6, width = 6)
 
 beta_plot_basic
 ```
@@ -720,7 +721,7 @@ MetaPhlAn_Fp7.tse <- addPERMANOVA(
 
 permanova_table.df <- PERMANOVA_to_table(MetaPhlAn_Fp7.tse)
 
-write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, "PERMANOVA.tsv", sep = "_")))
+write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, paste(params$beta_dist, "PERMANOVA.tsv", sep = "_")))
 ```
 
 ```{r}
@@ -762,7 +763,7 @@ pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn_Fp7.tse)
 kbl(pairwise_adonis_stats, caption = "Pairwise PERMANOVA test comparing groups as seen above") %>% 
   kable_styling()
 
-write_tsv(pairwise_adonis_stats, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste(params$beta_dist, "PERMANOVA_pairwise.tsv", sep = "_")))
+write_tsv(pairwise_adonis_stats, file = file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, paste(params$beta_dist, "PERMANOVA_pairwise.tsv", sep = "_")))
 ```
 
 ## Same PERMANOVA statistics, but on Aitchison distance for robustness check
@@ -790,7 +791,7 @@ MetaPhlAn_Fp7.tse <- addPERMANOVA(
 # group-wise PERMANOVA
 permanova_table_aitchison.df <- PERMANOVA_to_table(MetaPhlAn_Fp7.tse, name = "permanova_aitchison")
 
-write_tsv(permanova_table_aitchison.df, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste("aitchison", "PERMANOVA.tsv", sep = "_")))
+write_tsv(permanova_table_aitchison.df, file = file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, paste("aitchison", "PERMANOVA.tsv", sep = "_")))
 ```
 
 
@@ -804,7 +805,7 @@ pairwise_adonis_stats_aitchison <- pairwise.adonis(x = as.dist(metadata(MetaPhlA
                 p.adjust.m = "BH"
 )
 
-write_tsv(pairwise_adonis_stats_aitchison, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, paste("aitchison", "PERMANOVA_pairwise.tsv", sep = "_")))
+write_tsv(pairwise_adonis_stats_aitchison, file = file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, paste("aitchison", "PERMANOVA_pairwise.tsv", sep = "_")))
 ```
 
 ## What microbes differ between `genotypes` in Control controls?
@@ -830,10 +831,7 @@ tmp.tse
 
 # define experiment name and output directories
 maaslin3_expmt <- "genotype_vs_WT_in_treatment_Control"
-maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir,  cohort_subdir, maaslin3_expmt)
-maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, cohort_subdir, maaslin3_expmt)
-# crate temporary output directory
-dir.create(maaslin3_tmp_outdir, showWarnings = FALSE, recursive = TRUE)
+maaslin3_final_outdir <- file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, maaslin3_expmt)
 # create definitive output directory
 dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
 ```
@@ -846,7 +844,7 @@ genotype_differences_in_ctrls.maaslin3 <- maaslin3(
     input_data = tmp.tse,
     formula = ~ genotype, 
     transform = "LOG",
-    output = maaslin3_tmp_outdir,
+    output = maaslin3_final_outdir,
     # do not standardize continuous metadata variables in the model
     standardize = FALSE,
     plot_associations = TRUE,
@@ -854,19 +852,26 @@ genotype_differences_in_ctrls.maaslin3 <- maaslin3(
 		verbosity = "ERROR"
   )
 
-# add taxonomy
-genotype_differences_in_ctrls.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = genotype_differences_in_ctrls.maaslin3, tmp.tse, taxLevel = params$tax_level)
-# write tables
-write_maaslin3_curated_tables(genotype_differences_in_ctrls.maaslin3_curated, out.dir = maaslin3_final_outdir)
+## add taxonomy to output tables: all_results.tsv
+dplyr::full_join(as.data.frame(rowData(tmp.tse)), read_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
+  #arrange again based on increasing qval_individual
+  arrange(qval_individual) %>% 
+  write_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) 
+
+## add taxonomy to output tables: significant_results.tsv
+dplyr::full_join(as.data.frame(rowData(tmp.tse)), read_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
+  write_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv")) 
+
 # save raw output
-saveRDS(genotype_differences_in_ctrls.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
-# copy their .RDS ggplot object 
-system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
+saveRDS(genotype_differences_in_ctrls.maaslin3, file = file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
 ```
 
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
+genotype_differences_in_ctrls.maaslin3_curated <- read_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) %>% 
+  split.data.frame(.$model)
+
 top20_tmp_out <- genotype_differences_in_ctrls.maaslin3_curated$prevalence %>% 
   filter(value == "Thy1-ASO") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
@@ -884,7 +889,7 @@ DT::datatable(
 
 ```{r, fig.height=6, fig.width=20}
 
-tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+tmpTop20.tse <- tmp.tse[top20_tmp_out$SGB,]
 rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
 
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
@@ -911,7 +916,7 @@ DT::datatable(
 
 ```{r, fig.height=6, fig.width=20}
 
-tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+tmpTop20.tse <- tmp.tse[top20_tmp_out$SGB,]
 rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
 
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
@@ -956,11 +961,7 @@ tmp.tse
 
 # define experiment name and output directories
 maaslin3_expmt <- "treatments_vs_Control_in_Thy1-ASO"
-maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir, cohort_subdir, maaslin3_expmt)
-maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, cohort_subdir, maaslin3_expmt)
-
-# crate temporary output directory
-dir.create(maaslin3_tmp_outdir, showWarnings = FALSE, recursive = TRUE)
+maaslin3_final_outdir <- file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, maaslin3_expmt)
 
 # create definitive output directory
 dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
@@ -974,7 +975,7 @@ treatments_vs_Control_in_Thy1ASO.maaslin3 <- maaslin3(
     input_data = tmp.tse,
     formula = ~ treatment, 
     transform = "LOG",
-    output = maaslin3_tmp_outdir,
+    output = maaslin3_final_outdir,
     # do not standardize continuous metadata variables in the model
     standardize = FALSE, 
     plot_associations = TRUE,
@@ -982,14 +983,18 @@ treatments_vs_Control_in_Thy1ASO.maaslin3 <- maaslin3(
 		verbosity = "ERROR"
   )
 
-# add taxonomy
-treatments_vs_Control_in_Thy1ASO.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = treatments_vs_Control_in_Thy1ASO.maaslin3, tmp.tse, taxLevel = params$tax_level)
-# write tables
-write_maaslin3_curated_tables(treatments_vs_Control_in_Thy1ASO.maaslin3_curated, out.dir = maaslin3_final_outdir)
+## add taxonomy to output tables: all_results.tsv
+dplyr::full_join(as.data.frame(rowData(tmp.tse)), read_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
+  #arrange again based on increasing qval_individual
+  arrange(qval_individual) %>% 
+  write_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) 
+
+## add taxonomy to output tables: significant_results.tsv
+dplyr::full_join(as.data.frame(rowData(tmp.tse)), read_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
+  write_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv")) 
+
 # save raw output
-saveRDS(treatments_vs_Control_in_Thy1ASO.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
-# copy their .RDS ggplot object 
-system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
+saveRDS(treatments_vs_Control_in_Thy1ASO.maaslin3, file = file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
 ```
 
 ####  Maaslin3 default plot
@@ -1001,6 +1006,9 @@ readRDS(file.path(maaslin3_final_outdir, "summary_plot_gg.RDS"))
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
+treatments_vs_Control_in_Thy1ASO.maaslin3_curated <- read_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) %>% 
+  split.data.frame(.$model)
+
 top20_tmp_out <- treatments_vs_Control_in_Thy1ASO.maaslin3_curated$prevalence %>% 
   filter(value == "F. prausnitzii") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
@@ -1018,7 +1026,7 @@ DT::datatable(
 
 ```{r, fig.height=6, fig.width=20}
 
-tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+tmpTop20.tse <- tmp.tse[top20_tmp_out$SGB,]
 rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
 
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
@@ -1045,7 +1053,7 @@ DT::datatable(
 
 ```{r, fig.height=6, fig.width=20}
 
-tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+tmpTop20.tse <- tmp.tse[top20_tmp_out$SGB,]
 rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
 
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
@@ -1375,7 +1383,7 @@ piece_1_2_3 <- ggarrange(piece1, piece2_3, nrow = 1, ncol = 2, widths = c(0.6, 1
 
 piece_1_2_3_4 <- ggarrange(piece_1_2_3, panelG_diffAbund, widths = c(1, 0.6), labels = c("", "G"))
 
-ggsave(plot = piece_1_2_3_4, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_Full.svg"), width = 18, height = 10)
+ggsave(plot = piece_1_2_3_4, filename = file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, "microbiome_panel_Full.svg"), width = 18, height = 10)
 
 piece_1_2_3_4
 ```
@@ -1407,7 +1415,7 @@ microbiome_panel_MainText <- ggarrange(
   nrow = 3, 
   heights = c(1, 0.25, 1), labels = c("", "", "D"))
 
-ggsave(plot = microbiome_panel_MainText, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_MainText.svg"), width = 11, height = 13)
+ggsave(plot = microbiome_panel_MainText, filename = file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, "microbiome_panel_MainText.svg"), width = 11, height = 13)
 
 microbiome_panel_MainText
 
@@ -1422,7 +1430,7 @@ microbiome_panel_Supplementary <- ggarrange(
     nrow = 1, labels = c("A", "B", "C"), 
 common.legend = TRUE)
 
-ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "microbiome_panel_Supplementary.svg"), width = 10, height = 4)
+ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, "microbiome_panel_Supplementary.svg"), width = 10, height = 4)
 
 microbiome_panel_Supplementary
 ```
@@ -1441,8 +1449,10 @@ slips_over_step.df <- openxlsx::read.xlsx("Data/motor_performance/Fp7_raw.xlsx",
   rowwise() %>% 
   transmute(
     mouse_id = ID,
-    Slips = mean(c(Slips_Trial1, Slips_Trial2), na.rm = TRUE),
-    Steps = mean(c(Steps_Trial1, Steps_Trial2), na.rm = TRUE),
+    Slips = Slips_Trial1,
+    Steps = Steps_Trial1,
+    # Slips = mean(c(Slips_Trial1, Slips_Trial2), na.rm = TRUE),
+    # Steps = mean(c(Steps_Trial1, Steps_Trial2), na.rm = TRUE),
     slips_over_steps = Slips/Steps)
 
 additional_variables.df <- dplyr::full_join(bead_expulsion.df, slips_over_step.df, by = "mouse_id")
@@ -1524,6 +1534,7 @@ as.data.frame(reducedDim(MetaPhlAn_Fp7.tse, dimRedName))) %>%
     treatment = droplevels(treatment)
   )
 
+# make 3 mediation analyses as list, one per Principal Component
 mediations_micrombiome <- sapply(grepv("PCo", colnames(mediationData.df)), function(x) {
   mediation.lm <- lm(as.formula(paste(x, "treatment", sep = "~")), data = mediationData.df)
   outcome.lm <- lm(as.formula(paste("slips_over_steps ~ treatment",  x, sep = "+")), data = mediationData.df)
@@ -1549,7 +1560,7 @@ data_as_long_table <- mediations_micrombiome %>%
   lapply(tidy_mediation) %>% 
   bind_rows(.id = "PCo")
 
-write_tsv(data_as_long_table, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "PCo1-3_mediation_slips_over_steps_ASO_treat_vs_ASO_ctrl.tsv"))
+write_tsv(data_as_long_table, file = file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, "PCo1-3_mediation_slips_over_steps_ASO_treat_vs_ASO_ctrl.tsv"))
 ```
 
 #### PCo 1
@@ -1635,7 +1646,7 @@ data_as_long_table <- mediations_micrombiome %>%
   lapply(tidy_mediation) %>% 
   bind_rows(.id = "PCo")
 
-write_tsv(data_as_long_table, file = file.path(params$basic_outdir, params$tax_level, cohort_subdir, "PCo1-3_mediation_bead_expulsion_min_ASO_treat_vs_ASO_ctrl.tsv"))
+write_tsv(data_as_long_table, file = file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, "PCo1-3_mediation_bead_expulsion_min_ASO_treat_vs_ASO_ctrl.tsv"))
 ```
 
 #### PCo 1
@@ -1743,10 +1754,7 @@ tmp.tse
 
 # define experiment name and output directories
 maaslin3_expmt <- "cohort_assoc_bacteria"
-maaslin3_tmp_outdir <- file.path(output_directories.list$maaslin_tmpdir,  cohort_subdir, maaslin3_expmt)
-maaslin3_final_outdir <- file.path(params$basic_outdir, params$tax_level, cohort_subdir, maaslin3_expmt)
-# crate temporary output directory
-dir.create(maaslin3_tmp_outdir, showWarnings = FALSE, recursive = TRUE)
+maaslin3_final_outdir <- file.path(params$basic_outdir, params$microbiome_data_type, cohort_subdir, maaslin3_expmt)
 # create definitive output directory
 dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
 ```
@@ -1759,7 +1767,7 @@ cohort_differences.maaslin3 <- maaslin3(
     input_data = tmp.tse,
     formula = ~ genotype + treatment + cohort, 
     transform = "LOG",
-    output = maaslin3_tmp_outdir,
+    output = maaslin3_final_outdir,
     # do not standardize continuous metadata variables in the model
     standardize = FALSE, 
     plot_associations = TRUE,
@@ -1767,19 +1775,26 @@ cohort_differences.maaslin3 <- maaslin3(
 		verbosity = "ERROR"
   )
 
-# add taxonomy
-cohort_differences.maaslin3_curated <- add_taxonomy_to_maaslin3(maaslin3_res = cohort_differences.maaslin3, tmp.tse, taxLevel = params$tax_level)
-# write tables
-write_maaslin3_curated_tables(cohort_differences.maaslin3_curated, out.dir = maaslin3_final_outdir)
+## add taxonomy to output tables: all_results.tsv
+dplyr::full_join(as.data.frame(rowData(tmp.tse)), read_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
+  #arrange again based on increasing qval_individual
+  arrange(qval_individual) %>% 
+  write_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) 
+
+## add taxonomy to output tables: significant_results.tsv
+dplyr::full_join(as.data.frame(rowData(tmp.tse)), read_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
+  write_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv")) 
+
 # save raw output
-saveRDS(cohort_differences.maaslin3, file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
-# copy their .RDS ggplot object 
-system(paste("cp", file.path(maaslin3_tmp_outdir, "figures", "summary_plot_gg.RDS"), maaslin3_final_outdir))
+saveRDS(cohort_differences.maaslin3, file = file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
 ```
 
 ### Diff. Prevalence - Top 20 with lowest crude p-value and highest absolute $\beta$
 
 ```{r}
+cohort_differences.maaslin3_curated <- read_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) %>% 
+  split.data.frame(.$model)
+
 top20_tmp_out <- cohort_differences.maaslin3_curated$prevalence %>% 
   filter(value == "Fp7") %>% 
   arrange(pval_individual, desc(abs(coef))) %>% 
@@ -1797,7 +1812,7 @@ DT::datatable(
 
 ```{r, fig.height=6, fig.width=20}
 
-tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+tmpTop20.tse <- tmp.tse[top20_tmp_out$SGB,]
 rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
 
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
@@ -1824,7 +1839,7 @@ DT::datatable(
 
 ```{r, fig.height=6, fig.width=20}
 
-tmpTop20.tse <- tmp.tse[top20_tmp_out$feature,]
+tmpTop20.tse <- tmp.tse[top20_tmp_out$SGB,]
 rownames(tmpTop20.tse) <- collapse_taxonomy(as.data.frame(rowData(tmpTop20.tse)))
 
 miaViz::plotAbundance(tmpTop20.tse, assay.type = "metaphlan_RelAbund", group = "SGB") + 
@@ -1875,13 +1890,13 @@ e.coli_relAbund_plot
 ## Default taxonomy table
 
 ```{r}
-write_tsv(as_tibble(rowData(MetaPhlAn.tse)), file = file.path(params$basic_outdir, params$tax_level, "Supplementary table 1 - taxonomy.tsv"))
+write_tsv(as_tibble(rowData(MetaPhlAn.tse)), file = file.path(params$basic_outdir, params$microbiome_data_type, "Supplementary table 1 - taxonomy.tsv"))
 ```
 
 # GTDB taxonomy table (only relevant bacteria)
 
 ```{r}
-write_tsv(filter(GTDB.df, SGB %in% gsub("t__", "", rowData(MetaPhlAn.tse)$SGB)), file = file.path(params$basic_outdir, params$tax_level, "Supplementary table 2 - taxonomy GTDB.tsv"))
+write_tsv(filter(GTDB.df, SGB %in% gsub("t__", "", rowData(MetaPhlAn.tse)$SGB)), file = file.path(params$basic_outdir, params$microbiome_data_type, "Supplementary table 2 - taxonomy GTDB.tsv"))
 ```
 
 
