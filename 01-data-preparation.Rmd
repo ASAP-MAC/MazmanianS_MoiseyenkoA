@@ -16,11 +16,7 @@ output:
     use_bookdown: true
     highlight: haddock
 params:
-  basic_outdir: "results"
-  microbiome_basic_transform: "RelAbund"
-  tax_level: "SGB"
-  beta_dist: "bray"
-  beta_MDS: "MDS"
+  metadata_version: "6.0"
 ---
 
 # Library preparation and `Google Cloud Storage` authentication
@@ -38,8 +34,7 @@ library(parkinsonsMetagenomicData) # remotes::install_github("ASAP-MAC/parkinson
 
 # Load metadata
 
-```{r}
-
+```{r, eval=params$metadata_version=="5.0"}
 metadata.df <- read_tsv("Data/metadata_5.0.tsv") %>% 
   # format a few values in the metadata
   mutate(
@@ -51,8 +46,27 @@ metadata.df <- read_tsv("Data/metadata_5.0.tsv") %>%
     treatment_legend = as.factor(gsub("F. prausnitzii", "*F. prausnitzii*", treatment)) %>% relevel(ref = "Control"), 
     genotype_treatment = paste(genotype, treatment) %>% factor(levels = c("WT Control", "Thy1-ASO Control", "Thy1-ASO F. prausnitzii", "Thy1-ASO benCom")),
     genotype_treatment_legend = paste(genotype, treatment_legend) %>% factor(levels = c("WT Control", "Thy1-ASO Control", "Thy1-ASO *F. prausnitzii*", "Thy1-ASO benCom"))
-  )
+  ) %>% 
+  as.data.frame()
+```
 
+```{r, eval=params$metadata_version=="6.0"}
+metadata.df <- read_tsv("Data/metadata_6.0.tsv") %>% 
+  # format a few values in the metadata
+  mutate(
+    genotype = as.factor(genotype) %>% relevel(ref = "WT"),
+    cage = as.factor(cage),
+    cohort = as.factor(cohort),
+    subcohort = as.factor(subcohort),
+    treatment = as.factor(treatment) %>% relevel(ref = "Control"), 
+    treatment_legend = as.factor(gsub("F. prausnitzii", "*F. prausnitzii*", treatment)) %>% relevel(ref = "Control"), 
+    genotype_treatment = paste(genotype, treatment) %>% factor(levels = c("WT Control", "Thy1-ASO Control", "Thy1-ASO F. prausnitzii")),
+    genotype_treatment_legend = paste(genotype, treatment_legend) %>% factor(levels = c("WT Control", "Thy1-ASO Control", "Thy1-ASO *F. prausnitzii*"))
+  ) %>% 
+  as.data.frame()
+```
+
+```{r}
 rownames(metadata.df) <- metadata.df$uuid
 ```
 
@@ -62,7 +76,7 @@ rownames(metadata.df) <- metadata.df$uuid
 
 cache_table <- suppressMessages(cacheMetagenomicData(metadata.df$uuid, data_type = "relative_abundance", redownload = "no"))
 
-MetaPhlAn.tse <- suppressMessages(loadMetagenomicData(cache_table))
+MetaPhlAn.tse <- suppressMessages(biobakeryUtils::loadMetagenomicData(cache_table))
 
 # remove altExps, we don't need them
 altExps(MetaPhlAn.tse) <- NULL
@@ -121,25 +135,30 @@ cache_table_genefamilies_relab_unstratified <- cacheMetagenomicData(metadata.df$
 HUMAnN_genefamilies_unstratified.tse <- suppressMessages(parkinsonsMetagenomicData::loadMetagenomicData(cache_table_genefamilies_unstratified))
 HUMAnN_genefamilies_relab_unstratified.tse <- suppressMessages(parkinsonsMetagenomicData::loadMetagenomicData(cache_table_genefamilies_relab_unstratified))
 
+# replace basic with custom metadata file
+colData(HUMAnN_genefamilies_unstratified.tse) <- DataFrame(metadata.df[colnames(HUMAnN_genefamilies_unstratified.tse),])
+
+# generate a proxy of number_reads as sum of counts per sample. 
+# This makes (relative) sense only on rpk abundance, not on other re-scaled values.
+HUMAnN_genefamilies_unstratified.tse@colData$number_reads <- apply(assay(HUMAnN_genefamilies_unstratified.tse), 2, sum)
+
 # proof that we can re-derive other transformations done by humann
+# so far only on relative abundance
 matrix1 <- assay(HUMAnN_genefamilies_unstratified.tse)
 matrix2 <- assay(HUMAnN_genefamilies_relab_unstratified.tse)[rownames(matrix1), colnames(matrix1)]
-identical(apply(matrix1, 2, function(x ) x/sum(x)), matrix2) # not identical...
-range(apply(matrix1, 2, function(x) x/sum(x)) - matrix2) # but reeeeally close! 
+all.equal(apply(matrix1, 2, function(x ) x/sum(x)), matrix2) # not identical but really close!
 # end of proof
 
-## replace the default colData with the local one
+# re-derive tranformations
 assay(HUMAnN_genefamilies_unstratified.tse, "gene_family_abundance_rpk_relab_unstratified") <- apply(assay(HUMAnN_genefamilies_unstratified.tse), 2, function(x) x/sum(x))
 assay(HUMAnN_genefamilies_unstratified.tse, "gene_family_abundance_rpk_cpm_unstratified") <- apply(assay(HUMAnN_genefamilies_unstratified.tse), 2, function(x) x/sum(x)*10^6)
-
-colData(HUMAnN_genefamilies_unstratified.tse) <- DataFrame(metadata.df[colnames(HUMAnN_genefamilies_unstratified.tse),])
 
 ```
 
 ## Save R object and gene families profiles in a dedicated folder
 
 ```{r}
-write_TSE_to_dir(HUMAnN_genefamilies_unstratified.tse, "Data")
+write_TSE_to_dir(HUMAnN_genefamilies_unstratified.tse, "Data/HUMAnN_genefamilies_unstratified.tse")
 # the following is not considered good practice, since the class is subject to 
 # changes that may break the serialization, which is why I build the function 
 # above
@@ -149,28 +168,59 @@ saveRDS(HUMAnN_genefamilies_unstratified.tse, "Data/HUMAnN_genefamilies_unstrati
 # Prepare HUMAnN pathway profiles as a `TreeSummarizedExperiment` object
 
 ```{r}
-cache_table <- cacheMetagenomicData(metadata.df$uuid, data_type = "pathabundance_unstratified", redownload = "no") 
+cache_table_pathways_unstratified <- cacheMetagenomicData(metadata.df$uuid, data_type = "pathabundance_unstratified", redownload = "no") 
+cache_table_pathways_relab_unstratified <- cacheMetagenomicData(metadata.df$uuid, data_type = "pathabundance_relab_unstratified", redownload = "no") 
 
-HUMAnN_pathways_unstratified.tse <- suppressMessages(parkinsonsMetagenomicData::loadMetagenomicData(cache_table))
+HUMAnN_pathways_unstratified.tse <- suppressMessages(parkinsonsMetagenomicData::loadMetagenomicData(cache_table_pathways_unstratified))
+HUMAnN_pathways_relab_unstratified.tse <- suppressMessages(parkinsonsMetagenomicData::loadMetagenomicData(cache_table_pathways_relab_unstratified))
 
-# re-derive other transformations
-assay(HUMAnN_pathways_unstratified.tse, "pathway_abundance_rpk_relab_unstratified") <- apply(assay(HUMAnN_pathways_unstratified.tse), 2, function(x) x/sum(x))
-assay(HUMAnN_pathways_unstratified.tse, "pathway_abundance_rpk_cpm_unstratified") <- apply(assay(HUMAnN_pathways_unstratified.tse), 2, function(x) x/sum(x)*10^6)
-
-## replace the default colData with the local one
+# replace basic with custom metadata file
 colData(HUMAnN_pathways_unstratified.tse) <- DataFrame(metadata.df[colnames(HUMAnN_pathways_unstratified.tse),])
 
+# generate a proxy of number_reads as sum of counts per sample. 
+# This makes (relative) sense only on rpk abundance, not on other re-scaled values.
+HUMAnN_pathways_unstratified.tse@colData$number_reads <- apply(assay(HUMAnN_pathways_unstratified.tse), 2, sum)
+
+# proof that we can re-derive other transformations done by humann
+# so far only on relative abundance
+matrix1 <- assay(HUMAnN_pathways_unstratified.tse)
+matrix2 <- assay(HUMAnN_pathways_relab_unstratified.tse)[rownames(matrix1), colnames(matrix1)]
+all.equal(apply(matrix1, 2, function(x ) x/sum(x)), matrix2) # not identical but really close!
+# end of proof
+
+# re-derive tranformations
+assay(HUMAnN_pathways_unstratified.tse, "gene_family_abundance_rpk_relab_unstratified") <- apply(assay(HUMAnN_pathways_unstratified.tse), 2, function(x) x/sum(x))
+assay(HUMAnN_pathways_unstratified.tse, "gene_family_abundance_rpk_cpm_unstratified") <- apply(assay(HUMAnN_pathways_unstratified.tse), 2, function(x) x/sum(x)*10^6)
 ```
 
 ## Save R object and pathway profiles in a dedicated folder
 
 ```{r}
-write_TSE_to_dir(HUMAnN_pathways_unstratified.tse, "Data")
+write_TSE_to_dir(HUMAnN_pathways_unstratified.tse, "Data/HUMAnN_pathways_unstratified.tse")
 # the following is not considered good practice, since the class is subject to 
 # changes that may break the serialization, which is why I build the function 
 # above
 saveRDS(HUMAnN_pathways_unstratified.tse, "Data/HUMAnN_pathways_unstratified.tse/HUMAnN_pathways_unstratified.tse.Rds")
 ```
+
+# Download and save Genome Taxonomy Data Base table from Metaphlan
+
+```{r}
+# load translation from SGB to GTDB taxonomy for further naming of bacteria
+# this is taken from a Zenodo entry for metaphlan 4.2.2
+
+download.file("https://zenodo.org/api/records/15594111/files-archive", destfile = "Metaphlan-4.2.2.zip", quiet = TRUE)
+unzip("Metaphlan-4.2.2.zip", exdir = "Metaphlan-4.2.2")
+unzip("Metaphlan-4.2.2/biobakery/MetaPhlAn-4.2.2.zip", exdir = "Metaphlan-4.2.2/")
+GTDB.df <- read.delim("Metaphlan-4.2.2/biobakery-MetaPhlAn-500ce07/metaphlan/utils/mpa_vJun23_CHOCOPhlAnSGB_202403_SGB2GTDB.tsv", header = FALSE, se = "\t", col.names = c("SGB", "full_name")) %>% 
+  relocate(full_name) %>% 
+  separate_wider_delim(delim = ";", cols = "full_name", names = c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"), too_few = "align_start") %>% 
+  mutate_all(function(x) gsub("d__|p__|c__|o__|f__|g__|s__", "", x)) 
+
+write_tsv(GTDB.df, "Data/GTDB_202403.tsv")
+unlink("Metaphlan-4.2.2*", recursive = TRUE)
+```
+
 
 # SessionInfo
 
