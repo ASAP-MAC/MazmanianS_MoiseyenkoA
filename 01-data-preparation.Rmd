@@ -189,8 +189,8 @@ all.equal(apply(matrix1, 2, function(x ) x/sum(x)), matrix2) # not identical but
 # end of proof
 
 # re-derive tranformations
-assay(HUMAnN_pathways_unstratified.tse, "gene_family_abundance_rpk_relab_unstratified") <- apply(assay(HUMAnN_pathways_unstratified.tse), 2, function(x) x/sum(x))
-assay(HUMAnN_pathways_unstratified.tse, "gene_family_abundance_rpk_cpm_unstratified") <- apply(assay(HUMAnN_pathways_unstratified.tse), 2, function(x) x/sum(x)*10^6)
+assay(HUMAnN_pathways_unstratified.tse, "pathway_abundance_relab_unstratified") <- apply(assay(HUMAnN_pathways_unstratified.tse), 2, function(x) x/sum(x))
+assay(HUMAnN_pathways_unstratified.tse, "pathway_abundance_cpm_unstratified") <- apply(assay(HUMAnN_pathways_unstratified.tse), 2, function(x) x/sum(x)*10^6)
 ```
 
 ## Save R object and pathway profiles in a dedicated folder
