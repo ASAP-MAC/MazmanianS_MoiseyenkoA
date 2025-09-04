@@ -45,11 +45,12 @@ library(biobakeryUtils)
 library(miaViz)
 library(ggpubr)
 library(kableExtra)
-library(reactable)
 library(ggtext) # enhanced text handling in ggplot
+
 # MAC's package to download data
 library(parkinsonsMetagenomicData)
-
+# library to clean linear models output
+library(broom)
 library(ggh4x) # for complex ggplot2 faceting
 # remotes::install_github("cmartin/ggConvexHull")
 library(ggConvexHull) # for convex hulls geometries
@@ -65,7 +66,7 @@ source("https://raw.githubusercontent.com/pmartinezarbizu/pairwiseAdonis/refs/he
 ###################################################################
 
 ###################################################################
-# function to colorize labels of ggplot object
+# function to colorize text of ggplot object matching with a pattern
 # This function will apply ALL color rules to EACH label string
 colorize_labels <- function(labels, mapping) {
   # Start with the original labels
@@ -89,34 +90,37 @@ colorize_labels <- function(labels, mapping) {
   
   return(colored_labels)
 }
+
 ###################################################################
+# load data for analyses and create output directory
+#####################################
+# Load data for analyses
+MetaPhlAn.tse <- read_TSE_from_dir("Data/MetaPhlAn.tse/")
 
+# create base output directory
+dir.create(file.path(params$basic_outdir, params$microbiome_data_type), 
+           showWarnings = FALSE, recursive = TRUE)
 
-
-
+# make a study-wide color palette for the variables tested
 overall_color_palette <- c("WT Control" = "#b2df8a", "Thy1-ASO Control" = "#a6cee3", "Thy1-ASO *F. prausnitzii*" = "#1f78b4", "Thy1-ASO F. prausnitzii" = "#1f78b4")
 
-```
 
-# Load data for analysis
+# load Genome Taxonomy Data Base (originally from the MetaPhlAn GitHub release)
+GTDB.df <- read_tsv("Data/GTDB_202403.tsv")
 
-```{r}
-MetaPhlAn.tse <- read_TSE_from_dir("Data/MetaPhlAn.tse")
+# Initialize figure indices
+SuppFigIndex <- 1
+MainFigIndex <- 1
+SuppTabIndex <- 1
+MainTabIndex <- 1
 
+# print input data
 MetaPhlAn.tse
 ```
 
-```{r}
-GTDB.df <- read_tsv("Data/GTDB_202403.tsv")
-```
+# Preliminary statistics 
 
-# Create output directory
-
-```{r}
-dir.create(file.path(params$basic_outdir, params$microbiome_data_type), recursive = TRUE)
-```
-
-# Reads distribution per condition
+## Uniform reads distribution per condition
 
 ```{r, fig.height=7, fig.width=7}
 normality_test <- shapiro.test(MetaPhlAn.tse@colData$number_reads)
@@ -126,27 +130,51 @@ hist_reads <- ggplot(colData(MetaPhlAn.tse), aes(x = number_reads/1e6, color = g
   geom_density(alpha = 0.1) + 
   labs(
     x = "Million reads per sample retained",
-    y = "Count",
+    y = "Density",
     color = "Genotype and Treatment",
     fill = "Genotype and Treatment",
     caption = sprintf("Shapiro-Wilk: W = %.3f, P = %.3f", normality_test$statistic, normality_test$p.value)
   )
 
-test_reads <- pairwise.t.test(MetaPhlAn.tse@colData$number_reads, MetaPhlAn.tse@colData$genotype_treatment) %>% 
+test_reads <- pairwise.t.test(MetaPhlAn.tse@colData$number_reads, MetaPhlAn.tse@colData$genotype_treatment, pool.sd = FALSE,p.adjust.method = NULL) %>% 
   broom::tidy()
 
-ggarrange(hist_reads, ggtexttable(test_reads, rows = NULL), common.legend = TRUE, labels = "AUTO", nrow = 2, heights = c(1, 0.3))
+reads_per_condition <- ggarrange(hist_reads, ggtexttable(test_reads, rows = NULL), common.legend = TRUE, labels = "AUTO", nrow = 2, heights = c(1, 0.3))
 
+sapply(c("png", "svg", "pdf"), function(fmt)
+  ggsave(
+    plot = reads_per_condition,
+    filename = sprintf(
+      "%s/%s/Supplementary Figure %i - Reads distribution per condition.%s",
+      params$basic_outdir,
+      params$microbiome_data_type,
+      SuppFigIndex,
+      fmt
+    ),
+    height = 8,
+    width = 8,
+    dpi = 600, 
+    bg = "white"
+  )) %>% invisible()
+
+SuppFigIndex <- sum(SuppFigIndex, 1)
 ```
 
 ## Alpha diversity does not vary in relation to sequencing depth
 
-### Alpha indices distributions
+```{r}
+alphaDivIndices <- c(
+  "dbp_dominance",
+  "observed_richness",
+  "shannon_diversity",
+  "gini"
+)
+
+MetaPhlAn.tse <- addAlpha(MetaPhlAn.tse, assay.type = params$assayTested, index = alphaDivIndices)
+```
 
 ```{r}
-MetaPhlAn.tse <- addAlpha(MetaPhlAn.tse, assay.type = params$assayTested, index = c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"))
-
-lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), 
+histograms_alpha <- lapply(alphaDivIndices, 
        function(div) {
          stats_basic <- shapiro.test(as.data.frame(colData(MetaPhlAn.tse))[[div]])
          text <- paste0("Shapiro-Wilk test: W = ", round(stats_basic$statistic, 2), "; P-value = ", round(stats_basic$p.value, 3))
@@ -163,18 +191,42 @@ lapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"),
 
 ```
 
-## Statistics
-
 ```{r, tab.cap="Assessment of dependence of alpha diversity measures in relation to sequencing depth"}
-tmp <- sapply(c("dbp_dominance", "observed_richness", "shannon_diversity", "gini"), function(div) {
+tmp <- sapply(alphaDivIndices, function(div) {
   lm(as.formula(paste(div, "~", "number_reads")), data = colData(MetaPhlAn.tse))
   
 }, USE.NAMES = TRUE, simplify = FALSE)
 
 table_results.df <- tmp %>% lapply(broom::tidy) %>% 
   bind_rows(.id = "AlphaIndex") %>% 
-  filter(!grepl("Intercept", term))
+  filter(!grepl("Intercept", term)) %>% 
+  as_tibble()
 
+alpha_vs_reads_plot <- ggarrange(
+  histograms_alpha, 
+  ggtexttable(table_results.df, rows = NULL), 
+  nrow = 2
+)
+
+sapply(c("png", "svg", "pdf"), function(fmt)
+ggsave(plot = alpha_vs_reads_plot, filename = sprintf(
+      "%s/%s/Supplementary Figure %i - Alpha Indices vs number of reads.%s",
+      params$basic_outdir,
+      params$microbiome_data_type,
+      SuppFigIndex,
+      fmt
+    ),
+    height = 8,
+    width = 8,
+    dpi = 600, 
+    bg = "white"
+  )
+) %>% invisible()
+
+SuppFigIndex <- sum(SuppFigIndex, 1)
+```
+
+```{r, tab.cap="Assessment of dependence of alpha diversity measures in relation to sequencing depth"}
 table_results.df %>%
   kbl() %>% 
   row_spec(which(table_results.df$p.value < 0.05), bold = TRUE) %>% 
@@ -225,13 +277,6 @@ MetaPhlAn.tse <- mia::addMDS(
   method = params$beta_dist,
   ncomponents = 3, name = dimRedName
   )
-
-MetaPhlAn.tse <- addPERMANOVA(MetaPhlAn.tse, 
-             formula = x ~ genotype_treatment, 
-             assay.type = params$assayTested,
-             method = params$beta_dist,
-             permutations = 9999, 
-             by = "margin")
 
 variances_explained <- attr(reducedDim(MetaPhlAn.tse, dimRedName), "eig")
 prop_variances_explained <- variances_explained/sum(variances_explained)
@@ -343,7 +388,96 @@ panelC_pairwise_dissim_boxplot_horiz <- pairwise_dissim_bray %>%
   )
 ```
 
-## D - Mediation analysis with PCoA axes 1-3 on constipation and motor symptoms
+## D - Differentially abundant features due to treatment in Thy1-ASO mice
+
+Model formula is:
+
+$$
+\log_2(Microbiome)_{Thy1-ASO} \sim treament  
+$$
+
+```{r}
+# prepare input data
+tmp.tse <- MetaPhlAn.tse[,MetaPhlAn.tse@colData$genotype != "WT"]
+tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Control")
+tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
+tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, params$assayTested)) > 0,]
+
+tmp.tse
+
+# define experiment name and output directories
+maaslin3_expmt <- "maaslin3_treatments_vs_Control_in_Thy1-ASO"
+maaslin3_final_outdir <- file.path(params$basic_outdir, params$microbiome_data_type, maaslin3_expmt)
+
+# create definitive output directory
+dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
+```
+
+Results are stored in ``r maaslin3_final_outdir``
+
+```{r}
+set.seed(1234)
+treatments_vs_Control_in_Thy1ASO.maaslin3 <- maaslin3(
+    input_data = tmp.tse,
+    formula = ~ treatment, 
+    transform = "LOG",
+    output = maaslin3_final_outdir,
+    # do not standardize continuous metadata variables in the model
+    standardize = FALSE, 
+    plot_associations = TRUE,
+    save_plots_rds = TRUE,
+		verbosity = "ERROR",
+		summary_plot_first_n = 15
+  )
+
+# enrich results with taxonomy information only in case of Metaphlan
+
+if(agrepl("metaphlan", params$assayTested)){
+## add taxonomy to output tables: all_results.tsv
+dplyr::right_join(GTDB.df %>% mutate(SGB = paste0("t__", SGB)), read_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
+  #arrange again based on increasing qval_individual
+  arrange(qval_individual) %>% 
+  write_tsv(file.path(maaslin3_final_outdir, "all_results.tsv"))
+
+## add taxonomy to output tables: significant_results.tsv
+dplyr::right_join(GTDB.df %>% mutate(SGB = paste0("t__", SGB)), read_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
+  write_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv"))
+}
+# save raw output
+saveRDS(treatments_vs_Control_in_Thy1ASO.maaslin3, file = file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
+```
+
+```{r}
+GTDB.df <- GTDB.df %>%
+  mutate(
+    altNames = sapply(
+      strsplit(paste(trimws(Genus), trimws(Species), sprintf("[%s]", SGB)), " ", fixed = TRUE),
+      function(x) paste(unique(x), collapse = " ")
+    )
+  )
+
+altNames.chr <- GTDB.df$altNames
+names(altNames.chr) <- GTDB.df$SGB
+
+panelD_diffAbund <- readRDS(file = file.path(maaslin3_final_outdir, "figures", "summary_plot_gg.RDS")) + 
+  theme(strip.text = element_blank()) + 
+  # expand plot to show full errorbars
+  scale_x_continuous(expand = expansion(mult = c(.1))) + 
+  # remove the null HP that would mess with the panel rendering
+  guides(linetype = "none")
+
+
+
+panelD_diffAbund2 <- panelD_diffAbund +
+  scale_y_discrete(
+    labels = function(y) altNames.chr[gsub("t__", "", y)]
+  ) + theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12)
+  )
+```
+
+## E - Mediation analysis with PCoA axes 1-3 on constipation and motor symptoms
 
 - Constipation symptoms: $Bead~expulsion~(minutes)$
 - Motor symptoms: $\frac{slips}{steps}~on~beam$
@@ -361,7 +495,7 @@ Where `Mediator` = PCo.x, `Outcome` = Bead Expulsion or Slips/Steps, `Treatment`
 
 ```{r}
 # gather bead_expulsion_n data
-motor_gi_symptoms.list <- sapply(c("Beam_steps", "Bead_exp"), function(x) openxlsx::read.xlsx("Data/motor_performance/Fp7_motor_performance.xlsx", sheet = x), simplify = FALSE, USE.NAMES = TRUE)
+motor_gi_symptoms.list <- sapply(c("Beam_steps", "Bead_exp"), function(x) openxlsx::read.xlsx("Data/Fp7_GI_motor_assessment.xlsx", sheet = x), simplify = FALSE, USE.NAMES = TRUE)
 
 # prepare bead expulsion variable
 motor_gi_symptoms.list$Bead_exp <- motor_gi_symptoms.list$Bead_exp %>% 
@@ -441,12 +575,12 @@ mediations_Princ.Coord <- sapply(grepv("PCo", colnames(mediationData.df)), funct
   )
 }, simplify = FALSE, USE.NAMES=TRUE)
 
-data_as_long_table <- mediations_Princ.Coord %>% 
+data_as_long_table_bead_expulsion <- mediations_Princ.Coord %>% 
   lapply("[[", "mediation_analysis") %>% 
   lapply(tidy_mediation) %>% 
-  bind_rows(.id = "PCo")
+  bind_rows(.id = "PCo") %>% 
+  mutate(Exposure = "Bead Expulsion (min)")
 
-write_tsv(data_as_long_table, file = file.path(params$basic_outdir, params$microbiome_data_type, "PCo1-3_mediation_bead_expulsion_min_ASO_treat_vs_ASO_ctrl.tsv"))
 ```
 
 ### Mediation analysis of slips/steps
@@ -500,33 +634,25 @@ mediations_Princ.Coord <- sapply(grepv("PCo", colnames(mediationData.df)), funct
   )
 }, simplify = FALSE, USE.NAMES=TRUE)
 
-data_as_long_table <- mediations_Princ.Coord %>% 
+data_as_long_table_slips_over_steps <- mediations_Princ.Coord %>% 
   lapply("[[", "mediation_analysis") %>% 
   lapply(tidy_mediation) %>% 
-  bind_rows(.id = "PCo") 
-
-write_tsv(data_as_long_table, file = file.path(params$basic_outdir, params$microbiome_data_type, "PCo1-3_mediation_slips_over_steps_ASO_treat_vs_ASO_ctrl.tsv"))
+  bind_rows(.id = "PCo") %>% 
+  mutate(Exposure = "Slips/Steps Ratio")
 ```
 
-### Generate plot
+### Panel E plot generation
 
 ```{r}
-data_as_long_table_slips_over_steps <- read_tsv(file.path(params$basic_outdir, params$microbiome_data_type, "PCo1-3_mediation_slips_over_steps_ASO_treat_vs_ASO_ctrl.tsv")) %>% 
-  mutate(Exposure = "Slips/Steps Ratio")
-
-data_as_long_table_bead_expulsion <- read_tsv(file.path(params$basic_outdir, params$microbiome_data_type, "PCo1-3_mediation_bead_expulsion_min_ASO_treat_vs_ASO_ctrl.tsv")) %>% 
-  mutate(Exposure = "Bead Expulsion (minutes)")
-
-
 data_as_long_table_for_horizPlot <- rbind.data.frame(data_as_long_table_slips_over_steps,data_as_long_table_bead_expulsion) %>% 
   mutate(
-    PCo = factor(PCo, levels = sort(unique(data_as_long_table$PCo), decreasing = TRUE)),
+    PCo = factor(PCo, levels = sort(unique(data_as_long_table_slips_over_steps$PCo), decreasing = TRUE)),
     Effect = factor(Effect, levels = sort(unique(Effect), decreasing = TRUE))
          )
 ```
 
 ```{r}
-panelD_mediation_motor_GI_symptoms <- ggplot(data_as_long_table_for_horizPlot, aes(x = Estimate, y = Effect, color = PCo, shape = P.value < 0.05)) + 
+panelE_mediation_motor_GI_symptoms <- ggplot(data_as_long_table_for_horizPlot, aes(x = Estimate, y = Effect, color = PCo, shape = P.value < 0.05)) + 
   geom_vline(xintercept = 0, lty = "dashed", color = "darkgray") + 
   geom_errorbar(aes(xmin = CI_Lower_95, xmax = CI_Upper_95, y = Effect, color = PCo), position = position_dodge(width = 0.5, preserve = "total"), width = 0, show.legend = FALSE) + 
   geom_point(position = position_dodge(width = 0.5, preserve = "total"), size = 4) + 
@@ -547,103 +673,14 @@ panelD_mediation_motor_GI_symptoms <- ggplot(data_as_long_table_for_horizPlot, a
     x = expression(beta~Estimate)
     )
 
-panelD_mediation_motor_GI_symptoms
+panelE_mediation_motor_GI_symptoms
 
-panelD_mediation_motor_GI_symptoms_shorterLabels <- panelD_mediation_motor_GI_symptoms + scale_y_discrete(labels = function(x) gsub("Average\\ |Causal\\ ", "", x))
+panelE_mediation_motor_GI_symptoms_shorterLabels <- panelE_mediation_motor_GI_symptoms + scale_y_discrete(labels = function(x) gsub("Average\\ |Causal\\ ", "", x))
   
 
 ```
 
-## E - Differentially abundant features due to treatment in Thy1-ASO mice
-
-Model formula is:
-
-$$
-\log_2(Microbiome)_{Thy1-ASO} \sim treament  
-$$
-
-```{r}
-# prepare input data
-tmp.tse <- MetaPhlAn.tse[,MetaPhlAn.tse@colData$genotype != "WT"]
-tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Control")
-tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
-tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, params$assayTested)) > 0,]
-
-tmp.tse
-
-# define experiment name and output directories
-maaslin3_expmt <- "treatments_vs_Control_in_Thy1-ASO"
-maaslin3_final_outdir <- file.path(params$basic_outdir, params$microbiome_data_type, maaslin3_expmt)
-
-# create definitive output directory
-dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
-```
-
-Results are stored in ``r maaslin3_final_outdir``
-
-```{r}
-set.seed(1234)
-treatments_vs_Control_in_Thy1ASO.maaslin3 <- maaslin3(
-    input_data = tmp.tse,
-    formula = ~ treatment, 
-    transform = "LOG",
-    output = maaslin3_final_outdir,
-    # do not standardize continuous metadata variables in the model
-    standardize = FALSE, 
-    plot_associations = TRUE,
-    save_plots_rds = TRUE,
-		verbosity = "ERROR",
-		summary_plot_first_n = 15
-  )
-
-# enrich results with taxonomy information only in case of Metaphlan
-
-if(agrepl("metaphlan", params$assayTested)){
-## add taxonomy to output tables: all_results.tsv
-dplyr::right_join(GTDB.df %>% mutate(SGB = paste0("t__", SGB)), read_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
-  #arrange again based on increasing qval_individual
-  arrange(qval_individual) %>% 
-  write_tsv(file.path(maaslin3_final_outdir, "all_results.tsv"))
-
-## add taxonomy to output tables: significant_results.tsv
-dplyr::right_join(GTDB.df %>% mutate(SGB = paste0("t__", SGB)), read_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
-  write_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv"))
-}
-# save raw output
-saveRDS(treatments_vs_Control_in_Thy1ASO.maaslin3, file = file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
-```
-
-```{r}
-GTDB.df <- GTDB.df %>%
-  mutate(
-    altNames = sapply(
-      strsplit(paste(trimws(Genus), trimws(Species), sprintf("[%s]", SGB)), " ", fixed = TRUE),
-      function(x) paste(unique(x), collapse = " ")
-    )
-  )
-
-altNames.chr <- GTDB.df$altNames
-names(altNames.chr) <- GTDB.df$SGB
-
-panelE_diffAbund <- readRDS(file = file.path(maaslin3_final_outdir, "figures", "summary_plot_gg.RDS")) + 
-  theme(strip.text = element_blank()) + 
-  # expand plot to show full errorbars
-  scale_x_continuous(expand = expansion(mult = c(.1))) + 
-  # remove the null HP that would mess with the panel rendering
-  guides(linetype = "none")
-
-
-
-panelE_diffAbund2 <- panelE_diffAbund +
-  scale_y_discrete(
-    labels = function(y) altNames.chr[gsub("t__", "", y)]
-  ) + theme(
-    axis.text.x = element_text(size = 12),
-    axis.text.y = element_text(size = 12)
-  )
-```
-
-## Main Figure Panel
+## Arrange panels and save figure
 
 ```{r, fig.height=8, fig.width=12}
 
@@ -668,17 +705,17 @@ Microbiome_Main_Figure <- ggarrange(
   
   ggarrange(
   ggarrange(
-    panelD_mediation_motor_GI_symptoms_shorterLabels + theme(legend.position = "bottom"),
     ggplot() + theme_void(),
-    panelE_diffAbund2 + 
+    panelD_diffAbund2 + 
     coord_flip() + 
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), axis.title = element_text(hjust = 1),
           legend.position = "none") + 
     labs(x = expression(log[2]~Fold~Change), y = NULL) + 
-    theme(axis.title = element_text(size = 12)), 
-    widths = c(1, 0.05, 0.85), nrow = 1, labels = c("D", "E",  "")
+    theme(axis.title = element_text(size = 12)),
+    panelE_mediation_motor_GI_symptoms_shorterLabels + theme(legend.position = "bottom"), 
+    widths = c(0.05, 0.85, 1), nrow = 1, labels = c("D", "",  "E")
     ),
-  get_legend(panelE_diffAbund2 + theme(legend.position = "bottom", legend.text = element_text(size = 10), legend.title = element_text(size = 12))), nrow = 2,
+  get_legend(panelD_diffAbund2 + theme(legend.position = "bottom", legend.text = element_text(size = 10), legend.title = element_text(size = 12))), nrow = 2,
   heights = c(1, 0.2)
   ),
   
@@ -686,11 +723,12 @@ Microbiome_Main_Figure <- ggarrange(
   heights = c(1, 0.25, 1)
   )
 
-ggsave(plot = Microbiome_Main_Figure, filename = file.path(params$basic_outdir, params$microbiome_data_type, "Microbiome_Main_Figure.svg"), width = 11, height = 13)
-
+sapply(c("png", "svg", "pdf"), function(fmt)
+ggsave(plot = Microbiome_Main_Figure, filename = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Main_Microbiome_Figure.%s", fmt)), width = 11, height = 13, bg = "white")
+)
 ```
 
-# Supplementary Figure Panel
+# Supplementary Figure `r SuppFigIndex` - alpha and F/B ratios vs genotype treatment
 
 ```{r}
 alpha_data.df <- MetaPhlAn.tse %>%
@@ -795,7 +833,7 @@ panelC_FB.Ratio <- panelF_FB.Ratio.df %>%
 
 ```
 
-## Supplementary Figure Panel
+## Arrange panels and save figure
 
 ```{r}
 microbiome_panel_Supplementary <- ggarrange(
@@ -805,45 +843,75 @@ microbiome_panel_Supplementary <- ggarrange(
     nrow = 1, labels = c("A", "B", "C"), 
 common.legend = TRUE)
 
-ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$microbiome_data_type, "Supplementary Figure 1 - alpha diversities and FB Ratio.svg"), width = 10, height = 4)
+sapply(c("png", "svg", "pdf"), function(fmt)
+ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Figure %i - alpha diversities and FB Ratio.%s", SuppFigIndex, fmt)), width = 10, height = 4)
+)
+SuppFigIndex <- sum(SuppFigIndex, 1)
 
 microbiome_panel_Supplementary
 ```
 
 # Supplementary Tables
 
-```{r}
-tableIndex <- 1
-```
-
-## Supplementary Table `r tableIndex` - Genome Taxonomy Database of the SGBs in the study
+## Supplementary Table `r SuppTabIndex` - Genome Taxonomy Database of the SGBs in the study
 
 ```{r}
 taxaNames_no_UN_no_Prefix <- gsub("t__", "", rownames(MetaPhlAn.tse)) %>% 
   .[!grepl("^UN", .)]
 
 GTDB.df[match(taxaNames_no_UN_no_Prefix, GTDB.df$SGB),] %>% 
-  write_tsv(file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - GTDB taxonomy of the study.tsv", tableIndex)))
+  write_tsv(file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - GTDB taxonomy of the SGBs in the study.tsv", SuppTabIndex)))
 
-tableIndex <- tableIndex + 1
+SuppTabIndex <- SuppTabIndex + 1
 ```
 
-## Supplementary Table `r tableIndex` - PERMANOVA relative to Main Figure Panel B
+## Supplementary Table `r SuppTabIndex` - PERMANOVA relative to Main Figure Panel B
 
 ```{r}
+MetaPhlAn.tse <- addPERMANOVA(MetaPhlAn.tse, 
+             formula = x ~ genotype_treatment, 
+             assay.type = params$assayTested,
+             method = params$beta_dist,
+             permutations = 9999, 
+             by = "margin")
+
 permanova_table.df <- PERMANOVA_to_table(MetaPhlAn.tse)
 
-write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - PERMANOVA of %s distance.tsv", tableIndex, params$beta_dist)))
+write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - PERMANOVA of %s distance  relative to Main Figure panel B.tsv", SuppTabIndex, params$beta_dist)))
 
-tableIndex <- tableIndex  + 1
+SuppTabIndex <- SuppTabIndex  + 1
 ```
 
-## Supplementary table `r tableIndex` - Pairwise PERMANOVA statistics
+## Supplementary table `r SuppTabIndex` - Pairwise PERMANOVA statistics related to Main Figure Panel C
 
 ```{r}
-write_tsv(pairwise_adonis_stats, file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - pairwise PERMANOVA of %s distance.tsv", tableIndex, params$beta_dist)))
+write_tsv(pairwise_adonis_stats, file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - PERMANOVA of %s distance  relative to Main Figure panel C.tsv", SuppTabIndex, params$beta_dist)))
 
-tableIndex <- tableIndex  + 1
+SuppTabIndex <- SuppTabIndex  + 1
+```
+
+## Supplementary table `r SuppTabIndex` - Full Differential abundance analysis results
+
+```{r}
+file.copy(from = file.path(params$basic_outdir, params$microbiome_data_type, maaslin3_expmt, "all_results.tsv"), to = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - MaAsLin3 Differential abundance analysis ASO_F.praus vs ASO Control.tsv", SuppTabIndex)))
+
+SuppTabIndex <- sum(SuppTabIndex, 1)
+```
+
+## Supplementary table `r SuppTabIndex` - Mediation analysis on bead expulsion related to Main Figure panel E
+
+```{r}
+write_tsv(data_as_long_table_bead_expulsion, file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - Mediation analysis on bead expulsion against PCo 1,2,3.tsv", SuppTabIndex)))
+
+SuppTabIndex <- sum(SuppTabIndex, 1)
+```
+
+## Supplementary table `r SuppTabIndex` - Mediation analysis on slips.over.steps ratio related to Main Figure panel E
+
+```{r}
+write_tsv(data_as_long_table_bead_expulsion, file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - Mediation analysis on slips.over.steps ratio against PCo 1,2,3.tsv", SuppTabIndex)))
+
+SuppTabIndex <- sum(SuppTabIndex, 1)
 ```
 
 # Session Info
