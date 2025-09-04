@@ -470,7 +470,13 @@ panelD_diffAbund <- readRDS(file = file.path(maaslin3_final_outdir, "figures", "
 
 panelD_diffAbund2 <- panelD_diffAbund +
   scale_y_discrete(
-    labels = function(y) altNames.chr[gsub("t__", "", y)]
+    labels = function(y) {
+      altnamesBasic <- altNames.chr[gsub("t__", "", y)]
+      altnamesItalics <- strsplit(altnamesBasic, "\\ ") %>% lapply(function(x) 
+        ifelse(str_ends(x, "cter|culum|terium|cter|monas|ccus|llus|cus|ctor|ella"), paste0("*", x, "*"), x)) %>% 
+        purrr::map_chr(.f = function(x) paste(x, collapse = " "))
+      return(altnamesItalics)
+      }
   ) + theme(
     axis.text.x = element_text(size = 12),
     axis.text.y = element_text(size = 12)
@@ -708,7 +714,7 @@ Microbiome_Main_Figure <- ggarrange(
     ggplot() + theme_void(),
     panelD_diffAbund2 + 
     coord_flip() + 
-    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), axis.title = element_text(hjust = 1),
+    theme(axis.text.x = element_markdown(angle = 90, hjust = 1, vjust = 0.5), axis.title = element_text(hjust = 1),
           legend.position = "none") + 
     labs(x = expression(log[2]~Fold~Change), y = NULL) + 
     theme(axis.title = element_text(size = 12)),
