@@ -19,3 +19,4 @@
 # ignore Macintosh's .DS_Store
 .DS_Store
 
+.Rproj.user
