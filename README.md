@@ -2,18 +2,17 @@
 
  - Zenodo link, once available
  
- - SRA link
+ - SRA: PRJNA1259538
  
- - preprint link
+ - preprint link, once available
  
- - paper link
+ - paper link, once available
  
 # *Faecalibacterium prausnitzii*, depleted in the Parkinson’s disease microbiome, improves motor deficits in $\alpha$-synuclein overexpressing mice
 
-Anastasiya Moiseyenko, Giacomo Antonello, Aubrey Schonhoff, Kaelyn Long, 
-Joseph Boktor, Blake Dirks, Anastasiya Oguienko, Alex Villoria-Winnett, 
-Rustem Ismagilov, Rosa Krajmalnik-Brown, Nicola Segata, Levi Waldron, 
-Sarkis K. Mazmanian
+Anastasiya Moiseyenko, Giacomo Antonello, Aubrey M. Schonhoff, Joseph C. Boktor, Kaelyn Long, Blake Dirks, Anastasiya D. Oguienko, Alexander Viloria Winnett, Patrick Simpson, Dorsa Daeizadeh, Rustem F. Ismagilov, Rosa Krajmalnik-Brown, Nicola Segata, Levi D. Waldron, and Sarkis K. Mazmanian
+
+Abstract: Gut microbiome composition is altered in Parkinson’s disease (PD), a neurodegenerative disorder characterized by motor dysfunction and frequently accompanied by gastrointestinal (GI) symptoms. Notably, microbial taxa with anti-inflammatory properties are consistently depleted in PD patients compared to controls. To explore whether specific gut bacteria may be disease-protective, we assembled a microbial consortium of 8 human-associated taxa that are reduced in individuals with PD across multiple cohorts and geographies. Treatment of a-synuclein overexpressing (Thy1-ASO) mice, an animal model of PD, with this consortium improved motor and GI deficits. A single bacterial species from this consortium, Faecalibacterium prausnitzii, was sufficient to correct gut microbiome deviations in Thy1-ASO mice, induce anti-inflammatory immune responses, and promote protective colonic gene expression profiles. Accordingly, oral treatment with F. prausnitzii robustly ameliorated motor and GI symptoms, and reduced a-synuclein aggregates in the brain. These findings support the emerging hypothesis for functional contributions by the microbiome to PD and embolden development of potential probiotic therapies.
 
 ## Objective
 
@@ -115,4 +114,6 @@ Rscript -e 'rmarkdown::render(Main-Analysis_pathway.Rmd")'
 
 # Acknowledgements
 
-This research was funded by Aligning Science Across Parkinson’s [Grant number(s)] through the Michael J. Fox Foundation for Parkinson’s Research (MJFF)
+Metagenomic analysis and figure creation was executed by G.A., while data processing was done by K.L., with supervision from N.S. and L.D.W.
+
+This research was funded in part by Aligning Science Across Parkinson’s (ASAP-020495 and ASAP-000375) through the Michael J. Fox Foundation for Parkinson’s Research (MJFF), as well as the Heritage Medical Research Institute to S.K.M.
