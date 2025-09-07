@@ -123,7 +123,7 @@ moltenAssay_Abs <- meltSE(
 
 list_of_plots <- lapply(moltenAssay_Abs, function(pwy) {
 
-  # A. Calculate ANOVA for the current data frame
+  # Calculate ANOVA for the current data frame
   stats.test <-
     tidy(aov(as.formula(sprintf("%s ~ genotype_treatment_legend", params$assayTested)), data = pwy)) %>% 
     as.data.frame()
@@ -131,7 +131,7 @@ list_of_plots <- lapply(moltenAssay_Abs, function(pwy) {
   stats.test.text <- sprintf("ANOVA: df = %i, F = %.3f, P = %.4f", stats.test[1,"df"],
                              stats.test[1,"statistic"], stats.test[1,"p.value"])
   
-  # C. Create the ggplot object
+  # Create the ggplot object
   p <- ggplot(pwy, aes(x = genotype_treatment_legend, y = .data[[params$assayTested]], fill = genotype_treatment_legend), color = "black") +
   geom_boxplot(alpha = 0.4, outlier.shape = NA, show.legend = FALSE) + 
   #ggbeeswarm::geom_beeswarm(size = 2.5, stroke = 1, color = "black") + 
@@ -154,8 +154,6 @@ list_of_plots <- lapply(moltenAssay_Abs, function(pwy) {
   return(p)
 })
 
-# --- 4. Arrange All Plots into a Grid ---
-# ggarrange will combine the plots and create a single common legend.
 final_plot_grid <- ggarrange(
   plotlist = c(list_of_plots %>% lapply(function(pl) pl + theme(legend.position = "none")), list(get_legend(list_of_plots[[1]]))),
   ncol = 3,
@@ -197,7 +195,7 @@ moltenAssay_Abs <- meltSE(
 
 list_of_plots <- lapply(moltenAssay_Abs, function(pwy) {
 
-  # A. Calculate ANOVA for the current data frame
+  # Calculate ANOVA for the current data frame
   stats.test <-
     tidy(aov(as.formula(sprintf("%s ~ genotype_treatment_legend", "rclr")), data = pwy)) %>% 
     as.data.frame()
@@ -205,7 +203,7 @@ list_of_plots <- lapply(moltenAssay_Abs, function(pwy) {
   stats.test.text <- sprintf("ANOVA: df = %i, F = %.3f, P = %.4f", stats.test[1,"df"],
                              stats.test[1,"statistic"], stats.test[1,"p.value"])
   
-  # C. Create the ggplot object
+  # Create the ggplot object
   p <- ggplot(pwy, aes(x = genotype_treatment_legend, y = .data[["rclr"]], fill = genotype_treatment_legend), color = "black") +
   geom_boxplot(alpha = 0.4, outlier.shape = NA, show.legend = FALSE) + 
   #ggbeeswarm::geom_beeswarm(size = 2.5, stroke = 1, color = "black") + 
@@ -228,8 +226,7 @@ list_of_plots <- lapply(moltenAssay_Abs, function(pwy) {
   return(p)
 })
 
-# --- 4. Arrange All Plots into a Grid ---
-# ggarrange will combine the plots and create a single common legend.
+
 final_plot_grid <- ggarrange(
   plotlist = c(list_of_plots %>% lapply(function(pl) pl + theme(legend.position = "none")), list(get_legend(list_of_plots[[1]]))),
   ncol = 3,

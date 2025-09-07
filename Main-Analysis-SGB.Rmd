@@ -496,7 +496,7 @@ We use the standard 3-equation approach:
   
   - (3) $Outcome \sim Mediator + Treatment$
 
-Where `Mediator` = PCo.x, `Outcome` = Bead Expulsion or Slips/Steps, `Treatment`
+Where `Mediator` = PCo.x, `Outcome` = Bead Expulsion or Errors/Steps, `Treatment`
 *F. prausnitzii* supplementation.
 
 ```{r}
@@ -589,7 +589,7 @@ data_as_long_table_bead_expulsion <- mediations_Princ.Coord %>%
 
 ```
 
-### Mediation analysis of slips/steps
+### Mediation analysis of Errors/steps
 
 ```{r}
 library(mediation)
@@ -644,7 +644,7 @@ data_as_long_table_slips_over_steps <- mediations_Princ.Coord %>%
   lapply("[[", "mediation_analysis") %>% 
   lapply(tidy_mediation) %>% 
   bind_rows(.id = "PCo") %>% 
-  mutate(Exposure = "Slips/Steps Ratio")
+  mutate(Exposure = "Beam Traversal - Errors/Steps")
 ```
 
 ### Panel E plot generation
@@ -756,7 +756,11 @@ stats_obs <- rstatix::pairwise_wilcox_test(alpha_data.df, formula = `Observed Ri
          p.adj.round3 = round(p.adj, 3)) %>% 
   rstatix::add_y_position(step.increase = 0.5)
 
-anova_test <- broom::tidy(aov(`Observed Richness` ~ genotype_treatment, data = alpha_data.df))
+anova_test <- broom::tidy(aov(`Observed Richness` ~ genotype_treatment, data = alpha_data.df)) %>% 
+  as.data.frame()
+  
+anova_test.text <- sprintf("ANOVA: df = %i, F = %.3f, P = %.4f", anova_test[1,"df"],
+                             anova_test[1,"statistic"], anova_test[1,"p.value"])
 
 panelA_Obs_boxplot <- alpha_data.df %>% 
   ggplot(aes(x = genotype_treatment_legend, y = `Observed Richness`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
@@ -771,8 +775,7 @@ panelA_Obs_boxplot <- alpha_data.df %>%
     x = NULL,
     color = "Genotype and Treatment",
     fill = "Genotype and Treatment",
-    caption = sprintf("ANOVA F =  %.3f, P-value = %.3f", anova_test$statistic, anova_test$p.value)
-  )
+    caption = anova_test.text)
 ```
 
 ## B - Shannon Diversity
@@ -783,7 +786,11 @@ stats_shannon <- rstatix::pairwise_wilcox_test(alpha_data.df, formula = `Shannon
          p.adj.round3 = round(p.adj, 3)) %>% 
   rstatix::add_y_position(step.increase = 0.5)
 
-anova_test <- broom::tidy(aov(`Shannon Diversity` ~ genotype_treatment, data = alpha_data.df))
+anova_test <- broom::tidy(aov(`Shannon Diversity` ~ genotype_treatment, data = alpha_data.df)) %>% 
+  as.data.frame()
+
+anova_test.text <- sprintf("ANOVA: df = %i, F = %.3f, P = %.4f", anova_test[1,"df"],
+                             anova_test[1,"statistic"], anova_test[1,"p.value"])
 
 panelB_Shannon_boxplot <- alpha_data.df %>% 
   ggplot(aes(x = genotype_treatment_legend, y = `Shannon Diversity`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
@@ -798,7 +805,7 @@ panelB_Shannon_boxplot <- alpha_data.df %>%
     x = NULL,
     color = "Genotype and Treatment",
     fill = "Genotype and Treatment",
-    caption = sprintf("ANOVA F =  %.3f, P-value = %.3f", anova_test$statistic, anova_test$p.value)
+    caption = anova_test.text
   )
 ```
 
@@ -808,7 +815,11 @@ panelB_Shannon_boxplot <- alpha_data.df %>%
 assayextractedPhylum <- assay(agglomerateByRank(MetaPhlAn.tse, "phylum"), params$assayTested)
 MetaPhlAn.tse$FB.Ratio <- assayextractedPhylum["p__Firmicutes",]/assayextractedPhylum["p__Bacteroidota",]
 
-anova_test <- broom::tidy(aov(FB.Ratio ~ genotype_treatment, data = colData(MetaPhlAn.tse)))
+anova_test <- broom::tidy(aov(FB.Ratio ~ genotype_treatment, data = colData(MetaPhlAn.tse))) %>% 
+  as.data.frame()
+
+anova_test.text <- sprintf("ANOVA: df = %i, F = %.3f, P = %.4f", anova_test[1,"df"],
+                             anova_test[1,"statistic"], anova_test[1,"p.value"])
 
 panelF_FB.Ratio.df <- colData(MetaPhlAn.tse) %>% 
   as.data.frame() %>% 
@@ -834,8 +845,7 @@ panelC_FB.Ratio <- panelF_FB.Ratio.df %>%
     y = "Firmicutes/Bacteroidetes Ratio",
     color = "Genotype and Treatment",
     fill = "Genotype and Treatment",
-    caption = sprintf("ANOVA F =  %.3f, P-value = %.3f", anova_test$statistic, anova_test$p.value)
-  )
+    caption = anova_test.text)
 
 ```
 
