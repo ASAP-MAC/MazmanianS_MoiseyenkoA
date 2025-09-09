@@ -3,8 +3,8 @@ title: "*Faecalibacterium prausnitzii*, depleted in the Parkinson’s disease mi
 subtitle: "Data: HUMAnN 3.9 predicted MetaCyc Pathways"
 author:
   - name: Anastasiya Moiseyenko
-  - name: Aubrey Schonhoff
   - name: Giacomo Antonello
+  - name: Aubrey Schonhoff
   - name: Kaelyn Long
   - name: Joseph Boktor
   - name: Blake Dirks
