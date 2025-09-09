@@ -269,7 +269,6 @@ panelA_stackplot$data$colour_by <- gsub("_", " ", panelA_stackplot$data$colour_b
 ```{r}
 set.seed(1234)
 dimRedName <- paste("Fp7", params$beta_dist, "mds", sep = "_")
-# this will work once mia or TreeSummarizedExperiment fixes some things
 
 MetaPhlAn.tse <- mia::addMDS(
   MetaPhlAn.tse,
@@ -901,7 +900,7 @@ SuppTabIndex <- SuppTabIndex  + 1
 ## Supplementary table `r SuppTabIndex` - Pairwise PERMANOVA statistics related to Main Figure Panel C
 
 ```{r}
-write_tsv(pairwise_adonis_stats, file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - PERMANOVA of %s distance  relative to Main Figure panel C.tsv", SuppTabIndex, params$beta_dist)))
+write_tsv(pairwise_adonis_stats, file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - pairwise PERMANOVA of %s distance  relative to Main Figure panel C.tsv", SuppTabIndex, params$beta_dist)))
 
 SuppTabIndex <- SuppTabIndex  + 1
 ```
