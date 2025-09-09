@@ -90,10 +90,21 @@ colorize_labels <- function(labels, mapping) {
   return(colored_labels)
 }
 ###################################################################
+HUMAnN.tse <- read_TSE_from_dir("Data/HUMAnN_pathways_unstratified.tse/")
 
-SuppFigIndex <- 1
+# create base output directory
+dir.create(file.path(params$basic_outdir, params$microbiome_data_type), 
+           showWarnings = FALSE, recursive = TRUE)
+
 overall_color_palette <- c("WT Control" = "#b2df8a", "Thy1-ASO Control" = "#a6cee3", "Thy1-ASO *F. prausnitzii*" = "#1f78b4", "Thy1-ASO F. prausnitzii" = "#1f78b4")
 
+# Initialize figure indices
+SuppFigIndex <- 1
+MainFigIndex <- 1
+SuppTabIndex <- 1
+MainTabIndex <- 1
+
+HUMAnN.tse
 ```
 
 # Load data for analysis

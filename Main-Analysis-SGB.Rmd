@@ -816,7 +816,6 @@ MetaPhlAn.tse$FB.Ratio <- assayextractedPhylum["p__Firmicutes",]/assayextractedP
 
 anova_test <- broom::tidy(aov(FB.Ratio ~ genotype_treatment, data = colData(MetaPhlAn.tse))) %>% 
   as.data.frame()
-
 anova_test.text <- sprintf("ANOVA: df = %i, F = %.3f, P = %.4f", anova_test[1,"df"],
                              anova_test[1,"statistic"], anova_test[1,"p.value"])
 
@@ -908,7 +907,7 @@ SuppTabIndex <- SuppTabIndex  + 1
 ## Supplementary table `r SuppTabIndex` - Full Differential abundance analysis results
 
 ```{r}
-file.copy(from = file.path(params$basic_outdir, params$microbiome_data_type, maaslin3_expmt, "all_results.tsv"), to = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - MaAsLin3 Differential abundance analysis ASO_F.praus vs ASO Control.tsv", SuppTabIndex)))
+file.copy(from = file.path(params$basic_outdir, params$microbiome_data_type, maaslin3_expmt, "all_results.tsv"), to = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - MaAsLin3 Differential abundance analysis ASO_Treated vs ASO_Control.tsv", SuppTabIndex)))
 
 SuppTabIndex <- sum(SuppTabIndex, 1)
 ```
