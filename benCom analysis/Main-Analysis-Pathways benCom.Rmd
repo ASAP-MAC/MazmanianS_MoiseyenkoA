@@ -1,0 +1,256 @@
+---
+title: "*Faecalibacterium prausnitzii*, depleted in the Parkinson’s disease microbiome, improves motor deficits in alpha-synuclein overexpressing mice"
+subtitle: "Data: HUMAnN 3.9 predicted MetaCyc Pathways"
+author:
+  - name: Anastasiya Moiseyenko
+  - name: Giacomo Antonello
+  - name: Aubrey Schonhoff
+  - name: Kaelyn Long
+  - name: Joseph Boktor
+  - name: Blake Dirks
+  - name: Anastasiya Oguienko
+  - name: Alex Villoria-Winnett
+  - name: Rustem Ismagilov
+  - name: Rosa Krajmalnik-Brown
+  - name: Nicola Segata
+  - name: Levi Waldron
+  - name: Sarkis K. Mazmanian
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::robobook:
+    self_contained: true
+    toc_depth: 3
+    toc_float: false
+    use_bookdown: true
+    highlight: haddock
+params:
+  basic_outdir: "results"
+  assayTested: "pathway_abundance_unstratified"
+  microbiome_data_type: "pathway"
+  beta_dist: "bray"
+  beta_MDS: "MDS"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+# packages for tabular data manipulation
+library(tidyverse)
+
+# microbiome specific packages
+library(maaslin3) # this version needs a custom fix in a fork I made pending approval as of Jul 28 2025. install with remotes::install_github("g-antonello/maaslin3", force = TRUE)
+library(mia)
+library(biobakeryUtils)
+# some packages for data visualization (plots and tables)
+library(miaViz)
+library(ggpubr)
+library(kableExtra)
+library(reactable)
+library(ggtext) # enhanced text handling in ggplot
+# MAC's package to download data
+library(parkinsonsMetagenomicData)
+
+library(ggh4x) # for complex ggplot2 faceting
+# remotes::install_github("cmartin/ggConvexHull")
+library(ggConvexHull) # for convex hulls geometries
+# set ggplot2 plot themes 
+theme_set(theme_light())
+# set seed for reproducibility
+set.seed(1234)
+
+library(biobakeryUtils)
+###################################################################
+# pairwise PERMANOVA source code
+source("https://raw.githubusercontent.com/pmartinezarbizu/pairwiseAdonis/refs/heads/master/pairwiseAdonis/R/pairwise.adonis.R")
+###################################################################
+
+###################################################################
+# function to colorize labels of ggplot object
+# This function will apply ALL color rules to EACH label string
+colorize_labels <- function(labels, mapping) {
+  # Start with the original labels
+  colored_labels <- labels
+  
+  # Loop through each pattern-color rule in your map
+  for (pattern in names(mapping)) {
+    color <- mapping[[pattern]]
+    
+    # The text to display is the pattern without the escape slashes
+    display_text <- gsub("\\\\", "", pattern) 
+    
+    # Apply the coloring rule. This will modify labels that have already been partially colored.
+    colored_labels <- gsub(
+      pattern = pattern, 
+      replacement = paste0("<span style='color:", color, ";'>", display_text, "</span>"), 
+      x = colored_labels,
+      fixed = TRUE
+    )
+  }
+  
+  return(colored_labels)
+}
+###################################################################
+HUMAnN.tse <- read_TSE_from_dir("Data/HUMAnN_pathways_unstratified.tse/")
+
+# create base output directory
+dir.create(file.path(params$basic_outdir, params$microbiome_data_type), 
+           showWarnings = FALSE, recursive = TRUE)
+
+# make a study-wide color palette for the variables tested
+overall_color_palette <- c("WT Control" = "#b2df8a", "Thy1-ASO Control" = "#a6cee3", "Thy1-ASO benCom" = "darkslategray")
+
+# Initialize figure indices
+SuppFigIndex <- 1
+MainFigIndex <- 1
+SuppTabIndex <- 1
+MainTabIndex <- 1
+
+# print input data for the benCom cohort
+HUMAnN.tse <- HUMAnN.tse[,HUMAnN.tse$cohort == "bCL"]
+HUMAnN.tse
+```
+
+# Supplementary Figure `r SuppFigIndex` - Abundance of fermentative pathways by treatment group
+
+```{r}
+fermentative_pathways <- grep("acetate|propionate|propanoate|butanoate|butyrate|caproate|formate|methanoate|valerate|lactate", rownames(HUMAnN.tse), value = TRUE)
+
+names(fermentative_pathways) <- fermentative_pathways
+
+fermentative_pathways <- sapply(strsplit(fermentative_pathways, ": ", fixed = TRUE), "[", 2)
+```
+
+```{r, results="asis", warning=FALSE}
+moltenAssay_Abs <- meltSE(
+  HUMAnN.tse,
+  add.col = c("genotype_treatment", "genotype_treatment_legend"),
+  assay.type = params$assayTested
+) %>% mutate(FeatureID = trimws(sapply(strsplit(as.character(FeatureID), "\\:"), "[", 2))) %>% 
+  filter(FeatureID %in% fermentative_pathways) %>% 
+  split.data.frame(.$FeatureID) 
+
+list_of_plots <- lapply(moltenAssay_Abs, function(pwy) {
+
+  # Calculate ANOVA for the current data frame
+  stats.test <-
+    tidy(aov(as.formula(sprintf("%s ~ genotype_treatment_legend", params$assayTested)), data = pwy)) %>% 
+    as.data.frame()
+  
+  stats.test.text <- sprintf("ANOVA: df = %i, F = %.3f, P = %.4f", stats.test[1,"df"],
+                             stats.test[1,"statistic"], stats.test[1,"p.value"])
+  
+  # Create the ggplot object
+  p <- ggplot(pwy, aes(x = genotype_treatment_legend, y = .data[[params$assayTested]], fill = genotype_treatment_legend), color = "black") +
+  geom_boxplot(alpha = 0.4, outlier.shape = NA, show.legend = FALSE) + 
+  #ggbeeswarm::geom_beeswarm(size = 2.5, stroke = 1, color = "black") + 
+  ggbeeswarm::geom_beeswarm(size = 2.5, pch = 21) + 
+  scale_color_manual(values = overall_color_palette, aesthetics = "fill") +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    legend.text = element_markdown(),
+    plot.title = element_text(size = 9)
+  ) +
+  labs(
+    title = unique(pwy[["FeatureID"]]),
+    y = "Absolute Abundance", # Assuming this is the y-axis title
+    x = NULL, # Remove individual x-axis titles
+    fill = "Genotype and Treatment",
+    caption = stats.test.text
+  )
+
+  return(p)
+})
+
+final_plot_grid <- ggarrange(
+  plotlist = c(list_of_plots %>% lapply(function(pl) pl + theme(legend.position = "none")), list(get_legend(list_of_plots[[1]]))),
+  ncol = 3,
+  nrow = ceiling(length(list_of_plots)/3)
+)
+
+final_plot_grid
+
+```
+
+```{r}
+sapply(c("png", "svg", "pdf"), function(fmt)
+ggsave(plot = final_plot_grid, filename = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Figure %i - Abundance of SCFA related pathways.%s", SuppFigIndex, fmt)), height = 12, width = 12, dpi = 600, bg = "white")) %>% 
+  invisible()
+
+SuppFigIndex <- sum(SuppFigIndex, 1)
+```
+
+# Supplementary Figure `r SuppFigIndex` - Abundance of fermentative pathways by treatment group
+
+```{r}
+fermentative_pathways <- grep("acetate|propionate|butanoate|butyrate|caproate|formate|valerate|lactate", rownames(HUMAnN.tse), value = TRUE)
+
+names(fermentative_pathways) <- fermentative_pathways
+
+fermentative_pathways <- sapply(strsplit(fermentative_pathways, ": ", fixed = TRUE), "[", 2)
+```
+
+```{r, results="asis", warning=FALSE}
+HUMAnN.tse <- transformAssay(HUMAnN.tse, assay.type = params$assayTested, method = "rclr")
+
+moltenAssay_Abs <- meltSE(
+  HUMAnN.tse,
+  add.col = c("genotype_treatment", "genotype_treatment_legend"),
+  assay.type = "rclr"
+) %>% mutate(FeatureID = trimws(sapply(strsplit(as.character(FeatureID), "\\:"), "[", 2))) %>% 
+  filter(FeatureID %in% fermentative_pathways) %>% 
+  split.data.frame(.$FeatureID) 
+
+list_of_plots <- lapply(moltenAssay_Abs, function(pwy) {
+
+  # Calculate ANOVA for the current data frame
+  stats.test <-
+    tidy(aov(as.formula(sprintf("%s ~ genotype_treatment_legend", "rclr")), data = pwy)) %>% 
+    as.data.frame()
+  
+  stats.test.text <- sprintf("ANOVA: df = %i, F = %.3f, P = %.4f", stats.test[1,"df"],
+                             stats.test[1,"statistic"], stats.test[1,"p.value"])
+  
+  # Create the ggplot object
+  p <- ggplot(pwy, aes(x = genotype_treatment_legend, y = .data[["rclr"]], fill = genotype_treatment_legend), color = "black") +
+  geom_boxplot(alpha = 0.4, outlier.shape = NA, show.legend = FALSE) + 
+  #ggbeeswarm::geom_beeswarm(size = 2.5, stroke = 1, color = "black") + 
+  ggbeeswarm::geom_beeswarm(size = 2.5, pch = 21) + 
+  scale_color_manual(values = overall_color_palette, aesthetics = "fill") +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    legend.text = element_markdown(), 
+    plot.title = element_text(size = 9)
+  ) +
+  labs(
+    title = unique(pwy[["FeatureID"]]),
+    y = "Robust CLR Abundance", # Assuming this is the y-axis title
+    x = NULL, # Remove individual x-axis titles
+    fill = "Genotype and Treatment",
+    caption = stats.test.text
+  )
+
+  return(p)
+})
+
+
+final_plot_grid <- ggarrange(
+  plotlist = c(list_of_plots %>% lapply(function(pl) pl + theme(legend.position = "none")), list(get_legend(list_of_plots[[1]]))),
+  ncol = 3,
+  nrow = ceiling(length(list_of_plots)/3)
+  )
+
+final_plot_grid
+```
+
+```{r}
+sapply(c("png", "svg", "pdf"), function(fmt)
+ggsave(plot = final_plot_grid, filename = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Figure %i - Robust CLR of SCFA related pathways.%s", SuppFigIndex, fmt)), height = 12, width = 12, dpi = 600, bg = "white"))
+```
+
+# Session Info
+
+```{r}
+sessionInfo()
+```

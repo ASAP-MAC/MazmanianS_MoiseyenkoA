@@ -1,0 +1,983 @@
+---
+title: "*Faecalibacterium prausnitzii*, depleted in the Parkinson’s disease microbiome, improves motor deficits in alpha-synuclein overexpressing mice"
+subtitle: "Data: Metaphlan 4.1.1 relative abundances"
+author:
+  - name: Anastasiya Moiseyenko
+  - name: Giacomo Antonello
+  - name: Aubrey Schonhoff
+  - name: Kaelyn Long
+  - name: Joseph Boktor
+  - name: Blake Dirks
+  - name: Anastasiya Oguienko
+  - name: Alex Villoria-Winnett
+  - name: Rustem Ismagilov
+  - name: Rosa Krajmalnik-Brown
+  - name: Nicola Segata
+  - name: Levi Waldron
+  - name: Sarkis K. Mazmanian
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::robobook:
+    self_contained: true
+    toc_depth: 3
+    toc_float: false
+    use_bookdown: true
+    highlight: haddock
+params:
+  basic_outdir: "results"
+  assayTested: "metaphlan_RelAbund"
+  microbiome_data_type: "SGB"
+  beta_dist: "bray"
+  beta_MDS: "MDS"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+# packages for tabular data manipulation
+library(tidyverse)
+
+# microbiome specific packages
+library(maaslin3) # this version needs a custom fix in a fork I made pending approval as of Jul 28 2025. install with remotes::install_github("g-antonello/maaslin3", force = TRUE)
+library(mia)
+library(biobakeryUtils)
+# some packages for data visualization (plots and tables)
+library(miaViz)
+library(ggpubr)
+library(kableExtra)
+library(ggtext) # enhanced text handling in ggplot
+
+# MAC's package to download data
+library(parkinsonsMetagenomicData)
+# library to clean linear models output
+library(broom)
+library(ggh4x) # for complex ggplot2 faceting
+# remotes::install_github("cmartin/ggConvexHull")
+library(ggConvexHull) # for convex hulls geometries
+# set ggplot2 plot themes 
+theme_set(theme_light())
+# set seed for reproducibility
+set.seed(1234)
+
+library(biobakeryUtils)
+###################################################################
+# pairwise PERMANOVA source code
+source("https://raw.githubusercontent.com/pmartinezarbizu/pairwiseAdonis/refs/heads/master/pairwiseAdonis/R/pairwise.adonis.R")
+###################################################################
+
+###################################################################
+# function to colorize text of ggplot object matching with a pattern
+# This function will apply ALL color rules to EACH label string
+colorize_labels <- function(labels, mapping) {
+  # Start with the original labels
+  colored_labels <- labels
+  
+  # Loop through each pattern-color rule in your map
+  for (pattern in names(mapping)) {
+    color <- mapping[[pattern]]
+    
+    # The text to display is the pattern without the escape slashes
+    display_text <- gsub("\\\\", "", pattern) 
+    
+    # Apply the coloring rule. This will modify labels that have already been partially colored.
+    colored_labels <- gsub(
+      pattern = pattern, 
+      replacement = paste0("<span style='color:", color, ";'>", display_text, "</span>"), 
+      x = colored_labels,
+      fixed = TRUE
+    )
+  }
+  
+  return(colored_labels)
+}
+
+###################################################################
+# load data for analyses and create output directory
+#####################################
+# Load data for analyses
+MetaPhlAn.tse <- read_TSE_from_dir("Data/MetaPhlAn.tse/")
+
+# create base output directory
+dir.create(file.path(params$basic_outdir, params$microbiome_data_type), 
+           showWarnings = FALSE, recursive = TRUE)
+
+# make a study-wide color palette for the variables tested
+overall_color_palette <- c("WT Control" = "#b2df8a", "Thy1-ASO Control" = "#a6cee3", "Thy1-ASO benCom" = "darkslategray")
+
+# load Genome Taxonomy Data Base (originally from the MetaPhlAn GitHub release)
+GTDB.df <- read_tsv("Data/GTDB_202403.tsv")
+
+# Initialize figure indices
+SuppFigIndex <- 1
+MainFigIndex <- 1
+SuppTabIndex <- 1
+MainTabIndex <- 1
+
+# print input data for the benCom cohort
+MetaPhlAn.tse <- MetaPhlAn.tse[,MetaPhlAn.tse$cohort == "bCL"]
+MetaPhlAn.tse
+```
+
+# Preliminary statistics 
+
+## Uniform reads distribution per condition
+
+```{r, fig.height=7, fig.width=7}
+normality_test <- shapiro.test(MetaPhlAn.tse@colData$number_reads)
+
+hist_reads <- ggplot(colData(MetaPhlAn.tse), aes(x = number_reads/1e6, color = genotype_treatment, fill = genotype_treatment)) + 
+  scale_color_manual(values = overall_color_palette, aesthetics = c("fill", "color")) +
+  geom_density(alpha = 0.1) + 
+  labs(
+    x = "Million reads per sample retained",
+    y = "Density",
+    color = "Genotype and Treatment",
+    fill = "Genotype and Treatment",
+    caption = sprintf("Shapiro-Wilk: W = %.3f, P = %.3f", normality_test$statistic, normality_test$p.value)
+  )
+
+test_reads <- pairwise.t.test(MetaPhlAn.tse@colData$number_reads, MetaPhlAn.tse@colData$genotype_treatment, pool.sd = FALSE,p.adjust.method = NULL) %>% 
+  broom::tidy()
+
+reads_per_condition <- ggarrange(hist_reads, ggtexttable(test_reads, rows = NULL), common.legend = TRUE, labels = "AUTO", nrow = 2, heights = c(1, 0.3))
+
+sapply(c("png", "svg", "pdf"), function(fmt)
+  ggsave(
+    plot = reads_per_condition,
+    filename = sprintf(
+      "%s/%s/Supplementary Figure %i - Reads distribution per condition.%s",
+      params$basic_outdir,
+      params$microbiome_data_type,
+      SuppFigIndex,
+      fmt
+    ),
+    height = 8,
+    width = 8,
+    dpi = 600, 
+    bg = "white"
+  )) %>% invisible()
+
+SuppFigIndex <- sum(SuppFigIndex, 1)
+```
+
+## Alpha diversity does not vary in relation to sequencing depth
+
+```{r}
+alphaDivIndices <- c(
+  "dbp_dominance",
+  "observed_richness",
+  "shannon_diversity",
+  "gini"
+)
+
+MetaPhlAn.tse <- addAlpha(MetaPhlAn.tse, assay.type = params$assayTested, index = alphaDivIndices)
+```
+
+```{r}
+histograms_alpha <- lapply(alphaDivIndices, 
+       function(div) {
+         stats_basic <- shapiro.test(as.data.frame(colData(MetaPhlAn.tse))[[div]])
+         text <- paste0("Shapiro-Wilk test: W = ", round(stats_basic$statistic, 2), "; P-value = ", round(stats_basic$p.value, 3))
+         plot <- ggplot(as.data.frame(colData(MetaPhlAn.tse)), aes(x = !!sym(div))) +
+           geom_histogram() + 
+           labs(
+             title = div, 
+             caption = text
+           )
+         
+         }
+       ) %>% 
+  ggarrange(plotlist = .)
+
+```
+
+```{r, tab.cap="Assessment of dependence of alpha diversity measures in relation to sequencing depth"}
+tmp <- sapply(alphaDivIndices, function(div) {
+  lm(as.formula(paste(div, "~", "number_reads")), data = colData(MetaPhlAn.tse))
+  
+}, USE.NAMES = TRUE, simplify = FALSE)
+
+table_results.df <- tmp %>% lapply(broom::tidy) %>% 
+  bind_rows(.id = "AlphaIndex") %>% 
+  filter(!grepl("Intercept", term)) %>% 
+  as_tibble()
+
+alpha_vs_reads_plot <- ggarrange(
+  histograms_alpha, 
+  ggtexttable(table_results.df, rows = NULL), 
+  nrow = 2
+)
+
+sapply(c("png", "svg", "pdf"), function(fmt)
+ggsave(plot = alpha_vs_reads_plot, filename = sprintf(
+      "%s/%s/Supplementary Figure %i - Alpha Indices vs number of reads.%s",
+      params$basic_outdir,
+      params$microbiome_data_type,
+      SuppFigIndex,
+      fmt
+    ),
+    height = 8,
+    width = 8,
+    dpi = 600, 
+    bg = "white"
+  )
+) %>% invisible()
+
+SuppFigIndex <- sum(SuppFigIndex, 1)
+```
+
+```{r, tab.cap="Assessment of dependence of alpha diversity measures in relation to sequencing depth"}
+table_results.df %>%
+  kbl() %>% 
+  row_spec(which(table_results.df$p.value < 0.05), bold = TRUE) %>% 
+  kable_styling()
+```
+
+# Main figure 
+
+## A - Stackplot relative abundances at Phylum Level
+
+```{r}
+panelA_stackplot <- plotAbundance(
+  x = MetaPhlAn.tse,
+  assay.type = params$assayTested, 
+  group = "phylum") + 
+  facet_grid(cols = vars(genotype_treatment_legend), scales = "free_x") + 
+  theme_light() +
+  scale_x_discrete(labels = "x") +
+  theme(
+    panel.spacing.x = unit(0, "lines"),
+    strip.background.x = element_rect(fill = "white", colour = "gray40", linewidth = unit(0.8, "mm")), 
+    panel.grid = element_blank(),
+    panel.border = element_rect(colour = "gray40", linewidth = unit(0.8, units = "mm")),
+    strip.text = element_text(color = "black"),
+    axis.text.x = element_text(color = "white"),
+    axis.ticks.x = element_blank(),
+    strip.text.x = element_markdown()
+    ) + 
+  labs(
+    fill = "Phylum",
+    x = " "
+  )
+
+panelA_stackplot$data$colour_by <- gsub("p__", "", panelA_stackplot$data$colour_by)
+panelA_stackplot$data$colour_by <- gsub("_", " ", panelA_stackplot$data$colour_by)
+```
+
+## B - PCoA
+
+```{r}
+set.seed(1234)
+dimRedName <- paste("benCom", params$beta_dist, "mds", sep = "_")
+
+MetaPhlAn.tse <- mia::addMDS(
+  MetaPhlAn.tse,
+  assay.type = params$assayTested,
+  method = params$beta_dist,
+  ncomponents = 3, name = dimRedName
+  )
+
+variances_explained <- attr(reducedDim(MetaPhlAn.tse, dimRedName), "eig")
+prop_variances_explained <- variances_explained/sum(variances_explained)
+
+benCom_colData_for_PCoA.df <- cbind.data.frame(as.data.frame(colData(MetaPhlAn.tse)), reducedDim(MetaPhlAn.tse, dimRedName) %>% as.data.frame() %>% set_names(paste("MDS", 1:ncol(.))))
+
+panelB_PCoA <- benCom_colData_for_PCoA.df %>% 
+ggplot(aes(x = `MDS 1`, y = `MDS 2`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
+  geom_point(size = 2.5, stroke = 1, color = "black") +
+  geom_point(size = 2.5) +
+  ggConvexHull::geom_convexhull(show.legend = FALSE, alpha = 0.2) + 
+  scale_color_manual(values = overall_color_palette) +
+  scale_fill_manual(values = overall_color_palette) +
+  theme(legend.position = "top", legend.text = element_markdown()) +
+  labs(color = "Genotype and Treatment",
+       fill = "Genotype and Treatment",
+       x = paste0("PCoA Axis 1 [", round(prop_variances_explained[1]*100, 1), "%]"),
+       y = paste0("PCoA Axis 2 [", round(prop_variances_explained[2]*100, 2), "%]")
+  )
+
+# panelB_PCoA
+```
+
+## C - Pairwise bray-curtis dissimilarities
+
+### Statistical test (Bray-curtis)
+
+```{r}
+dissimName <- paste("benCom", params$beta_dist, sep = "_")
+MetaPhlAn.tse <- addDissimilarity(MetaPhlAn.tse, method = "bray", name = dissimName, assay.type = params$assayTested)
+mtx <- metadata(MetaPhlAn.tse)[[dissimName]]
+mtx[upper.tri(mtx,diag = TRUE)] <- NA
+
+pairwise_dissim_bray <- reshape2::melt(mtx) %>% 
+  filter(complete.cases(.)) %>%
+  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn.tse)) %>% transmute(Var1 = uuid, genotype_treatment_legend = genotype_treatment_legend), by = "Var1") %>% 
+  dplyr::inner_join(., as.data.frame(colData(MetaPhlAn.tse)) %>% transmute(Var2 = uuid, genotype_treatment_legend = genotype_treatment_legend), by = "Var2") %>% 
+  dplyr::select(Var1, Var2, contains(c("uuid", "genotype", "treatment")), value) %>% 
+  mutate(pairs = paste(genotype_treatment_legend.y, genotype_treatment_legend.x, sep = " vs ")) %>% 
+  filter(genotype_treatment_legend.x != genotype_treatment_legend.y)
+
+```
+
+```{r}
+set.seed(1234)
+library(vegan)
+pairwise_adonis_stats <- pairwise.adonis(x = as.dist(metadata(MetaPhlAn.tse)[[dissimName]]), 
+                factors = MetaPhlAn.tse@colData$genotype_treatment, 
+                perm = 9999,
+                p.adjust.m = "BH"
+                )
+
+```
+
+### Boxplot dissimilarities
+
+```{r}
+pairwise_adonis_stats_asterisks <- pairwise_adonis_stats %>% 
+  mutate(pairs = gsub("Thy1-ASO F. prausnitzii", "Thy1-ASO *F. prausnitzii*", pairs))
+
+panelC_pairwise_dissim_boxplot <- pairwise_dissim_bray %>%
+  ggplot(
+    aes(x = pairs, y = value)
+  ) +
+  geom_point(position = position_jitter(width = 0.2, seed = 1234), stroke = 1.1) +
+  geom_point(position = position_jitter(width = 0.2, seed = 1234), color = "gray30") +
+  geom_boxplot(outliers = FALSE, alpha = 0.6, width = 0.3) +
+  geom_text(data = pairwise_adonis_stats_asterisks %>%
+              dplyr::left_join(
+                group_by(pairwise_dissim_bray, pairs) %>%
+                  reframe(value = max(value)*1.1), by = "pairs") %>% 
+              mutate(pairs = factor(pairs, levels = pairs)),
+            mapping = aes(x = pairs, y = value, label = sprintf("FDR = %.3f", p.adjusted)), hjust = 0, angle = 90) +
+  # Apply the colorize_labels function to your x-axis labels
+  scale_x_discrete(labels = function(x) colorize_labels(x, overall_color_palette)) +
+  # Tell ggplot to render the axis text as Markdown/HTML
+  theme(
+    axis.text.x = ggtext::element_markdown(angle = 90, hjust = 1, vjust = 0.5)
+    ) +
+  ylim(min(pairwise_dissim_bray$value)*0.9, max(pairwise_dissim_bray$value)*1.5) +
+  labs(
+    x = "",
+    y = "Bray-Curtis Pairwise Dissimilarity"
+  )
+
+# make a horizontal version just in case
+
+panelC_pairwise_dissim_boxplot_horiz <- pairwise_dissim_bray %>%
+  ggplot(
+    aes(y = pairs, x = value)
+  ) +
+  geom_point(position = position_jitter(height = 0.2, seed = 1234), stroke = 1.1) +
+  geom_point(position = position_jitter(height = 0.2, seed = 1234), color = "gray30") +
+  geom_boxplot(outliers = FALSE, alpha = 0.6, width = 0.3) +
+  geom_text(data = pairwise_adonis_stats_asterisks %>%
+              dplyr::left_join(
+                group_by(pairwise_dissim_bray, pairs) %>%
+                  reframe(value = max(value)*1.1), by = "pairs") %>% 
+              mutate(pairs = factor(pairs, levels = pairs)),
+            mapping = aes(y = pairs, x = value, label = sprintf("FDR = %.3f", p.adjusted)), hjust = 0) +
+  # Apply the colorize_labels function to your x-axis labels
+  scale_y_discrete(labels = function(x) colorize_labels(x, overall_color_palette)) +
+  # Tell ggplot to render the axis text as Markdown/HTML
+  theme(axis.text.y = ggtext::element_markdown(angle = 0, hjust = 1)) +
+  xlim(min(pairwise_dissim_bray$value)*0.9, max(pairwise_dissim_bray$value)*1.5) +
+  labs(
+    y = "",
+    x = "Bray-Curtis Pairwise Dissimilarity"
+  )
+```
+
+## D - Differentially abundant features due to treatment in Thy1-ASO mice
+
+Model formula is:
+
+$$
+\log_2(Microbiome)_{Thy1-ASO} \sim treament  
+$$
+
+```{r}
+# prepare input data
+tmp.tse <- MetaPhlAn.tse[,MetaPhlAn.tse@colData$genotype != "WT"]
+tmp.tse@colData$treatment <- relevel(tmp.tse@colData$treatment, "Control")
+tmp.tse@colData$treatment <- droplevels(tmp.tse@colData$treatment)
+tmp.tse <- tmp.tse[rowSums(assay(tmp.tse, params$assayTested)) > 0,]
+
+tmp.tse
+
+# define experiment name and output directories
+maaslin3_expmt <- "maaslin3_treatments_vs_Control_in_Thy1-ASO"
+maaslin3_final_outdir <- file.path(params$basic_outdir, params$microbiome_data_type, maaslin3_expmt)
+
+# create definitive output directory
+dir.create(maaslin3_final_outdir, showWarnings = FALSE, recursive = TRUE)
+```
+
+Results are stored in ``r maaslin3_final_outdir``
+
+```{r}
+set.seed(1234)
+treatments_vs_Control_in_Thy1ASO.maaslin3 <- maaslin3(
+    input_data = tmp.tse,
+    formula = ~ treatment, 
+    transform = "LOG",
+    output = maaslin3_final_outdir,
+    # do not standardize continuous metadata variables in the model
+    standardize = FALSE, 
+    plot_associations = TRUE,
+    save_plots_rds = TRUE,
+		verbosity = "ERROR",
+		summary_plot_first_n = 15
+  )
+
+# enrich results with taxonomy information only in case of Metaphlan
+
+if(agrepl("metaphlan", params$assayTested)){
+## add taxonomy to output tables: all_results.tsv
+dplyr::right_join(GTDB.df %>% mutate(SGB = paste0("t__", SGB)), read_tsv(file.path(maaslin3_final_outdir, "all_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
+  #arrange again based on increasing qval_individual
+  arrange(qval_individual) %>% 
+  write_tsv(file.path(maaslin3_final_outdir, "all_results.tsv"))
+
+## add taxonomy to output tables: significant_results.tsv
+dplyr::right_join(GTDB.df %>% mutate(SGB = paste0("t__", SGB)), read_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv")) %>% dplyr::rename(!!sym(params$microbiome_data_type) := feature), by = params$microbiome_data_type) %>% 
+  write_tsv(file.path(maaslin3_final_outdir, "significant_results.tsv"))
+}
+# save raw output
+saveRDS(treatments_vs_Control_in_Thy1ASO.maaslin3, file = file.path(maaslin3_final_outdir, "maaslin3_raw_output.rds"))
+```
+
+```{r}
+GTDB.df <- GTDB.df %>%
+  mutate(
+    altNames = sapply(
+      strsplit(paste(trimws(Genus), trimws(Species), sprintf("[%s]", SGB)), " ", fixed = TRUE),
+      function(x) paste(unique(x), collapse = " ")
+    )
+  )
+
+altNames.chr <- GTDB.df$altNames
+names(altNames.chr) <- GTDB.df$SGB
+
+panelD_diffAbund <- readRDS(file = file.path(maaslin3_final_outdir, "figures", "summary_plot_gg.RDS")) + 
+  theme(strip.text = element_blank()) + 
+  # expand plot to show full errorbars
+  scale_x_continuous(expand = expansion(mult = c(.1))) + 
+  # remove the null HP that would mess with the panel rendering
+  guides(linetype = "none")
+
+
+
+panelD_diffAbund2 <- panelD_diffAbund +
+  scale_y_discrete(
+    labels = function(y) {
+      altnamesBasic <- altNames.chr[gsub("t__", "", y)]
+      altnamesItalics <- strsplit(altnamesBasic, "\\ ") %>% lapply(function(x) 
+        ifelse(str_ends(x, "cter|culum|terium|cter|monas|ccus|llus|cus|ctor|ella|ciens|spira"), paste0("*", x, "*"), x)) %>% 
+        purrr::map_chr(.f = function(x) paste(x, collapse = " "))
+      return(altnamesItalics)
+      }
+  ) + theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12)
+  )
+```
+
+## E - Mediation analysis with PCoA axes 1-3 on constipation and motor symptoms
+
+- Constipation symptoms: $Bead~expulsion~(minutes)$
+- Motor symptoms: $\frac{slips}{steps}~on~beam$
+
+We use the standard 3-equation approach:
+
+  - (1) $Mediator \sim Treatment$
+
+  - (2) $Outcome \sim Treatment$
+  
+  - (3) $Outcome \sim Mediator + Treatment$
+
+Where `Mediator` = PCo.x, `Outcome` = Bead Expulsion or Errors/Steps, `Treatment`
+*F. prausnitzii* supplementation.
+
+```{r}
+# gather bead_expulsion_n data
+motor_gi_symptoms.list <- sapply(c("Beam_steps", "Bead_exp"), function(x) openxlsx::read.xlsx("Data/benCom_GI_motor_assessment.xlsx", sheet = x), simplify = FALSE, USE.NAMES = TRUE)
+
+# prepare bead expulsion variable
+motor_gi_symptoms.list$Bead_exp <- motor_gi_symptoms.list$Bead_exp %>% 
+  dplyr::transmute(
+  mouse_id = ID,
+  bead_expulsion_min = Trial1)
+
+# prepare slips over steps variable
+motor_gi_symptoms.list$Beam_steps <- motor_gi_symptoms.list$Beam_steps %>% 
+  rowwise() %>% 
+  transmute(
+    mouse_id = ID,
+    Slips = Slips_Trial1,
+    Steps = Steps_Trial1,
+    # older choice of presenting data
+    # Slips = mean(c(Slips_Trial1, Slips_Trial2), na.rm = TRUE),
+    # Steps = mean(c(Steps_Trial1, Steps_Trial2), na.rm = TRUE),
+    slips_over_steps = Slips/Steps)
+
+additional_variables.df <- purrr::reduce(motor_gi_symptoms.list, dplyr::full_join, by = "mouse_id")
+
+# incorporate these columns into the colData of the input
+new_df <- DataFrame(dplyr::left_join(as.data.frame(colData(MetaPhlAn.tse)), additional_variables.df, by = "mouse_id"))
+rownames(new_df) <- new_df$uuid
+
+colData(MetaPhlAn.tse) <- new_df
+```
+
+### Mediation analysis of bead expulsion
+
+```{r}
+library(mediation)
+set.seed(1234)
+
+mediationData.df <- cbind.data.frame(
+  as.data.frame(colData(MetaPhlAn.tse)), 
+as.data.frame(reducedDim(MetaPhlAn.tse, dimRedName))) %>% 
+  dplyr::rename(
+    PCo.1 = V1, 
+    PCo.2 = V2,
+    PCo.3 = V3
+    ) %>% 
+  filter(
+    # remove NAs from covariates of interest
+    complete.cases(dplyr::select(., contains("PCo"), genotype_treatment, bead_expulsion_min)), 
+    # remove WT Control and use ASO control as baseline
+    genotype_treatment != "WT Control"
+    ) %>% 
+  mutate(
+    treatment = droplevels(treatment)
+  )
+
+# make 3 mediation analyses as list, one per Principal Component
+mediations_Princ.Coord <- sapply(grepv("PCo", colnames(mediationData.df)), function(x) {
+  # Model 1 - Effect of exposure on mediator
+  mediation.lm <- lm(as.formula(paste(x, "treatment", sep = "~")), data = mediationData.df)
+  # Model 2 - Effect of exposure on outcome (Total effect)
+  outcome.lm <- lm(as.formula(paste("bead_expulsion_min ~ treatment",  x, sep = "+")), data = mediationData.df)
+  # Model 3 - Meidation analysis
+  mediation_analysis = mediate(
+        model.m = mediation.lm,
+        model.y = outcome.lm,
+        sims = 1000,
+        treat = "treatment",
+        mediator = x,
+        boot = FALSE,
+        robustSE = TRUE
+      )
+  # return all 3 models for completeness
+  
+  return(
+    list(
+      mediator.lm = mediation.lm,
+      outcome.lm = outcome.lm,
+      mediation_analysis = mediation_analysis
+    )
+  )
+}, simplify = FALSE, USE.NAMES=TRUE)
+
+data_as_long_table_bead_expulsion <- mediations_Princ.Coord %>% 
+  lapply("[[", "mediation_analysis") %>% 
+  lapply(tidy_mediation) %>% 
+  bind_rows(.id = "PCo") %>% 
+  mutate(Exposure = "Bead Expulsion (min)")
+
+```
+
+### Mediation analysis of Errors/steps
+
+```{r}
+library(mediation)
+set.seed(1234)
+
+mediationData.df <- cbind.data.frame(
+  as.data.frame(colData(MetaPhlAn.tse)), 
+as.data.frame(reducedDim(MetaPhlAn.tse, dimRedName))) %>% 
+  dplyr::rename(
+    PCo.1 = V1, 
+    PCo.2 = V2,
+    PCo.3 = V3
+    ) %>% 
+  filter(
+    # remove NAs from covariates of interest
+    complete.cases(dplyr::select(., contains("PCo"), genotype_treatment, slips_over_steps)), 
+    # remove WT Control and use ASO control as baseline
+    genotype_treatment != "WT Control"
+    ) %>% 
+  mutate(
+    treatment = droplevels(treatment)
+  )
+
+# make 3 mediation analyses as list, one per Principal Component
+mediations_Princ.Coord <- sapply(grepv("PCo", colnames(mediationData.df)), function(x) {
+  # Model 1 - Effect of exposure on mediator
+  mediation.lm <- lm(as.formula(paste(x, "treatment", sep = "~")), data = mediationData.df)
+  # Model 2 - Effect of exposure on outcome (Total effect)
+  outcome.lm <- lm(as.formula(paste("slips_over_steps ~ treatment",  x, sep = "+")), data = mediationData.df)
+  # Model 3 - Meidation analysis
+  mediation_analysis = mediate(
+        model.m = mediation.lm,
+        model.y = outcome.lm,
+        sims = 1000,
+        treat = "treatment",
+        mediator = x,
+        boot = FALSE,
+        robustSE = TRUE
+      )
+  # return all 3 models for completeness
+  
+  return(
+    list(
+      mediator.lm = mediation.lm,
+      outcome.lm = outcome.lm,
+      mediation_analysis = mediation_analysis
+    )
+  )
+}, simplify = FALSE, USE.NAMES=TRUE)
+
+data_as_long_table_slips_over_steps <- mediations_Princ.Coord %>% 
+  lapply("[[", "mediation_analysis") %>% 
+  lapply(tidy_mediation) %>% 
+  bind_rows(.id = "PCo") %>% 
+  mutate(Exposure = "Beam Traversal - Errors/Steps")
+```
+
+### Panel E plot generation
+
+```{r}
+data_as_long_table_for_horizPlot <- rbind.data.frame(data_as_long_table_slips_over_steps,data_as_long_table_bead_expulsion) %>% 
+  mutate(
+    PCo = factor(PCo, levels = sort(unique(data_as_long_table_slips_over_steps$PCo), decreasing = TRUE)),
+    Effect = factor(Effect, levels = sort(unique(Effect), decreasing = TRUE))
+         )
+```
+
+```{r}
+panelE_mediation_motor_GI_symptoms <- ggplot(data_as_long_table_for_horizPlot, aes(x = Estimate, y = Effect, color = PCo, shape = P.value < 0.05)) + 
+  geom_vline(xintercept = 0, lty = "dashed", color = "darkgray") + 
+  geom_errorbar(aes(xmin = CI_Lower_95, xmax = CI_Upper_95, y = Effect, color = PCo), position = position_dodge(width = 0.5, preserve = "total"), width = 0, show.legend = FALSE) + 
+  geom_point(position = position_dodge(width = 0.5, preserve = "total"), size = 4) + 
+  scale_shape_manual(values = c(1,19)) +
+  facet_nested(cols = vars(Exposure), scales = "free_x") +
+  scale_color_manual(values = c("darksalmon", "brown3", "brown4"), labels = c("PCo 3", "PCo 2", "PCo 1")) +
+  guides(color = guide_legend(reverse = TRUE), shape = "none") +
+  theme(
+    panel.spacing.x = unit(0, "lines"),
+    strip.background.x = element_rect(fill = "white", colour = "gray40", linewidth = unit(0.8, "mm")), 
+    strip.text = element_text(color = "black"), 
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 12)
+    ) +
+  labs(
+    color = NULL,
+    y = NULL,
+    x = expression(beta~Estimate)
+    )
+
+panelE_mediation_motor_GI_symptoms
+
+panelE_mediation_motor_GI_symptoms_shorterLabels <- panelE_mediation_motor_GI_symptoms + scale_y_discrete(labels = function(x) gsub("Average\\ |Causal\\ ", "", x))
+  
+
+```
+
+## Arrange panels and save figure
+
+```{r, fig.height=8, fig.width=12}
+
+panel_A_legend <- get_legend(panelA_stackplot + guides(fill = guide_legend(nrow = 2, title = "Phylum", position = "top")))
+
+Microbiome_Main_Figure <- ggarrange(
+
+  ggarrange(
+    panelA_stackplot + guides(fill = guide_legend(title = "Phylum")) + labs(y = "Relative Abundance", x = "Mouse") + theme(axis.title = element_text(size = 12)), 
+    panelB_PCoA + theme(axis.title = element_text(size = 12)), 
+    common.legend = TRUE, widths = c(1, 1), legend = "top", labels = c("A", "B")),
+    
+    ggarrange(
+      panelC_pairwise_dissim_boxplot_horiz  + theme(axis.title = element_text(size = 12), axis.text = element_text(size = 9)),
+      ggarrange(
+        get_legend(panelB_PCoA + guides(color = guide_legend(ncol = 1, position = "right"))),
+        ggplot() + theme_void(), nrow = 2, heights = c(1, 0.35)
+        ), 
+      
+      nrow = 1, widths = c(1,0.2), labels = c("C", "")
+      ),
+  
+  ggarrange(
+  ggarrange(
+    ggplot() + theme_void(),
+    panelD_diffAbund2 + 
+    coord_flip() + 
+    theme(axis.text.x = element_markdown(angle = 90, hjust = 1, vjust = 0.5), axis.title = element_text(hjust = 1),
+          legend.position = "none") + 
+    labs(x = expression(log[2]~Fold~Change), y = NULL) + 
+    theme(axis.title = element_text(size = 12)),
+    panelE_mediation_motor_GI_symptoms_shorterLabels + theme(legend.position = "bottom"), 
+    widths = c(0.05, 0.85, 1), nrow = 1, labels = c("D", "",  "E")
+    ),
+  get_legend(panelD_diffAbund2 + theme(legend.position = "bottom", legend.text = element_text(size = 10), legend.title = element_text(size = 12))), nrow = 2,
+  heights = c(1, 0.2)
+  ),
+  
+  nrow = 3, 
+  heights = c(1, 0.25, 1)
+  )
+
+sapply(c("png", "svg", "pdf"), function(fmt)
+ggsave(plot = Microbiome_Main_Figure, filename = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Main_Microbiome_Figure.%s", fmt)), width = 11, height = 13, bg = "white")
+)
+```
+
+# Supplementary Figure `r SuppFigIndex` - alpha and F/B ratios vs genotype treatment
+
+```{r}
+alpha_data.df <- MetaPhlAn.tse %>%
+  colData() %>%
+  as.data.frame() %>% 
+  dplyr::rename(
+    `Shannon Diversity` = shannon_diversity,
+    `Observed Richness` = observed_richness
+  )
+
+comparisons <- combn(levels(alpha_data.df$genotype_treatment_legend), 2, simplify = FALSE)
+```
+
+## A - Observed Richness
+
+```{r}
+anova_test <- broom::tidy(aov(`Observed Richness` ~ genotype_treatment, data = alpha_data.df)) %>% 
+  as.data.frame()
+  
+anova_test.text <- sprintf("ANOVA: df = %i, F = %.3f, P = %.4f", anova_test[1,"df"],
+                             anova_test[1,"statistic"], anova_test[1,"p.value"])
+
+panelA_Obs_boxplot <- alpha_data.df %>% 
+  ggplot(aes(x = genotype_treatment_legend, y = `Observed Richness`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = overall_color_palette) +
+  scale_fill_manual(values = overall_color_palette) +
+  # stat_pvalue_manual(stats_obs, label = "p.adj.round3", tip.length = 0.01) + 
+  theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
+  labs(
+    x = NULL,
+    color = "Genotype and Treatment",
+    fill = "Genotype and Treatment",
+    caption = anova_test.text)
+```
+
+## B - Shannon Diversity
+
+```{r}
+anova_test <- broom::tidy(aov(`Shannon Diversity` ~ genotype_treatment, data = alpha_data.df)) %>% 
+  as.data.frame()
+
+anova_test.text <- sprintf("ANOVA: df = %i, F = %.3f, P = %.4f", anova_test[1,"df"],
+                             anova_test[1,"statistic"], anova_test[1,"p.value"])
+
+panelB_Shannon_boxplot <- alpha_data.df %>% 
+  ggplot(aes(x = genotype_treatment_legend, y = `Shannon Diversity`, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = overall_color_palette) +
+  scale_fill_manual(values = overall_color_palette) +
+  # stat_pvalue_manual(stats_shannon, label = "p.adj.round3", tip.length = 0.01) + 
+  theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
+  labs(
+    x = NULL,
+    color = "Genotype and Treatment",
+    fill = "Genotype and Treatment",
+    caption = anova_test.text
+  )
+```
+
+## C - Firmicutes/Bacteroidetes Ratio
+
+```{r}
+assayextractedPhylum <- assay(agglomerateByRank(MetaPhlAn.tse, "phylum"), params$assayTested)
+MetaPhlAn.tse$FB.Ratio <- assayextractedPhylum["p__Firmicutes",]/assayextractedPhylum["p__Bacteroidota",]
+
+anova_test <- broom::tidy(aov(FB.Ratio ~ genotype_treatment, data = colData(MetaPhlAn.tse))) %>% 
+  as.data.frame()
+
+anova_test.text <- sprintf("ANOVA: df = %i, F = %.3f, P = %.4f", anova_test[1,"df"],
+                             anova_test[1,"statistic"], anova_test[1,"p.value"])
+
+panelF_FB.Ratio.df <- colData(MetaPhlAn.tse) %>% 
+  as.data.frame() %>% 
+  dplyr::select(genotype_treatment, genotype_treatment_legend, FB.Ratio)
+
+panelC_FB.Ratio <- panelF_FB.Ratio.df %>% 
+  ggplot(aes(x = genotype_treatment_legend, y = FB.Ratio, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
+  geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
+  geom_point(color = "black", stroke = 1.1, position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  geom_point(position= position_jitterdodge(jitter.width = 0.5, seed = 1234)) + 
+  scale_color_manual(values = overall_color_palette) +
+  scale_fill_manual(values = overall_color_palette) +
+  # stat_pvalue_manual(stats_fbrartio, label = "p.adj.round3", tip.length = 0.01) + 
+  theme(axis.text.x = element_blank(), legend.text = element_markdown()) +
+  labs(
+    x = NULL,
+    y = "Firmicutes/Bacteroidetes Ratio",
+    color = "Genotype and Treatment",
+    fill = "Genotype and Treatment",
+    caption = anova_test.text)
+
+```
+
+## Arrange panels and save figure
+
+```{r}
+microbiome_panel_Supplementary <- ggarrange(
+    panelA_Obs_boxplot + theme(axis.ticks.x = element_blank()) + scale_y_continuous(expand = expansion(mult = 0.08)),
+    panelB_Shannon_boxplot + theme(axis.ticks.x = element_blank()) + scale_y_continuous(expand = expansion(mult = 0.08)),
+    panelC_FB.Ratio + theme(axis.ticks.x = element_blank()) + scale_y_continuous(expand = expansion(mult = 0.08)),
+    nrow = 1, labels = c("A", "B", "C"), 
+common.legend = TRUE)
+
+sapply(c("png", "svg", "pdf"), function(fmt)
+ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Figure %i - alpha diversities and FB Ratio.%s", SuppFigIndex, fmt)), width = 10, height = 4)
+)
+SuppFigIndex <- sum(SuppFigIndex, 1)
+
+microbiome_panel_Supplementary
+```
+
+# Supplementary Figure `r SuppFigIndex` - Distribution of motor and GI symptoms
+
+```{r}
+is_boxplot_outlier <- function(x) {
+  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
+}
+
+pole_descent_boxplot <- colData(MetaPhlAn.tse) %>% 
+  as.data.frame() %>% 
+  filter(!is.na(slips_over_steps)) %>% 
+  group_by(genotype_treatment) %>% 
+  mutate(outlier = ifelse(is_boxplot_outlier(slips_over_steps), mouse_id, NA)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = genotype_treatment, y = slips_over_steps, color = genotype_treatment)) + 
+  geom_boxplot(show.legend = FALSE) + 
+  ggbeeswarm::geom_beeswarm(cex = 2, dodge.width = 0.5) +
+  ggrepel::geom_label_repel(aes(label = outlier), hjust = - 0.1, show.legend = FALSE) +
+  scale_color_manual(values = overall_color_palette, aesthetics = "color") +
+  theme(axis.text.x = element_blank()) +
+  labs(
+    x = NULL,
+    y = "Time to descend pole (s)",
+    color = "Genotype and Age"
+  )
+
+bead_expulsion_boxplot <- colData(MetaPhlAn.tse) %>% 
+  as.data.frame() %>% 
+  filter(!is.na(bead_expulsion_min)) %>% 
+  group_by(genotype_treatment) %>% 
+  mutate(outlier = ifelse(is_boxplot_outlier(bead_expulsion_min), mouse_id, NA)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = genotype_treatment, y = bead_expulsion_min, color = genotype_treatment)) + 
+  geom_boxplot(show.legend = FALSE) + 
+  ggbeeswarm::geom_beeswarm(cex = 2, dodge.width = 0.5) +
+  ggrepel::geom_label_repel(aes(label = outlier), hjust = - 0.1, show.legend = FALSE) +
+  scale_color_manual(values = overall_color_palette, aesthetics = "color") +
+  theme(axis.text.x = element_blank()) +
+  labs(
+    x = NULL,
+    y = "Time to descend pole (s)",
+    color = "Genotype and Age"
+  )
+
+motor_gi_plots <- ggarrange(pole_descent_boxplot, bead_expulsion_boxplot, common.legend = TRUE)
+
+sapply(c("png", "svg", "pdf"), function(fmt)
+ggsave(plot = motor_gi_plots, filename = sprintf(
+      "%s/%s/Supplementary Figure %i - Motor and GI performance plots vs genotype and age.%s",
+      params$basic_outdir,
+      params$microbiome_data_type,
+      SuppFigIndex,
+      fmt
+    ),
+    height = 5.5,
+    width = 10,
+    dpi = 600, 
+    bg = "white"
+  )
+) %>% invisible()
+```
+
+# Supplementary Tables
+
+## Supplementary Table `r SuppTabIndex` - Genome Taxonomy Database of the SGBs in the study
+
+```{r}
+taxaNames_no_UN_no_Prefix <- gsub("t__", "", rownames(MetaPhlAn.tse)) %>% 
+  .[!grepl("^UN", .)]
+
+GTDB.df[match(taxaNames_no_UN_no_Prefix, GTDB.df$SGB),] %>% 
+  write_tsv(file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - GTDB taxonomy of the SGBs in the study.tsv", SuppTabIndex)))
+
+SuppTabIndex <- SuppTabIndex + 1
+```
+
+## Supplementary Table `r SuppTabIndex` - PERMANOVA relative to Main Figure Panel B
+
+```{r}
+MetaPhlAn.tse <- addPERMANOVA(MetaPhlAn.tse, 
+             formula = x ~ genotype_treatment, 
+             assay.type = params$assayTested,
+             method = params$beta_dist,
+             permutations = 9999, 
+             by = "margin")
+
+permanova_table.df <- PERMANOVA_to_table(MetaPhlAn.tse)
+
+write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - PERMANOVA of %s distance  relative to Main Figure panel B.tsv", SuppTabIndex, params$beta_dist)))
+
+SuppTabIndex <- SuppTabIndex  + 1
+```
+
+## Supplementary table `r SuppTabIndex` - Pairwise PERMANOVA statistics related to Main Figure Panel C
+
+```{r}
+write_tsv(pairwise_adonis_stats, file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - pairwise PERMANOVA of %s distance  relative to Main Figure panel C.tsv", SuppTabIndex, params$beta_dist)))
+
+SuppTabIndex <- SuppTabIndex  + 1
+```
+
+## Supplementary table `r SuppTabIndex` - Full Differential abundance analysis results
+
+```{r}
+file.copy(from = file.path(params$basic_outdir, params$microbiome_data_type, maaslin3_expmt, "all_results.tsv"), to = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - MaAsLin3 Differential abundance analysis ASO_Treated vs ASO_Control.tsv", SuppTabIndex)))
+
+SuppTabIndex <- sum(SuppTabIndex, 1)
+```
+
+## Supplementary table `r SuppTabIndex` - Mediation analysis on bead expulsion related to Main Figure panel E
+
+```{r}
+write_tsv(data_as_long_table_bead_expulsion, file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - Mediation analysis on bead expulsion against PCo 1,2,3.tsv", SuppTabIndex)))
+
+SuppTabIndex <- sum(SuppTabIndex, 1)
+```
+
+## Supplementary table `r SuppTabIndex` - Mediation analysis on slips.over.steps ratio related to Main Figure panel E
+
+```{r}
+write_tsv(data_as_long_table_bead_expulsion, file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - Mediation analysis on slips.over.steps ratio against PCo 1,2,3.tsv", SuppTabIndex)))
+
+SuppTabIndex <- sum(SuppTabIndex, 1)
+```
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
+
+  
