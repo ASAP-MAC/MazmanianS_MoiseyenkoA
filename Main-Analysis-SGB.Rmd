@@ -58,7 +58,11 @@ library(ggConvexHull) # for convex hulls geometries
 theme_set(theme_light())
 # set seed for reproducibility
 set.seed(1234)
+# bugsigdb packages
+library(bugsigdbr)
+library(bugSigSimple)
 
+# utility functions for biobakery and other microbiome analyses
 library(biobakeryUtils)
 ###################################################################
 # pairwise PERMANOVA source code
@@ -750,11 +754,6 @@ comparisons <- combn(levels(alpha_data.df$genotype_treatment_legend), 2, simplif
 ## A - Observed Richness
 
 ```{r}
-stats_obs <- rstatix::pairwise_wilcox_test(alpha_data.df, formula = `Observed Richness` ~ genotype_treatment,p.adjust.method =  "BH") %>% 
-  mutate(group2 = gsub("F. prausnitzii", "*F. prausnitzii*", group2),
-         p.adj.round3 = round(p.adj, 3)) %>% 
-  rstatix::add_y_position(step.increase = 0.5)
-
 anova_test <- broom::tidy(aov(`Observed Richness` ~ genotype_treatment, data = alpha_data.df)) %>% 
   as.data.frame()
   
@@ -780,11 +779,6 @@ panelA_Obs_boxplot <- alpha_data.df %>%
 ## B - Shannon Diversity
 
 ```{r}
-stats_shannon <- rstatix::pairwise_wilcox_test(alpha_data.df, formula = `Shannon Diversity` ~ genotype_treatment, p.adjust.method =  "BH") %>% 
-  mutate(group2 = gsub("F. prausnitzii", "*F. prausnitzii*", group2),
-         p.adj.round3 = round(p.adj, 3)) %>% 
-  rstatix::add_y_position(step.increase = 0.5)
-
 anova_test <- broom::tidy(aov(`Shannon Diversity` ~ genotype_treatment, data = alpha_data.df)) %>% 
   as.data.frame()
 
@@ -823,12 +817,6 @@ panelF_FB.Ratio.df <- colData(MetaPhlAn.tse) %>%
   as.data.frame() %>% 
   dplyr::select(genotype_treatment, genotype_treatment_legend, FB.Ratio)
 
-stats_fbrartio <- rstatix::pairwise_wilcox_test(panelF_FB.Ratio.df, formula = FB.Ratio ~ genotype_treatment, p.adjust.method =  "BH") %>% 
-  mutate(group2 = gsub("F. prausnitzii", "*F. prausnitzii*", group2),
-         p.adj.round3 = round(p.adj, 3)) %>% 
-  rstatix::add_y_position(step.increase = 0.5)
-
-
 panelC_FB.Ratio <- panelF_FB.Ratio.df %>% 
   ggplot(aes(x = genotype_treatment_legend, y = FB.Ratio, color = genotype_treatment_legend, fill = genotype_treatment_legend)) + 
   geom_boxplot(outliers = FALSE, show.legend = FALSE, color = "black", alpha = 0.4) + 
@@ -858,7 +846,7 @@ microbiome_panel_Supplementary <- ggarrange(
 common.legend = TRUE)
 
 sapply(c("png", "svg", "pdf"), function(fmt)
-ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Figure %i - alpha diversities and FB Ratio.%s", SuppFigIndex, fmt)), width = 10, height = 4)
+ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Figure %i - Alpha richness, diversity and FB Ratio.%s", SuppFigIndex, fmt)), width = 10, height = 4)
 )
 SuppFigIndex <- sum(SuppFigIndex, 1)
 
@@ -867,14 +855,38 @@ microbiome_panel_Supplementary
 
 # Supplementary Tables
 
-## Supplementary Table `r SuppTabIndex` - Genome Taxonomy Database of the SGBs in the study
+## Supplementary Table `r SuppTabIndex` - BugSigDB Parkinson gut microbiome siganture across studies
 
 ```{r}
-taxaNames_no_UN_no_Prefix <- gsub("t__", "", rownames(MetaPhlAn.tse)) %>% 
-  .[!grepl("^UN", .)]
+host <- "Homo sapiens"
 
-GTDB.df[match(taxaNames_no_UN_no_Prefix, GTDB.df$SGB),] %>% 
-  write_tsv(file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - GTDB taxonomy of the SGBs in the study.tsv", SuppTabIndex)))
+bsdb <- importBugSigDB(version = "devel", cache=FALSE)
+
+bsdb_PD_signatures_allMethods <- filter(bsdb, 
+       # get studies/signatures on Parkinson alone
+       grepl("Parkinson's disease", Condition),
+       # restrict search to Homo sapiens
+       `Host species` == "Homo sapiens"
+       ) %>% 
+  # fix taxa names in case k__ is duplicated because of some weird
+  # changes found on May 20 2025
+  mutate(
+    `MetaPhlAn taxon names` = lapply(`MetaPhlAn taxon names`, function(x) gsub("|k__", "_", x = x, fixed = TRUE))
+  )
+
+# fix typo of feces,blood
+
+bsdb_PD_signatures_allMethods <- mutate(bsdb_PD_signatures_allMethods,
+                                        `Body site` = ifelse(`Body site` == "Feces,Blood", "Blood,Feces", `Body site`))
+
+bsdb_PD_signatures_allMethods_onlyFeces <- filter(bsdb_PD_signatures_allMethods, `Body site` == "Feces")
+
+top50_bugsigdb_PD_taxa <- createTaxonTable(bsdb_PD_signatures_allMethods_onlyFeces, n = 50) %>% 
+  filter(`Taxonomic Level` %in% c("genus", "species")) %>% 
+  arrange(`Binomial Test pval`) %>% 
+  dplyr::select(`Taxon Name`:`Binomial Test pval`, metaphlan_name)
+
+write_tsv(top50_bugsigdb_PD_taxa, file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - BugSigDB Parkinson disease signature as of %s.tsv", SuppTabIndex, Sys.Date())))
 
 SuppTabIndex <- SuppTabIndex + 1
 ```
@@ -902,6 +914,18 @@ SuppTabIndex <- SuppTabIndex  + 1
 write_tsv(pairwise_adonis_stats, file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - pairwise PERMANOVA of %s distance  relative to Main Figure panel C.tsv", SuppTabIndex, params$beta_dist)))
 
 SuppTabIndex <- SuppTabIndex  + 1
+```
+
+## Supplementary Table `r SuppTabIndex` - Genome Taxonomy Database of the SGBs in the study
+
+```{r}
+taxaNames_no_UN_no_Prefix <- gsub("t__", "", rownames(MetaPhlAn.tse)) %>% 
+  .[!grepl("^UN", .)]
+
+GTDB.df[match(taxaNames_no_UN_no_Prefix, GTDB.df$SGB),] %>% 
+  write_tsv(file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - GTDB taxonomy of the SGBs in the study.tsv", SuppTabIndex)))
+
+SuppTabIndex <- SuppTabIndex + 1
 ```
 
 ## Supplementary table `r SuppTabIndex` - Full Differential abundance analysis results

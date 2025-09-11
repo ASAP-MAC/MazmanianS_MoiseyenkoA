@@ -58,7 +58,11 @@ library(ggConvexHull) # for convex hulls geometries
 theme_set(theme_light())
 # set seed for reproducibility
 set.seed(1234)
+# bugsigdb packages
+library(bugsigdbr)
+library(bugSigSimple)
 
+# utility functions for biobakery and other microbiome analyses
 library(biobakeryUtils)
 ###################################################################
 # pairwise PERMANOVA source code
@@ -775,6 +779,7 @@ panelA_Obs_boxplot <- alpha_data.df %>%
 ## B - Shannon Diversity
 
 ```{r}
+
 anova_test <- broom::tidy(aov(`Shannon Diversity` ~ genotype_treatment, data = alpha_data.df)) %>% 
   as.data.frame()
 
@@ -806,7 +811,6 @@ MetaPhlAn.tse$FB.Ratio <- assayextractedPhylum["p__Firmicutes",]/assayextractedP
 
 anova_test <- broom::tidy(aov(FB.Ratio ~ genotype_treatment, data = colData(MetaPhlAn.tse))) %>% 
   as.data.frame()
-
 anova_test.text <- sprintf("ANOVA: df = %i, F = %.3f, P = %.4f", anova_test[1,"df"],
                              anova_test[1,"statistic"], anova_test[1,"p.value"])
 
@@ -843,84 +847,47 @@ microbiome_panel_Supplementary <- ggarrange(
 common.legend = TRUE)
 
 sapply(c("png", "svg", "pdf"), function(fmt)
-ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Figure %i - alpha diversities and FB Ratio.%s", SuppFigIndex, fmt)), width = 10, height = 4)
+ggsave(plot = microbiome_panel_Supplementary, filename = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Figure %i - Alpha richness, diversity and FB Ratio.%s", SuppFigIndex, fmt)), width = 10, height = 4)
 )
 SuppFigIndex <- sum(SuppFigIndex, 1)
 
 microbiome_panel_Supplementary
 ```
 
-# Supplementary Figure `r SuppFigIndex` - Distribution of motor and GI symptoms
-
-```{r}
-is_boxplot_outlier <- function(x) {
-  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
-}
-
-pole_descent_boxplot <- colData(MetaPhlAn.tse) %>% 
-  as.data.frame() %>% 
-  filter(!is.na(slips_over_steps)) %>% 
-  group_by(genotype_treatment) %>% 
-  mutate(outlier = ifelse(is_boxplot_outlier(slips_over_steps), mouse_id, NA)) %>% 
-  ungroup() %>% 
-  ggplot(aes(x = genotype_treatment, y = slips_over_steps, color = genotype_treatment)) + 
-  geom_boxplot(show.legend = FALSE) + 
-  ggbeeswarm::geom_beeswarm(cex = 2, dodge.width = 0.5) +
-  ggrepel::geom_label_repel(aes(label = outlier), hjust = - 0.1, show.legend = FALSE) +
-  scale_color_manual(values = overall_color_palette, aesthetics = "color") +
-  theme(axis.text.x = element_blank()) +
-  labs(
-    x = NULL,
-    y = "Time to descend pole (s)",
-    color = "Genotype and Age"
-  )
-
-bead_expulsion_boxplot <- colData(MetaPhlAn.tse) %>% 
-  as.data.frame() %>% 
-  filter(!is.na(bead_expulsion_min)) %>% 
-  group_by(genotype_treatment) %>% 
-  mutate(outlier = ifelse(is_boxplot_outlier(bead_expulsion_min), mouse_id, NA)) %>% 
-  ungroup() %>% 
-  ggplot(aes(x = genotype_treatment, y = bead_expulsion_min, color = genotype_treatment)) + 
-  geom_boxplot(show.legend = FALSE) + 
-  ggbeeswarm::geom_beeswarm(cex = 2, dodge.width = 0.5) +
-  ggrepel::geom_label_repel(aes(label = outlier), hjust = - 0.1, show.legend = FALSE) +
-  scale_color_manual(values = overall_color_palette, aesthetics = "color") +
-  theme(axis.text.x = element_blank()) +
-  labs(
-    x = NULL,
-    y = "Time to descend pole (s)",
-    color = "Genotype and Age"
-  )
-
-motor_gi_plots <- ggarrange(pole_descent_boxplot, bead_expulsion_boxplot, common.legend = TRUE)
-
-sapply(c("png", "svg", "pdf"), function(fmt)
-ggsave(plot = motor_gi_plots, filename = sprintf(
-      "%s/%s/Supplementary Figure %i - Motor and GI performance plots vs genotype and age.%s",
-      params$basic_outdir,
-      params$microbiome_data_type,
-      SuppFigIndex,
-      fmt
-    ),
-    height = 5.5,
-    width = 10,
-    dpi = 600, 
-    bg = "white"
-  )
-) %>% invisible()
-```
-
 # Supplementary Tables
 
-## Supplementary Table `r SuppTabIndex` - Genome Taxonomy Database of the SGBs in the study
+## Supplementary Table `r SuppTabIndex` - BugSigDB Parkinson gut microbiome siganture across studies
 
 ```{r}
-taxaNames_no_UN_no_Prefix <- gsub("t__", "", rownames(MetaPhlAn.tse)) %>% 
-  .[!grepl("^UN", .)]
+host <- "Homo sapiens"
 
-GTDB.df[match(taxaNames_no_UN_no_Prefix, GTDB.df$SGB),] %>% 
-  write_tsv(file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - GTDB taxonomy of the SGBs in the study.tsv", SuppTabIndex)))
+bsdb <- importBugSigDB(version = "devel", cache=FALSE)
+
+bsdb_PD_signatures_allMethods <- filter(bsdb, 
+       # get studies/signatures on Parkinson alone
+       grepl("Parkinson's disease", Condition),
+       # restrict search to Homo sapiens
+       `Host species` == "Homo sapiens"
+       ) %>% 
+  # fix taxa names in case k__ is duplicated because of some weird
+  # changes found on May 20 2025
+  mutate(
+    `MetaPhlAn taxon names` = lapply(`MetaPhlAn taxon names`, function(x) gsub("|k__", "_", x = x, fixed = TRUE))
+  )
+
+# fix typo of feces,blood
+
+bsdb_PD_signatures_allMethods <- mutate(bsdb_PD_signatures_allMethods,
+                                        `Body site` = ifelse(`Body site` == "Feces,Blood", "Blood,Feces", `Body site`))
+
+bsdb_PD_signatures_allMethods_onlyFeces <- filter(bsdb_PD_signatures_allMethods, `Body site` == "Feces")
+
+top50_bugsigdb_PD_taxa <- createTaxonTable(bsdb_PD_signatures_allMethods_onlyFeces, n = 50) %>% 
+  filter(`Taxonomic Level` %in% c("genus", "species")) %>% 
+  arrange(`Binomial Test pval`) %>% 
+  dplyr::select(`Taxon Name`:`Binomial Test pval`, metaphlan_name)
+
+write_tsv(top50_bugsigdb_PD_taxa, file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - BugSigDB Parkinson disease signature as of %s.tsv", SuppTabIndex, Sys.Date())))
 
 SuppTabIndex <- SuppTabIndex + 1
 ```
@@ -950,6 +917,18 @@ write_tsv(pairwise_adonis_stats, file.path(params$basic_outdir, params$microbiom
 SuppTabIndex <- SuppTabIndex  + 1
 ```
 
+## Supplementary Table `r SuppTabIndex` - Genome Taxonomy Database of the SGBs in the study
+
+```{r}
+taxaNames_no_UN_no_Prefix <- gsub("t__", "", rownames(MetaPhlAn.tse)) %>% 
+  .[!grepl("^UN", .)]
+
+GTDB.df[match(taxaNames_no_UN_no_Prefix, GTDB.df$SGB),] %>% 
+  write_tsv(file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - GTDB taxonomy of the SGBs in the study.tsv", SuppTabIndex)))
+
+SuppTabIndex <- SuppTabIndex + 1
+```
+
 ## Supplementary table `r SuppTabIndex` - Full Differential abundance analysis results
 
 ```{r}
@@ -976,6 +955,11 @@ SuppTabIndex <- sum(SuppTabIndex, 1)
 
 # Session Info
 
+```{r}
+sessionInfo()
+```
+
+  
 ```{r}
 sessionInfo()
 ```
