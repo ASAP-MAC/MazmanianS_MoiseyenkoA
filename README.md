@@ -1,13 +1,5 @@
- - [OneDrive link to data and results](https://cuny907-my.sharepoint.com/:f:/g/personal/giacomo_antonello53_login_cuny_edu/EqYK-hqjR19Eg86ruPfCmDUBfJQDmHs1pOVXIozT3el-OA?e=l2DHdg)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17128213.svg)](https://doi.org/10.5281/zenodo.17128213) [SRA BioProject: PRJNA1259538](https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA1259538)
 
- - Zenodo link, once available
- 
- - SRA: PRJNA1259538
- 
- - preprint link, once available
- 
- - paper link, once available
- 
 # *Faecalibacterium prausnitzii*, depleted in the Parkinson’s disease microbiome, improves motor deficits in $\alpha$-synuclein overexpressing mice
 
 Anastasiya Moiseyenko, Giacomo Antonello, Aubrey M. Schonhoff, Joseph C. Boktor, Kaelyn Long, Blake Dirks, Anastasiya D. Oguienko, Alexander Viloria Winnett, Patrick Simpson, Dorsa Daeizadeh, Rustem F. Ismagilov, Rosa Krajmalnik-Brown, Nicola Segata, Levi D. Waldron, and Sarkis K. Mazmanian
