@@ -908,7 +908,7 @@ write_tsv(permanova_table.df, file = file.path(params$basic_outdir, params$micro
 SuppTabIndex <- SuppTabIndex  + 1
 ```
 
-## Supplementary table `r SuppTabIndex` - Pairwise PERMANOVA statistics related to Main Figure Panel C
+## Supplementary Table `r SuppTabIndex` - Pairwise PERMANOVA statistics related to Main Figure Panel C
 
 ```{r}
 write_tsv(pairwise_adonis_stats, file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - pairwise PERMANOVA of %s distance  relative to Main Figure panel C.tsv", SuppTabIndex, params$beta_dist)))
@@ -928,7 +928,7 @@ GTDB.df[match(taxaNames_no_UN_no_Prefix, GTDB.df$SGB),] %>%
 SuppTabIndex <- SuppTabIndex + 1
 ```
 
-## Supplementary table `r SuppTabIndex` - Full Differential abundance analysis results
+## Supplementary Table `r SuppTabIndex` - Full Differential abundance analysis results
 
 ```{r}
 file.copy(from = file.path(params$basic_outdir, params$microbiome_data_type, maaslin3_expmt, "all_results.tsv"), to = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - MaAsLin3 Differential abundance analysis ASO_Treated vs ASO_Control.tsv", SuppTabIndex)))
@@ -936,7 +936,7 @@ file.copy(from = file.path(params$basic_outdir, params$microbiome_data_type, maa
 SuppTabIndex <- sum(SuppTabIndex, 1)
 ```
 
-## Supplementary table `r SuppTabIndex` - Mediation analysis on bead expulsion related to Main Figure panel E
+## Supplementary Table `r SuppTabIndex` - Mediation analysis on bead expulsion related to Main Figure panel E
 
 ```{r}
 write_tsv(data_as_long_table_bead_expulsion, file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - Mediation analysis on bead expulsion against PCo 1,2,3.tsv", SuppTabIndex)))
@@ -944,7 +944,7 @@ write_tsv(data_as_long_table_bead_expulsion, file = file.path(params$basic_outdi
 SuppTabIndex <- sum(SuppTabIndex, 1)
 ```
 
-## Supplementary table `r SuppTabIndex` - Mediation analysis on slips.over.steps ratio related to Main Figure panel E
+## Supplementary Table `r SuppTabIndex` - Mediation analysis on slips.over.steps ratio related to Main Figure panel E
 
 ```{r}
 write_tsv(data_as_long_table_bead_expulsion, file = file.path(params$basic_outdir, params$microbiome_data_type, sprintf("Supplementary Table %i - Mediation analysis on slips.over.steps ratio against PCo 1,2,3.tsv", SuppTabIndex)))
