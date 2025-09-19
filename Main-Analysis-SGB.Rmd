@@ -25,7 +25,7 @@ output:
     highlight: haddock
 params:
   basic_outdir: "results"
-  assayTested: "metaphlan_RelAbund"
+  assayTested: "relabundance"
   microbiome_data_type: "SGB"
   beta_dist: "bray"
   beta_MDS: "MDS"
@@ -245,7 +245,7 @@ table_results.df %>%
 panelA_stackplot <- plotAbundance(
   x = MetaPhlAn.tse,
   assay.type = params$assayTested, 
-  group = "phylum") + 
+  group = "Phylum") + 
   facet_grid(cols = vars(genotype_treatment_legend), scales = "free_x") + 
   theme_light() +
   scale_x_discrete(labels = "x") +
@@ -805,7 +805,7 @@ panelB_Shannon_boxplot <- alpha_data.df %>%
 ## C - Firmicutes/Bacteroidetes Ratio
 
 ```{r}
-assayextractedPhylum <- assay(agglomerateByRank(MetaPhlAn.tse, "phylum"), params$assayTested)
+assayextractedPhylum <- assay(agglomerateByRank(MetaPhlAn.tse, "Phylum"), params$assayTested)
 MetaPhlAn.tse$FB.Ratio <- assayextractedPhylum["p__Firmicutes",]/assayextractedPhylum["p__Bacteroidota",]
 
 anova_test <- broom::tidy(aov(FB.Ratio ~ genotype_treatment, data = colData(MetaPhlAn.tse))) %>% 
