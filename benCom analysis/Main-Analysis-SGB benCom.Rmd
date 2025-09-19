@@ -25,7 +25,7 @@ output:
     highlight: haddock
 params:
   basic_outdir: "results"
-  assayTested: "metaphlan_RelAbund"
+  assayTested: "relabundance"
   microbiome_data_type: "SGB"
   beta_dist: "bray"
   beta_MDS: "MDS"
